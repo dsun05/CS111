@@ -13,20 +13,25 @@ A process is a fundamental abstraction provided by the operating system. It is t
 
 State refers to the data that describes the current condition of a persistent object, distinguishing it from other objects of the same type.
 
-* **Definition:** All persistent objects (objects that exist for a duration of time) have a state. This state characterizes the object's current condition. The state of an object is not static and changes over time.
-* **Representation:** The state of any object in a computer can be represented as a set of bits. This is significant because it means the state can be saved (by copying the bits) and restored later, effectively recreating the object's exact condition.
+* **Definition:** All persistent objects (objects that exist for a duration of time) have a state. This state characterizes the object's current condition and distinguishes it from other objects of the same type. The state of an object is not static and changes as the object is used and operations are performed on it.
+* **Representation:** The state of any object in a computer can be represented as a set of bits. This is significant because it means the OS can save the state (by copying the bits) and restore it later, effectively recreating the object's exact condition. This is fundamental for operations like stopping and restarting a process.
 * **State Subsets:** For complex objects like processes, the total state can be divided into subsets used for specific purposes, such as a "scheduling state" which contains information relevant only to scheduling the process.
 
 ### Examples of OS Object State
 
-| Object Type      | State Example                                          |
-| ---------------- | ------------------------------------------------------ |
-| **Process** | Scheduling priority.                                   |
-| **Process** | The list of memory pages allocated to it.              |
+| Object Type | State Example |
+| --- | --- |
+| **Process** | Scheduling priority. |
+| **Process** | The list of memory pages allocated to it. |
 | **File** | The current pointer indicating the next read location. |
 | **I/O Operation**| The completion condition (e.g., has a message been sent?). |
 
-State for OS-managed objects is controlled by the OS. A user program must make a request to the operating system (a system call) to access or modify the state of these objects.
+### State Management
+
+The management of a process's state is a shared responsibility.
+
+* **OS-Managed State:** Most of a process's state is managed by the OS. This includes the process descriptor, open file lists, and allocated memory segments. A user program must make a request to the operating system (a system call) to access or modify the state of these OS-managed objects.
+* **Process-Managed State:** The process itself is responsible for the contents of its own private memory, specifically its stack and data (heap) segments. The process can read from and write to these areas directly. This means a program must be careful, as it has the ability to corrupt its own stack or heap.
 
 ## 3. The Process Address Space
 
@@ -36,11 +41,13 @@ A process's address space is the complete set of memory addresses that the proce
 
 There is a critical distinction between a program on disk and a running process in memory.
 
-| Feature         | Program                                                                                                                                                                                            | Process                                                                                                                                                                                                 |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Location** | On a persistent storage device like a disk or flash drive.                                                                                                                                         | In the computer's main memory (RAM).                                                                                                                                                                    |
-| **State** | Inert; it is not doing anything. It's just a collection of data.                                                                                                                                   | Active and running; its state is constantly changing as it executes instructions.                                                                                                                     |
-| **Structure** | Typically in an **Executable and Linkable Format (ELF)**. Contains an ELF header, compiled code sections, initialized data sections, and info sections like a **symbol table** (used for debugging). | Has an address space in RAM containing various segments like shared code, private data (heap), shared libraries, and a private stack.                                                                   |
+A **program** is a passive, executable file stored on a disk, such as in the **Executable and Linkable Format (ELF)**. This file is the output of a linkage editor and contains all the necessary components to run, organized into distinct sections.
+
+  * **ELF Header**: This identifies the file as executable and specifies the target **Instruction Set Architecture (ISA)**, ensuring the OS doesn't try to run an incompatible program.
+  * **Code and Data Sections**: These contain the compiled machine instructions and initialized global variables.
+  * **Symbol Table**: This is a metadata section that is not loaded into memory for execution. It maps source code names for variables and functions to their addresses, which is essential for debugging tools.
+
+A **process** is an active instance of a program running in memory. The OS creates a process by loading the program's code and data into a dedicated **address space** in RAM.
 
 ### Address Space Layout
 
@@ -49,8 +56,25 @@ The operating system has a strategy for arranging the different memory segments 
 * **Linux Process Layout:** A common strategy in Linux systems is to:
     * Place the **code segment** at the lowest addresses. The size of the code is static.
     * Place the **data segment (heap)** immediately after the code. The data segment *grows up* toward higher addresses as more memory is dynamically allocated.
-    * Place the **stack segment** at the highest end of the address space. The stack *grows down* toward lower addresses.
+    * Place the **stack segment** at the highest end of the address space. The stack *grows down* toward lower addresses as functions are called.
     * The OS ensures that the data segment and stack segment are not allowed to meet and overlap.
+ 
+```
++------------------+  <-- Highest Address
+|       Stack      |
+|  (grows down) V  |
+|                  |
+| (available memory) |
+|                  |
+|   ^ (grows up)   |
+|       Heap       |
++------------------+
+|   Initialized    |
+|       Data       |
++------------------+
+|       Code       |
++------------------+  <-- Lowest Address
+```
 
 ### Address Space Segments
 
