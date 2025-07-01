@@ -245,6 +245,8 @@ The API is a **source-level** interface designed for programmers. It defines the
 * **Purpose - Software Portability**: The primary goal of an API is to allow software to be portable across different hardware. A developer can write a program once using a standard API (like the Windows API or POSIX). That same source code can then be taken to different machines with different underlying Instruction Set Architectures (ISAs) and simply be **recompiled** to create a new, working binary for each machine.
 * **Audience**: Primarily for programmers.
 
+***
+
 ### 5.2 ABI (Application Binary Interface)
 
 The ABI is a **binary-level** interface that is specific to a hardware architecture and an operating system. It defines how a compiled program actually runs.
@@ -253,12 +255,16 @@ The ABI is a **binary-level** interface that is specific to a hardware architect
 * **Purpose - Binary Compatibility**: The goal of an ABI is to ensure that a single compiled program (a binary) can run on many different computers without needing to be changed or recompiled. As long as the computers share the same ABI (e.g., they are all x86-64 machines running the same version of Linux), the binary will work. This is what allows software vendors to distribute and sell executable files directly to customers.
 * **Audience**: Primarily for end-users, who benefit by being able to install and run software easily, without needing access to source code or compilers.
 
+***
+
 ### 5.3 Interface Stability
 
 Maintaining stable interfaces is critical for a successful operating system. If an OS update changes its interfaces, it can break all the software that depends on it.
 
 * **API Stability**: If the API changes, programmers can no longer compile their old source code against the new version of the OS. Their programs become incompatible, and they are forced to rewrite their code.
 * **ABI Stability**: If the ABI changes, existing compiled programs—the software already installed on users' machines—will simply stop working. This is even worse than an API change because it affects all users, not just developers. OS vendors like Microsoft invest heavily in ensuring their ABIs remain backward compatible for decades.
+
+***
 
 ### 5.4 The Danger of Side Effects
 
@@ -269,3 +275,5 @@ A **side effect** is an unofficial, undocumented behavior of an interface. It is
 * **Consequences**: When the side effect disappears, the program that relied on it breaks.
     * **Example**: In the past, some game developers would exploit undocumented side effects in graphics drivers to make their games run faster. When a new version of the operating system was released, these games would often crash because the underlying implementation had changed, and the side effect was gone.
 * **The Rule**: It is always a mistake for a programmer to rely on a side effect. Good system design aims to eliminate them entirely.
+
+---
