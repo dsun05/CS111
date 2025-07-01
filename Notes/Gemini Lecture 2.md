@@ -207,11 +207,33 @@ This is the primary method for an application to request a service that requires
       * **Inter-Process Communication**: Enables secure communication between isolated processes, which is managed by the OS.
   * **Disadvantages**:
       * **Speed**: System calls are significantly slower (100x to 1,000x) than subroutine calls due to the overhead of the context switch between user and kernel mode.
-  * **When to Use**: System calls are necessary for any operation involving:
-      * I/O with peripheral devices (disks, networks, etc.).
-      * Allocation of physical resources like memory.
-      * Managing processes and ensuring their privacy and containment.
-      * Handling interrupts.
+
+-----
+
+### 4.4 Providing Services via the Kernel
+
+The kernel is reserved for functions that absolutely require privilege to ensure the system's stability and security.
+
+  * **Core Kernel Functions**:
+      * Executing **privileged instructions** (e.g., handling interrupts, managing I/O devices).
+      * **Allocation of physical resources** like memory pages.
+      * Enforcing process **privacy and containment** to prevent processes from interfering with each other.
+      * Ensuring the **integrity of critical resources**, like process priority levels.
+  * **Kernel Plug-ins**: Not all kernel code is monolithic. Some components are modular **plug-ins** that are loaded only if needed on a particular machine. This keeps the kernel tailored to the specific hardware it's running on.
+      * **Device Drivers**: Code that controls a specific piece of hardware (e.g., a particular graphics card or network adapter). If you don't have the hardware, you don't need the driver loaded in your kernel.
+      * **File Systems & Network Protocols**: Different file system types (like ext4 or NTFS) or specialized network protocols can also be implemented as loadable kernel modules.
+
+-----
+
+### 4.5 System Services Outside the Kernel
+
+Not all system-level tasks need to run inside the privileged kernel. Many are "outsourced" to trusted user-space programs, often called **daemons** or **server processes**. These processes run without special kernel privileges but are trusted by the OS to perform their tasks correctly.
+
+  * **Rationale**: This approach is used for complex tasks that do not constantly need to access protected kernel data structures or execute privileged instructions. It helps keep the kernel itself smaller and more focused.
+  * **Examples**:
+      * **Login Process**: When you type your username and password, you are typically interacting with a user-space `login` process. This process checks your credentials against a secure file. If they are correct, it then makes a system call asking the kernel to perform the privileged operation of creating your user session and starting your shell.
+      * **`sendmail` Daemon**: An email server mostly deals with formatting email headers and figuring out where to send messages. This logic doesn't require privilege. It only makes system calls when it needs to do something like send data over the network.
+      * **NFS Server**: A Network File System server honors file access controls, which is a matter of trust, but the logic itself can run in user space.
 
 -----
 
