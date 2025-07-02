@@ -49,11 +49,18 @@ A process's address space is the complete set of memory addresses that the proce
 
 There is a critical distinction between a program on disk and a running process in memory.
 
+| Feature | Program | Process |
+| :--- | :--- | :--- |
+| **Location** | On disk (e.g., flash drive). | In RAM (memory). |
+| **State** | Inert, passive data. | Active, running, with a dynamic state. |
+| **Nature** | A file containing code and data. | An executing instance of a program. |
+
 A **program** is a passive, executable file stored on a disk, such as in the **Executable and Linkable Format (ELF)**. This file is the output of a linkage editor and contains all the necessary components to run, organized into distinct sections.
 
-  * **ELF Header**: This identifies the file as executable and specifies the target **Instruction Set Architecture (ISA)**, ensuring the OS doesn't try to run an incompatible program.
-  * **Code and Data Sections**: These contain the compiled machine instructions and initialized global variables.
-  * **Symbol Table**: This is a metadata section that is not loaded into memory for execution. It maps source code names for variables and functions to their addresses, which is essential for debugging tools.
+1.  **ELF Header:** This initial section identifies the file as an executable program and provides critical information, such as the Instruction Set Architecture (ISA) it was compiled for (e.g., Intel vs. PowerPC). The OS checks the ISA before attempting to run the program.
+2.  **Code Section:** This segment contains the compiled, machine-language instructions of the program.
+3.  **Data Section:** This holds initialized data, such as predefined variables and their initial values.
+4.  **Info Sections (e.g., Symbol Table):** These sections are not loaded into memory for execution but contain useful metadata. The **symbol table** maps variable and function names from the source code (e.g., `foo`, `main`) to their memory locations. It is used primarily by debuggers to allow programmers to inspect the program's state using the original names.
 
 A **process** is an active instance of a program running in memory. The OS creates a process by loading the program's code and data into a dedicated **address space** in RAM.
 
@@ -62,6 +69,12 @@ A **process** is an active instance of a program running in memory. The OS creat
 ### Address Space Layout
 
 The operating system has a strategy for arranging the different memory segments a process needs within its address space. Different segments have different requirements (e.g., permissions).
+
+| Segment | Permissions | Description |
+| :--- | :--- | :--- |
+| **Code** | Read-Only, Executable | Contains the machine instructions. It is not writable to prevent self-modifying code. |
+| **Data (Heap)** | Read/Write | Holds dynamically allocated memory and global variables. Must be readable and writable. |
+| **Stack** | Read/Write | Used for function calls, local variables, and parameters. Must be readable and writable but should not be executable to prevent security vulnerabilities. |
 
 * **Linux Process Layout:** A common strategy in Linux systems is to:
     * Place the **code segment** at the lowest addresses. The size of the code is static.
@@ -94,14 +107,13 @@ The operating system has a strategy for arranging the different memory segments 
     * Originate from the load module on disk, which is the output of a linkage editor.
     * The OS loads the code from the program file into RAM for execution.
     * Permissions are typically **read-only** and **execute-only**. Self-modifying code is not permitted in modern systems.
-    * Code segments can be **sharable**. If multiple processes are running the same program (e.g., multiple instances of the GCC compiler), they can all share a single copy of the code segment in memory, saving space.
+    * Code segments can be **sharable**. Since code segments are read-only, they can be safely shared among multiple processes running the same program. For instance, if four separate compilations are running simultaneously using GCC, all four processes can share a single copy of the GCC code in memory, saving space.
 
 2.  **Data Segments (Heap)**
     * Used for global variables and dynamically allocated memory (the heap).
-    * Initial contents are copied from the load module.
+    * Initialized with values defined in the program file. It also includes uninitialized space for dynamic allocation.
     * **BSS (Block Started by Symbol)** segments are a part of the data segment that are uninitialized in the program file and are simply zeroed-out by the OS when the process starts.
-    * Permissions are **read/write**.
-    * Data segments are **process-private**. Each process has its own separate data segment that no other process can access.
+    * Permissions are **read/write** and data segments are **process-private**. Each process has its own separate data segment that no other process can access.
     * The size can be grown or shrunk dynamically by the program, for instance, by using the `sbrk` system call in Linux.
 
 3.  **Stack Segment**
