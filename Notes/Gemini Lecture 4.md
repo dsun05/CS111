@@ -78,12 +78,27 @@ Response time (or delay) is the time it takes to get a response to a request. Id
 This explosion happens because real systems have finite resources, such as the amount of memory available for queues. When the rate of incoming requests (load) exceeds the rate at which they can be serviced, queues fill up. Once a queue is full, any new requests must be dropped. A dropped request is effectively a request with an infinite response time. This state is called **overload**.
 
 ### 4.4. Graceful Degradation
+Graceful degradation is a principle in system design where a system continues to operate, albeit at a reduced level, when it becomes overloaded, rather than failing completely.
 
-When a system is overloaded, it should ideally exhibit **graceful degradation** rather than catastrophic failure. This means:
+***
 
-  * **Recognize Overload**: The system is overloaded when it can no longer meet its service goals (e.g., a 10ms response time guarantee).
-  * **Manage Overload**: Instead of letting response times grow infinitely, the system can either continue service with lower performance (e.g., 20ms response time) or start rejecting some work to maintain performance for the accepted work.
-  * **Maintain Service**: Crucially, throughput should never drop to zero, and the system should always be making some progress on useful work.
+### Identifying Overload
+A system is considered **overloaded** when it is no longer able to meet its predefined service goals. For example, if a system is designed to provide a response within 10 milliseconds, and it consistently fails to meet this target, it is in a state of overload.
+
+***
+
+### What to Do When Overloaded
+When a system is overloaded, it should take specific actions to manage the situation gracefully:
+* **Continue Service with Degraded Performance**: The system can keep providing service but with lower performance. For instance, the response time might increase from 10 ms to 20 ms, which is not ideal but better than no service at all.
+* **Maintain Performance by Rejecting Work**: The system can choose to reject new incoming work to ensure it can still meet its performance goals for the tasks it has already accepted.
+* **Resume Normal Service**: The ultimate goal is to return to normal operations as soon as the load decreases to a manageable level.
+
+***
+
+### What Not to Do When Overloaded
+Certain behaviors should be avoided to prevent a complete system breakdown:
+* **Do Not Let Throughput Drop to Zero**: The system should never stop doing useful work entirely. Even under heavy load, it should continue to make progress on user tasks. In poorly designed systems, all CPU time can be consumed by overhead tasks like dropping excess requests, leading to zero useful work being done.
+* **Do Not Let Response Time Grow Without Limit**: For the work that is accepted, the system must ensure that the response time does not increase indefinitely. When queues become full, new requests are often dropped, which effectively results in an infinite response time for those specific requests. The system should prevent this from happening to all queued tasks.
 
 -----
 
