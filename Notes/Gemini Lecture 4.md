@@ -1,0 +1,224 @@
+# CS 111: Operating System Principles - Lecture 4: Scheduling
+
+## 1\. What Is Scheduling?
+
+Scheduling is the process by which an operating system (OS) decides which task to perform next when there are multiple options available. This is particularly relevant for resources that can only serve one client at a time, like a CPU core, a network interface, or a disk drive. The fundamental questions scheduling answers are "Who gets to use the resource next?" and "For how long?".
+
+### 1.1. Resources to Schedule
+
+While this lecture primarily focuses on scheduling processes to run on CPU cores, the same principles apply to other system resources:
+
+  * **CPU Cores**: Deciding which of the many ready processes gets to execute on an available core.
+  * **Network Interface**: Determining the order in which to send multiple pending messages from different applications.
+  * **Disk Drives**: Deciding the sequence for handling a set of requests to read or write data blocks for various files and processes.
+
+### 1.2. The Process Queue
+
+To manage scheduling, the OS maintains a **process queue**, which is a queue of all processes ready to run.
+
+  * The queue is ordered according to the specific scheduling algorithm being used, ensuring the next process to run is at the head of the queue.
+  * When a scheduling decision is made, the OS's **dispatcher** selects the process at the front of the queue to run.
+
+#### Handling of Blocked Processes
+
+Processes that are not ready to run (i.e., they are **blocked** waiting for a resource like I/O) must be handled. There are several design choices:
+
+1.  **Separate Queues**: Maintain a queue that *only* contains processes that are ready to run. Blocked processes are kept elsewhere.
+2.  **All-In-One Queue**: Keep all processes in a single queue, but ensure that blocked processes are moved to the end so they are not considered for scheduling.
+3.  **Priority with Blocked State**: Keep important processes near the front of the queue even when they are blocked. The scheduler will ignore them until they become unblocked, at which point they can be run very quickly. This avoids the overhead of moving a process from a blocked queue or the back of the ready queue to the front upon unblocking.
+
+A new process is added to the ready queue. A running process can be returned to the ready queue if it voluntarily yields or is preempted. If it makes a resource request, it may be moved to a blocked state managed by a resource manager until the resource is granted, at which point it returns to the ready queue.
+
+-----
+
+## 2\. Scheduling Goals
+
+The choice of a scheduling algorithm is driven by the desired performance goals for the system. Different algorithms optimize for different metrics, and changing the algorithm can drastically alter system behavior.
+
+Potential goals include:
+
+  * **Maximize Throughput**: Complete the maximum amount of work for user processes in a given amount of time. This is a key goal for large-scale data processing systems like those used for training AI models.
+  * **Minimize Average Waiting Time**: Reduce the average time a ready process spends waiting in the queue before it gets to run. This is crucial for interactive systems to ensure users don't experience long delays.
+  * **Ensure Fairness**: Distribute CPU resources equitably among all processes. In a time-sharing system with many users, for example, each user should get an equal share of the CPU to ensure good response time and prevent favoring one student over another.
+  * **Meet Priority Goals**: Give preferential treatment to more important processes over less important ones. This acknowledges that not all work is equally critical.
+  * **Meet Real-Time Deadlines**: Ensure that time-sensitive tasks are completed by a specific deadline. This is essential for applications like video playback or industrial control systems, where missing a deadline leads to unacceptable quality or system failure.
+  * **Meet Service Level Agreements (SLAs)**: In cloud computing, providers promise customers a certain amount of computing resources (CPU, memory, etc.). The scheduling algorithm must ensure these contractual agreements are met for all customers to avoid financial penalties.
+
+-----
+
+## 3\. Policy vs. Mechanism
+
+In operating systems, it is desirable to separate policy from mechanism.
+
+  * **Policy**: *What* should be done. It defines the goals. For example, the policy might be to prioritize interactive processes.
+  * **Mechanism**: *How* to do it. This is the implementation that carries out the policy. For scheduling, the mechanism is the code that performs the dispatching—moving a process onto a core—and manages the process queue.
+
+By separating them, the OS can support multiple policies with the same underlying mechanism, allowing it to switch policies as needed without rewriting code. For instance, a laptop might prioritize real-time guarantees when playing a video but switch to a different policy when the user is just reading a PDF.
+
+-----
+
+## 4\. Scheduling and Performance
+
+Scheduling choices have a major impact on system performance. It's generally not possible to optimize all aspects of performance (e.g., throughput, response time, fairness) simultaneously. Performance also behaves very differently under a light load (not much work to do) versus a heavy load (more work to do than resources can handle).
+
+### 4.1. Measuring Performance
+
+To improve performance, goals must be quantitative and measurable. A **metric** is a combination of a characteristic to be measured (e.g., delay), a unit to quantify it (e.g., milliseconds), and a process for measuring it. You cannot optimize what you do not measure.
+
+### 4.2. Throughput vs. Load
+
+Ideally, as you offer more work (load) to a system, the amount of work it completes (throughput) increases linearly until it reaches the hardware's maximum capacity, at which point it plateaus.
+
+In reality, the curve looks different. Throughput increases, but then tails off and can even decrease under very heavy load. This is because scheduling itself consumes resources (CPU cycles), which is known as **overhead**. The more frequently the scheduler runs, the more overhead it creates, leaving less time for actual user work and thus reducing throughput. To improve throughput, one must either reduce the overhead of each scheduling decision or reduce the number of decisions made.
+
+### 4.3. Response Time vs. Load
+
+Response time (or delay) is the time it takes to get a response to a request. Ideally, response time would increase linearly with load. However, in real systems, as the load approaches the system's capacity, the response time curve explodes towards infinity.
+
+This explosion happens because real systems have finite resources, such as the amount of memory available for queues. When the rate of incoming requests (load) exceeds the rate at which they can be serviced, queues fill up. Once a queue is full, any new requests must be dropped. A dropped request is effectively a request with an infinite response time. This state is called **overload**.
+
+### 4.4. Graceful Degradation
+
+When a system is overloaded, it should ideally exhibit **graceful degradation** rather than catastrophic failure. This means:
+
+  * **Recognize Overload**: The system is overloaded when it can no longer meet its service goals (e.g., a 10ms response time guarantee).
+  * **Manage Overload**: Instead of letting response times grow infinitely, the system can either continue service with lower performance (e.g., 20ms response time) or start rejecting some work to maintain performance for the accepted work.
+  * **Maintain Service**: Crucially, throughput should never drop to zero, and the system should always be making some progress on useful work.
+
+-----
+
+## 5\. Non-Preemptive vs. Preemptive Scheduling
+
+This is a fundamental dichotomy in scheduling algorithms.
+
+  * **Non-preemptive**: Once a process is given a resource, it keeps it until it voluntarily gives it up (by finishing, blocking, or yielding).
+  * **Preemptive**: The operating system can forcibly take a resource away from a process to give it to another one.
+
+| **Non-Preemptive Scheduling** | **Preemptive Scheduling** |
+| --- | --- |
+| **Pros:** Low scheduling overhead, high throughput, conceptually simple. | **Pros:** Good response time, excellent fairness, good for real-time and priority systems. |
+| **Cons:** Poor response time, a buggy process with an infinite loop can freeze the system, poor fairness, difficult to implement priority or real-time guarantees. | **Cons:** More complex, requires mechanism to save and restore a process's state perfectly, can have lower throughput due to overhead from context switches. |
+
+-----
+
+## 6\. Non-Preemptive Scheduling Algorithms
+
+### 6.1. First-Come, First-Served (FCFS)
+
+FCFS is the simplest scheduling algorithm. Processes are added to the end of the queue as they arrive and are run in that order. Each process runs until it completes or yields.
+
+  * **Properties**: It is simple and ensures that no process starves (waits forever), assuming no infinite loops. However, it can have highly variable and poor average waiting times. The "convoy effect" can occur, where short processes get stuck waiting behind a very long process.
+  * **Use Cases**: FCFS works well when response time is not critical (e.g., old batch processing systems), when minimizing scheduling overhead is paramount (e.g., on very expensive supercomputers), or in simple embedded systems where tasks are brief and predictable.
+
+#### FCFS Example
+
+Consider five jobs arriving in order 0, 1, 2, 3, 4.
+| Process | Duration (ms) | Start Time (ms) | End Time (ms) |
+| :--- | :--- | :--- | :--- |
+| 0 | 350 | 0 | 350 |
+| 1 | 125 | 350 | 475 |
+| 2 | 475 | 475 | 950 |
+| 3 | 250 | 950 | 1200 |
+| 4 | 75 | 1200 | 1275 |
+| **Total** | **1275** | | |
+| **Average Wait** | **595** | | |
+The total run time is 1275 ms. The average wait time is high at 595 ms because the other four processes had to wait for the long-running Process 0 to finish.
+
+### 6.2. Real-Time Schedulers
+
+These algorithms schedule tasks based on deadlines. There are two types: hard and soft.
+
+#### Hard Real-Time
+
+In hard real-time systems, missing a deadline constitutes a system failure. These are used in safety-critical applications like controlling a nuclear power plant.
+
+  * **Guaranteeing Deadlines**: To guarantee that no deadline is ever missed, systems are designed and analyzed exhaustively *before* they are run. The designers must know the exact execution time of every operation.
+  * **Determinism**: The system must be perfectly predictable. Any source of non-determinism, such as interrupts, must be eliminated or controlled. This requires a **non-preemptive** scheduler that follows a pre-defined, static schedule of operations. All scheduling decisions are made at design time, not run time.
+
+#### Soft Real-Time
+
+In soft real-time systems, it is highly desirable to meet deadlines, but occasional misses are acceptable. Examples include streaming video or audio, where a missed deadline might result in a glitch but not a catastrophe.
+
+  * **Goal**: The scheduler's goal is to minimize the number of missed deadlines or the total lateness.
+  * **Handling Missed Deadlines**: When a deadline can't be met, the system might drop the task, allow the video to lag temporarily, or drop a future task to catch up.
+  * **Algorithm**: A common algorithm is **Earliest Deadline First (EDF)**. Jobs are kept in a queue sorted by their deadlines, and the scheduler always runs the job with the nearest deadline. It is often implemented as a preemptive algorithm, so a new job with a more urgent deadline can interrupt the currently running one.
+
+-----
+
+## 7\. Preemptive Scheduling Algorithms
+
+In preemptive scheduling, the OS can interrupt a running process.
+
+### 7.1. Implementing Preemption
+
+To preempt a process, the OS needs a way to regain control of the CPU from that process. This is achieved through **interrupts**.
+
+  * **Hardware Interrupts**: A hardware device (like a network card or keyboard) can signal the CPU, causing it to stop the current process and jump to OS code to handle the event.
+  * **Clock Interrupts**: This is the key technology for preemptive scheduling. Modern CPUs have a built-in programmable timer that can be set to generate an interrupt after a specific interval. When the interrupt occurs, the OS gains control and can run the scheduler to decide if another process should run. This prevents a process in an infinite loop from monopolizing the CPU.
+
+### 7.2. Round Robin (RR)
+
+The goal of Round Robin is to provide fair and equal shares of the CPU to all processes.
+
+  * **Time Slice (Quantum)**: Each process is given a small unit of time to run, called a time slice or quantum.
+  * **How it Works**: The scheduler runs the process at the head of the queue. If the process blocks or finishes before its time slice expires, the scheduler runs the next process. If the time slice expires, a clock interrupt occurs, and the scheduler moves the current process to the end of the queue and runs the next one.
+  * **Properties**: RR provides good response time for interactive processes because every process gets a chance to run quickly. The main downside is higher overhead due to frequent context switches.
+
+#### Choosing a Time Slice
+
+The length of the time slice is a critical parameter.
+
+  * **Long Time Slices**: Fewer context switches, leading to lower overhead and higher throughput. However, response time suffers, and the system behaves more like FCFS.
+  * **Short Time Slices**: Better response time, but more context switches, which increases overhead and reduces throughput.
+    The balance often depends on the cost of a **context switch**. This cost includes not just the OS code for saving/restoring state, but also indirect costs like losing the contents of the CPU caches (instruction and data caches), which can dramatically slow down the newly scheduled process.
+
+#### Round Robin Example
+
+Using the same five jobs as the FCFS example, with a 50 ms time slice.
+
+| Process | Length (ms) | Finish Time (ms) | Switches |
+| :--- | :--- | :--- | :--- |
+| 0 | 350 | 1100 | 7 |
+| 1 | 125 | 550 | 3 |
+| 2 | 475 | 1275 | 10 |
+| 3 | 250 | 900 | 5 |
+| 4 | 75 | 475 | 2 |
+| **Totals** | **1275** | **1275** | **27** |
+
+#### Comparison: FCFS vs. Round Robin
+
+| Metric | FCFS | Round Robin | Analysis |
+| :--- | :--- | :--- | :--- |
+| **Context Switches** | 5 | 27 | RR has much higher overhead. |
+| **First Job Completed** | 350 ms (P0) | 475 ms (P4) | RR can take longer to finish the first job. |
+| **Average Waiting Time** | 595 ms | \~100 ms | RR is far more responsive, with much lower average wait to first compute. |
+
+### 7.3. Priority Scheduling
+
+This algorithm acknowledges that some processes are more important than others.
+
+  * **How it Works**: Each process is assigned a priority number. The scheduler always runs the ready process with the highest priority.
+  * **Preemptive Priority**: In a preemptive system, if a new process arrives that has a higher priority than the currently running process, the scheduler will interrupt the running process and start the new, higher-priority one.
+  * **Starvation**: A major problem with priority scheduling is **starvation**. A low-priority process might never get to run if there is a continuous stream of higher-priority processes arriving. To solve this, systems often use **priority aging**, where the priority of a process that has been waiting for a long time is temporarily increased, and the priority of a process that has been running for a long time is temporarily lowered.
+
+### 7.4. Multi-Level Feedback Queue (MLFQ)
+
+MLFQ is a more adaptive algorithm that tries to provide the best of both worlds: good response time for interactive jobs and good throughput for CPU-bound jobs. It uses multiple process queues, each with a different priority level and time slice length.
+
+  * **Queue Structure**:
+      * **High-Priority Queues**: Have short time slices. Intended for interactive jobs.
+      * **Low-Priority Queues**: Have long time slices. Intended for CPU-bound (batch) jobs.
+  * **How it Works**:
+    1.  All new processes start in the highest-priority queue.
+    2.  If a process uses its entire time slice without blocking, it is considered CPU-bound and is "demoted" to the next lower-priority queue.
+    3.  If a process blocks for I/O before its time slice is up, it is considered interactive and stays in its current queue (or may even be promoted).
+    4.  The scheduler always runs jobs from the highest-priority queue that is not empty. Lower-priority queues only run when all higher-priority queues are empty.
+  * **Preventing Starvation**: Because lower-priority queues might starve, MLFQ implements a mechanism to prevent this. Periodically, all jobs in the system are "boosted" back up to the highest-priority queue. This gives long-running jobs a chance to run and also allows the scheduler to re-evaluate the behavior of jobs that may have transitioned from CPU-bound to interactive.
+
+MLFQ automatically adjusts scheduling based on the observed behavior of processes, providing good response time to interactive jobs (which stay in high-priority queues) and good throughput to non-interactive jobs (which migrate to low-priority queues with long time slices).
+
+-----
+
+## 8\. Conclusion
+
+Scheduling is a core OS function that determines which process gets to use a limited resource next. Algorithms can be non-preemptive, where a process runs until it stops, or preemptive, where the OS can interrupt it. The choice of algorithm is critical, as each one optimizes for different performance metrics—such as throughput, fairness, or response time—and the right choice depends on the specific goals of the computer system.
