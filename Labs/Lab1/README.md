@@ -12,7 +12,10 @@ make
 sudo insmod proc_count.ko
 cat /proc/count
 ```
-TODO: results?
+Output:
+```
+166
+```
 
 ## Cleaning Up
 ```shell
@@ -24,7 +27,12 @@ make clean
 ```python
 python -m unittest
 ```
-TODO: results?
+Output:
+```
+Ran 3 tests in 1.104s
+
+OK
+```
 
 Report which kernel release version you tested your module on
 (hint: use `uname`, check for options with `man uname`).
