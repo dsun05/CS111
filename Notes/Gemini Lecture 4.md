@@ -164,28 +164,77 @@ In soft real-time systems, it is highly desirable to meet deadlines, but occasio
 
 In preemptive scheduling, the OS can interrupt a running process.
 
-### 7.1. Implementing Preemption
+### 7.1. Implications of Forcing Preemption
+
+When the OS forces preemption, it interrupts a process that would otherwise continue running. This has several important implications. A process can be forcibly yielded at any time, for reasons such as:
+* A more important, higher-priority process becomes ready to run, possibly after an I/O completion interrupt.
+* The running process's own importance is lowered, for example, after it has been running for too long.
+
+This forced interruption leads to several consequences:
+* **Inconvenient State**: The OS does not know if it is a "convenient" time for the process to stop. The interrupted process might not be in a "clean" state from its own perspective. While the OS always stops a process after a complete instruction, ensuring the state is valid, the process could be in the middle of a complex, multi-instruction operation.
+* **Enforced Fairness**: The ability to preempt is what enables enforced "fair share" scheduling.
+* **Gratuitous Context Switches**: Preemption introduces context switches that are not required by the process's own logic (the process did not yield or block). These are called "gratuitous" context switches and are considered overhead, which can negatively impact throughput.
+* **Resource Sharing Problems**: Forcing a process to stop can create potential resource sharing and synchronization problems. If a process is interrupted while it holds a lock on a shared resource, complex issues can arise.
+
+***
+
+### 7.2. Implementing Preemption
 
 To preempt a process, the OS needs a way to regain control of the CPU from that process. This is achieved through **interrupts**.
 
-  * **Hardware Interrupts**: A hardware device (like a network card or keyboard) can signal the CPU, causing it to stop the current process and jump to OS code to handle the event.
-  * **Clock Interrupts**: This is the key technology for preemptive scheduling. Modern CPUs have a built-in programmable timer that can be set to generate an interrupt after a specific interval. When the interrupt occurs, the OS gains control and can run the scheduler to decide if another process should run. This prevents a process in an infinite loop from monopolizing the CPU.
+### General Interrupt Handling
 
-### 7.2. Round Robin (RR)
+Any time a hardware interrupt occurs—such as a network card signaling a new message has arrived or a disk controller indicating an I/O operation is complete—the currently running process is halted, and the CPU switches to executing the OS's interrupt handler code. After handling the specific needs of the interrupt, the OS has an opportunity to run the scheduler before returning control to a user process.
 
-The goal of Round Robin is to provide fair and equal shares of the CPU to all processes.
+At this point, the scheduler can evaluate if the system state has changed in a way that warrants preemption. For instance:
+* Did the interrupt unblock a process with a higher priority than the one that was just running?
+* Should the priority of the currently running process be lowered for some reason?
 
-  * **Time Slice (Quantum)**: Each process is given a small unit of time to run, called a time slice or quantum.
-  * **How it Works**: The scheduler runs the process at the head of the queue. If the process blocks or finishes before its time slice expires, the scheduler runs the next process. If the time slice expires, a clock interrupt occurs, and the scheduler moves the current process to the end of the queue and runs the next one.
-  * **Properties**: RR provides good response time for interactive processes because every process gets a chance to run quickly. The main downside is higher overhead due to frequent context switches.
+If the scheduler determines a higher-priority process is now ready, it will perform a context switch to run that new process. Otherwise, it will return control to the process that was originally interrupted.
 
-#### Choosing a Time Slice
+### Clock Interrupts
+
+While general interrupts provide opportunities for preemption, the key technology that guarantees it is the **clock interrupt**. Modern CPUs contain a built-in programmable timer that can be configured by the OS to generate an interrupt after a specified interval, often called a **time slice** or quantum.
+
+When the timer expires, it triggers an interrupt that forces the CPU to stop the current process and execute the OS's clock interrupt handler. This handler's primary purpose is to invoke the scheduler, which will then typically move the just-interrupted process to the ready queue and select the next process to run.
+
+This mechanism is crucial for two main reasons:
+1.  **Enforces Time-Based Policies**: It allows the OS to implement fair-share algorithms like Round Robin by ensuring every process gets a turn.
+2.  **Prevents System Freezes**: It provides a failsafe against buggy processes. A process stuck in an infinite loop cannot monopolize a core indefinitely, because the clock interrupt will eventually fire, allowing the OS to regain control and schedule other processes.
+
+***
+
+### 7. 3 Choosing a Time Slice
 
 The length of the time slice is a critical parameter.
 
-  * **Long Time Slices**: Fewer context switches, leading to lower overhead and higher throughput. However, response time suffers, and the system behaves more like FCFS.
-  * **Short Time Slices**: Better response time, but more context switches, which increases overhead and reduces throughput.
+* **Long Time Slices**: Fewer context switches, leading to lower overhead and higher throughput. However, response time suffers, and the system behaves more like FCFS.
+* **Short Time Slices**: Better response time, but more context switches, which increases overhead and reduces throughput.
     The balance often depends on the cost of a **context switch**. This cost includes not just the OS code for saving/restoring state, but also indirect costs like losing the contents of the CPU caches (instruction and data caches), which can dramatically slow down the newly scheduled process.
+  
+***
+
+### 7.4 The Costs of a Context Switch
+
+A context switch is an expensive operation that consumes system resources without performing any user work, making it pure overhead. The costs include:
+
+* **OS Entry and Scheduler Execution**: A switch begins with an interrupt or system call, which transfers control to the OS. The OS must save the running process's registers and then execute the scheduler code to decide which process runs next. This sequence of operations consumes CPU time.
+
+* **Saving and Restoring Context**: The OS must save the full context of the process being taken off the CPU and then load the full context of the new process. This includes managing their respective stacks and process descriptors.
+
+* **Address Space Switching**: Each process has its own virtual address space. During a context switch, the OS must reconfigure the memory management unit (MMU) to map the new process's address space, an operation which has associated costs.
+
+* **Cache Invalidation**: This is arguably the most significant performance cost of a context switch on modern computers. CPUs rely heavily on fast on-chip caches to avoid slow access to main memory. When a process runs, it "warms up" the cache with its own instructions and data. After a context switch, this cached data belongs to the old process and is useless to the new one. The new process will therefore suffer a high number of cache misses, forcing it to retrieve data from much slower main memory and significantly slowing its initial execution until its own data populates the cache.
+
+***
+
+### 7.5. Round Robin (RR)
+
+The goal of Round Robin is to provide fair and equal shares of the CPU to all processes.
+
+* **Time Slice (Quantum)**: Each process is given a small unit of time to run, called a time slice or quantum.
+* **How it Works**: The scheduler runs the process at the head of the queue. If the process blocks or finishes before its time slice expires, the scheduler runs the next process. If the time slice expires, a clock interrupt occurs, and the scheduler moves the current process to the end of the queue and runs the next one.
+* **Properties**: RR provides good response time for interactive processes because every process gets a chance to run quickly. The main downside is higher overhead due to frequent context switches.
 
 #### Round Robin Example
 
@@ -206,34 +255,75 @@ Using the same five jobs as the FCFS example, with a 50 ms time slice.
 | :--- | :--- | :--- | :--- |
 | **Context Switches** | 5 | 27 | RR has much higher overhead. |
 | **First Job Completed** | 350 ms (P0) | 475 ms (P4) | RR can take longer to finish the first job. |
-| **Average Waiting Time** | 595 ms | \~100 ms | RR is far more responsive, with much lower average wait to first compute. |
+| **Average Waiting Time** | 595 ms | ~100 ms | RR is far more responsive, with much lower average wait to first compute. |
 
-### 7.3. Priority Scheduling
+***
+
+### 7.6. Priority Scheduling
 
 This algorithm acknowledges that some processes are more important than others.
 
-  * **How it Works**: Each process is assigned a priority number. The scheduler always runs the ready process with the highest priority.
-  * **Preemptive Priority**: In a preemptive system, if a new process arrives that has a higher priority than the currently running process, the scheduler will interrupt the running process and start the new, higher-priority one.
-  * **Starvation**: A major problem with priority scheduling is **starvation**. A low-priority process might never get to run if there is a continuous stream of higher-priority processes arriving. To solve this, systems often use **priority aging**, where the priority of a process that has been waiting for a long time is temporarily increased, and the priority of a process that has been running for a long time is temporarily lowered.
+* **How it Works**: Each process is assigned a priority number. The scheduler always runs the ready process with the highest priority.
+* **Preemptive Priority**: In a preemptive system, if a new process arrives that has a higher priority than the currently running process, the scheduler will interrupt the running process and start the new, higher-priority one.
+* **Starvation**: A major problem with priority scheduling is **starvation**. A low-priority process might never get to run if there is a continuous stream of higher-priority processes arriving. To solve this, systems often use **priority aging**, where the priority of a process that has been waiting for a long time is temporarily increased, and the priority of a process that has been running for a long time is temporarily lowered.
 
-### 7.4. Multi-Level Feedback Queue (MLFQ)
+***
 
-MLFQ is a more adaptive algorithm that tries to provide the best of both worlds: good response time for interactive jobs and good throughput for CPU-bound jobs. It uses multiple process queues, each with a different priority level and time slice length.
+### 7.7. Multi-Level Feedback Queue (MLFQ)
 
-  * **Queue Structure**:
-      * **High-Priority Queues**: Have short time slices. Intended for interactive jobs.
-      * **Low-Priority Queues**: Have long time slices. Intended for CPU-bound (batch) jobs.
-  * **How it Works**:
-    1.  All new processes start in the highest-priority queue.
-    2.  If a process uses its entire time slice without blocking, it is considered CPU-bound and is "demoted" to the next lower-priority queue.
-    3.  If a process blocks for I/O before its time slice is up, it is considered interactive and stays in its current queue (or may even be promoted).
-    4.  The scheduler always runs jobs from the highest-priority queue that is not empty. Lower-priority queues only run when all higher-priority queues are empty.
-  * **Preventing Starvation**: Because lower-priority queues might starve, MLFQ implements a mechanism to prevent this. Periodically, all jobs in the system are "boosted" back up to the highest-priority queue. This gives long-running jobs a chance to run and also allows the scheduler to re-evaluate the behavior of jobs that may have transitioned from CPU-bound to interactive.
+The **Multi-Level Feedback Queue (MLFQ)** scheduler is an adaptive algorithm designed to achieve two conflicting goals simultaneously: provide quick response times for interactive jobs and high throughput for long-running, CPU-bound jobs. It achieves this without requiring prior knowledge of a process's behavior by observing how processes act over time and adjusting their priority accordingly.
 
-MLFQ automatically adjusts scheduling based on the observed behavior of processes, providing good response time to interactive jobs (which stay in high-priority queues) and good throughput to non-interactive jobs (which migrate to low-priority queues with long time slices).
+### The Queues
+
+MLFQ uses a hierarchy of multiple ready queues, each with a different priority level.
+
+  * **High-priority queues** are given short time slices (quanta).
+  * **Low-priority queues** have longer time slices.
+
+A process in a high-priority queue will always be chosen to run over a process in a lower-priority queue. Processes within the same queue are scheduled against each other using a simple Round Robin algorithm.
 
 -----
 
-## 8\. Conclusion
+### The Rules of MLFQ
 
-Scheduling is a core OS function that determines which process gets to use a limited resource next. Algorithms can be non-preemptive, where a process runs until it stops, or preemptive, where the OS can interrupt it. The choice of algorithm is critical, as each one optimizes for different performance metrics—such as throughput, fairness, or response time—and the right choice depends on the specific goals of the computer system.
+MLFQ operates based on a set of rules that govern how processes move between queues.
+
+| Rule | Description |
+| :--- | :--- |
+| **1. Priority** | A process with higher priority runs before a lower-priority process. Processes in the same queue are scheduled using Round Robin. |
+| **2. Entry** | All new processes are placed in the highest-priority queue to give them the best initial response time. |
+| **3. Demotion** | If a process uses its *entire* time slice allocation at one level, the OS assumes it is a long-running, CPU-bound job and moves it down to the next lower-priority queue. |
+| **4. I/O Behavior** | If a process blocks for I/O *before* its time slice expires, the OS assumes it is an interactive job. It remains in the same queue when it becomes ready again, preserving its priority. |
+| **5. Priority Boost** | To prevent starvation of processes that have been demoted to low-priority queues, the scheduler periodically moves all processes back to the highest-priority queue. |
+
+-----
+
+### Visualizing MLFQ
+
+The movement of processes in an MLFQ system can be visualized as follows:
+
+```
+                                     +--------------------------------+
+                                     |         New Processes          |
+                                     +--------------------------------+
+                                                 |
+                                                 V
++--------------------------+         +--------------------------------+
+| Priority Boost           |<--------|  Queue 1 (High Priority)       |
+| (All jobs move to top)   |         |  Time Slice = 10ms             |
++--------------------------+         +--------------------------------+
+                                      |          |                   ^
+(Uses full 10ms)                      |          | (Blocks for I/O)  |
+ V                                    |          +-------------------+
++--------------------------------+    |
+|  Queue 2 (Medium Priority)     |<---+
+|  Time Slice = 50ms             |
++--------------------------------+
+  |
+  | (Uses full 50ms)
+  V
++--------------------------------+
+|  Queue 3 (Low Priority)        |
+|  Time Slice = 200ms            |
++--------------------------------+
+```
