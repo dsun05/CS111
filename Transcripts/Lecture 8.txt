@@ -1,0 +1,2051 @@
+We discussed in the previous lecture the issues involving the requirements for some form of synchronization in computer systems, for some way of controlling what happens in what order at what moment when you have many, many different things that are potentially happening simultaneously or in an otherwise unconstrained order, not being sure what comes before what else.
+
+Now, there are two large classes of problems that we see that are related to this synchronization issue-- mutual exclusion and asynchronous completion.
+
+We're going to be talking about those in more detail in this lecture.
+
+So we'll have a portion of the lecture on mutual exclusion, then a portion on asynchronous completions.
+
+Let's start with mutual exclusion.
+
+We talked a little bit about this in the previous lecture.
+
+Mutual exclusion relates to critical sections.
+
+Critical sections are often regarded as pieces of code.
+
+This piece of code is a critical section, meaning only one party should be allowed to use that piece of code at a given time, only one thread, only one process, for example.
+
+Sometimes, depending on how you think about things, critical sections might not be code at all.
+
+They might be, for example, a particular data structure that is shared.
+
+It doesn't really matter how, what piece of code you use to access that data structure, it's the fact that the data structure is shared that is the mutually exclusive object.
+
+Only one party at a time should use the data structure.
+
+Same thing can sometimes happen with pieces of hardware.
+
+But usually, as I said, we tend to think of mutual exclusion as applying to critical sections that are pieces of code.
+
+Now, what this means, of course, in context of things like a data structure, is if you have 14 different pieces of code that may each update the particular data structure for which you need to have synchronization, you have to regard all 14 of those pieces of code as one critical section.
+
+Even though they may be scattered throughout your program, they may even be in different processes.
+
+So it can get a little complicated if you think of critical sections that way, and it may not be much easier if you think of them in terms of the data structure or other resource that you're trying to provide synchronized access to.
+
+Unfortunately, synchronization is not inherently an easy topic.
+
+Effectively, whatever the critical section is, you wish to, in many circumstances, achieve mutual exclusive access to the critical section, one at a time.
+
+That's what we mean by mutual exclusion, one at a time.
+
+You don't want two parties using it at a time.
+
+You want one party using it at a time.
+
+Okay, so if you ensure that no more than one thread or no more than one process can use, can enter the critical section at any given time, then you will know that there is a defined order in which things happen.
+
+Whoever is the first one to enter the critical section gets to use it, the others have to wait, then one of the others gets to use it after the first one is finished and so on.
+
+So somehow or other we have to achieve that effect.
+
+We have to achieve mutual exclusion.
+
+And this is going to essentially mean that somehow or other we have to make sure that whatever the critical section is, no more than one thread at a time is actually using it.
+
+If one is using it, the others aren't.
+
+Same thing is true for processes as for threads here.
+
+So the most common place that we tend to find critical sections, though not the only place, is multi-threaded applications. like these large web server applications or for that matter, web client applications, browsers.
+
+We also find them in applications that are trying to do a large quantity of analysis of very, very large datasets because there you will have multiple threads looking at different parts of the dataset and they're doing something simultaneously.
+
+All of the threads are in principle running at the same time, even though of course in actuality a few at most are running at the same, truly at the same time.
+
+But in principle they all could be.
+
+You have no control over that unless you achieve the control.
+
+Okay, so multi-threaded applications are something that we see a lot and typically the reason we see problems with critical sections in these applications is the very nature of what they're doing results in them sharing data structures.
+
+So multiple threads are going to be consulting or changing a data structure, possibly simultaneously, or at least in an order that had better be properly controlled.
+
+It can happen with processes as well.
+
+Now, you might say, "Okay, normally we don't share data in processes.
+
+They each have their own data area."
+
+We did talk in the previous class when we discussed IPC shared memory segments, but most processes don't have shared memory segments.
+
+So, why is it a problem?
+
+Well, there are other resources in a typical computer systems that are shared among multiple processes, the file system being a prominent example.
+
+Multiple different processes can all, permissions allowing, open the same file and start doing things to the same file.
+
+Then if there is a data structure in the file, they may be doing things that are related to having critical sections updating or accessing that data structure.
+
+It also can happen where you say, okay, only one party at a time will be accessing this data But if there's another data structure that's related to it, and if there are changes to the first data structure, there better not be uncontrolled changes to the second data structure.
+
+Well, then you can also have problems with mutual exclusion.
+
+Now, if you don't share anything, if you share nothing whatsoever, then you're not really going to have any problems with mutual exclusion because what you use, nobody else is using.
+
+You're not sharing it.
+
+However, in modern computing, it is frequently infeasible not to share anything with any other processes or threads.
+
+So that may not be a good solution.
+
+How do we tell if we have a critical section?
+
+Generally speaking, it's going to involve updates, updates to something, to an object, to a data structure, to something, maybe to a single object, maybe to a set of related objects.
+
+So usually it will also involve multi-step operations, where you have to do more than one thing, more than one simple thing.
+
+This will result in the situation being that when you start doing one of those steps, if you have not completed all of the steps, you could get into an inconsistent state.
+
+You've seen part of what should happen, but not all of what should happen.
+
+And if somebody else manages to access the data structure, the object in between your start and end of your operations, they will see things that are inconsistent.
+
+And this could lead to all kinds of problems.
+
+Preemption based on scheduling, based on other characteristics, such as blocking of processes, could lead to this kind of problem.
+
+So if we want things to happen correctly when we have these critical sections, these pieces of code or other methods of updating a data structure that are going to require multiple steps, we have to say we gotta do something to achieve mutual exclusion to ensure that only one thread or process at a time can access this particular data item.
+
+So that's how we tell it there is a critical structure.
+
+Of course, in detail, it gets to be a lot more complicated.
+
+Now, thinking about critical sections, there is a property we wish to achieve related to critical sections called atomicity.
+
+So that's what we want.
+
+If we can achieve atomicity of updates on a critical section, then we will not have problems with synchronization, with mutual exclusion of the critical section.
+
+There are two aspects to atomicity.
+
+Atomicity basically says, first, there is the before or after atomicity aspect.
+
+What that means, if you have two threads that are both trying to use a particular critical section, if you have before or after atomicity, there are one of two things you see.
+
+A enters the critical section before B starts, or vice versa.
+
+B enters the critical section before A starts.
+
+And the other party, in the case of A entering first, then B will not enter the critical section until A completes.
+
+If B started, A can't enter the critical section until B completes.
+
+There must be no overlap of operations related to the critical section between the two processes of the two threads.
+
+One happens first, the other happens second.
+
+Another aspect of atomicity is all or none atomicity.
+
+This means that if one process or thread is going to take a multi-step approach to doing something in a critical section, either it completes everything it's supposed to do and all the steps are done, or at least from the perspective of everything else in the system, it didn't do anything.
+
+It didn't do any of the steps.
+
+It did all of them, or it did none of them.
+
+Now, generally speaking, you have to be able to do both of these things in order to have correct mutual exclusion.
+
+So how are we going to go about achieving correct mutual exclusion?
+
+Well, we have to protect critical sections.
+
+Only one at a time can use a critical section.
+
+What could we do?
+
+One thing that we talked about in the previous class is, well, let's turn off interrupts.
+
+So we're not going to get one of these situations where there's a clock interrupt on a process in the middle of a critical section.
+
+It gets moved off of the processor core that it was running on.
+
+Something else runs instead, starts working with the critical section before that other guy who was kicked off the processor for the clock interrupt gets a chance to finish.
+
+So you turn off interrupts.
+
+We talked about that in the previous class and there were many issues there.
+
+Another thing you can do, This is a wonderful one if you can do it.
+
+Don't share data.
+
+Generally speaking, no shared data, no critical sections, no problems with mutual exclusion.
+
+Now, another thing we can do is we can say, is there anything that is built into the hardware that is already mutually exclusive?
+
+Either one happens before the other, or the other happens before the one, so that we have the before or after atomicity.
+
+And if it starts, it finishes. and we are guaranteed that it will finish if it starts or that we won't see anything happening at all related to that particular operation, the all or none aspect.
+
+Well, CPU instructions.
+
+Every hardware instruction in the CPU is atomic in both of those aspects.
+
+If there are two instructions, one happens before the other, even if they're on different cores, one still happens before the other.
+
+And you can definitely say, okay, if this one happened, but first then the other one did not happen first.
+
+And they're all or nothing.
+
+So if one instruction has started running and another instruction is running on another core, it will not see any of the intermediate state of what is happening in the middle of the instruction that the first one is performing.
+
+So those are atomic.
+
+We'll talk about that as well shortly.
+
+Then there's software locking.
+
+And we will put that off until we discuss the other options.
+
+So, turning off interrupts is generally not going to be available for application codes.
+
+They don't have the ability to run the instructions that do it.
+
+Further, it limits all concurrency, including concurrency totally unrelated to the critical section you're worried about.
+
+That's bad.
+
+That means things run slower.
+
+Shared data.
+
+If you don't have to share data, that's great.
+
+However, you usually often have to share data.
+
+So, if you can't get around that, too bad.
+
+It'll turn out that using these hardware instructions directly to achieve mutual exclusion, while occasionally possible, is often not possible.
+
+So we'll talk a little bit about some of the options.
+
+We've already more or less discussed and dismissed, for most purposes, turning off interrupts, so we won't talk about that one any further, about shared data.
+
+Now this is actually an excellent way to achieve good synchronization. share.
+
+So for many reasons, even those not related to synchronization, this is a very good design choice.
+
+And if you're building an application, if you can avoid sharing data, you're going to be a lot happier.
+
+You don't want to share data unless you absolutely have to.
+
+In some cases, however, you have to share data.
+
+It's kind of the point of what you're doing, or you can't be as effective in other ways if you don't share the data.
+
+So this is not always going to be frequently, unfortunately.
+
+It's not going to be the solution to your mutual exclusion problems.
+
+Now, you can make things a little better by saying, well, yes, we're sharing data, but this is read-only data.
+
+During the entire existence of this data, it exists in one state.
+
+We never change a single bit of that data.
+
+Maybe 12 different threads or five different processes all read that data, but they only read the data.
+
+Nobody updates the data.
+
+In that case, again, you're not going to have any problems with critical sections.
+
+You automatically achieve atomicity of what you're doing because they're not changing anything.
+
+It was in a certain state, it will always be in that state.
+
+Therefore, it doesn't really matter what order people work with it because it's always going to have the same values.
+
+Unfortunately, if you do even one right, just one, even if only one of those threads performs a write of one bit of data in that data structure, you still could get into problems with mutual exclusion.
+
+So this is an excellent solution when possible, but often not possible.
+
+So about atomic instructions, great.
+
+They are uninterruptible.
+
+They're atomic.
+
+This actually turns out to be almost but not entirely true on modern high-speed processors.
+
+However, to the extent that it isn't true, you don't need to worry about it because you have to work real hard to even make it possible to achieve non-atomic atomicity of these instructions.
+
+With sufficient effort, and it's really, really hard, you sometimes can do this, but the only reason that anybody has ever discovered why this might happen is due to a security attack.
+
+Somebody's trying to do this.
+
+And it's really hard even then.
+
+So you don't worry about that usually.
+
+So these individual instructions are atomic.
+
+You can achieve mutual exclusion if everything you intend to do is done in one and only one atomic instruction.
+
+Now, obviously then you would want to think about what can I do with one atomic instruction?
+
+Well, I could read, write, modify data.
+
+I can change data.
+
+How much?
+
+Between one and eight bytes, depending on the architecture.
+
+Typically, there will be a word size.
+
+You will have atomic instructions that access, read, or update, write, one word, whatever that word size might be.
+
+You can do that.
+
+And you can have other instructions that are also atomic.
+
+You can perform simple arithmetic operations like addition and subtraction, simple logical operations like and and or.
+
+You can do increments and decrements of a data value and so forth.
+
+All of those can be done atomically in most instruction sets.
+
+There are some instructions in the common instruction sets you're likely to encounter that are a bit more complex than that.
+
+They can do a little bit more than that.
+
+So test and set, compare and swap, they do a little bit more than what we just discussed.
+
+We'll discuss what they do and why that might be useful.
+
+But generally speaking, they aren't directly useful for achieving the degree of atomicity you need to avoid having a critical section.
+
+Can you do a critical section in your code that will require one and only one instruction?
+
+Now, people have worked very, very hard on this.
+
+This was an active area of research some years ago.
+
+And people worked out various ways to build data structures such that the critical section involved in updating the data structure could be done in one instruction.
+
+Not for all data structures, but for some useful ones.
+
+However, it is very, very difficult to achieve that.
+
+So you're not going to usually do this.
+
+It's going to be a lot more work in the ordinary case than what you would do in a straightforward way.
+
+And if you don't have it programmed exactly right, you don't get the effect that you were looking for.
+
+Therefore, it's kind of useless.
+
+So this also has the-- so this is usually not a feasible approach.
+
+You usually can't use atomic instructions.
+
+Further, while we have not yet talked about the other problem that we have with synchronization, asynchronous completions, the atomicity of individual instructions is not helpful, at least not directly helpful, in solving that problem.
+
+So it's not going to solve our problem on our own.
+
+What's our option?
+
+The option that has been worked out widely used in computer systems is locking.
+
+So basically, what we say is we will create something called a lock around the data structure or a critical section.
+
+If you hold the lock, if your thread holds the lock, if your process holds the lock, it may perform any operations it wishes to on the critical section, on that data structure.
+
+While it holds a lock, other threads, other processes either should not or perhaps if you enforce it will not make any updates, make any access to that data structure, to that critical section.
+
+Okay.
+
+You make sure that there is a lock, one lock and only one lock for every data structure, every critical section.
+
+It doesn't have to be for every data structure, but for every data structure where atomicity is required.
+
+There's a lock for such a data structure.
+
+Nobody does anything to that data structure, including reading it, without acquiring the lock.
+
+When they acquire the lock, they get to do what they want.
+
+While they acquire the lock, others should not acquire the lock, should not be able to acquire the lock.
+
+And when the party who has the lock is finished with it, then it should release the lock, allowing somebody else to do it.
+
+Now, if you think about this a little bit, This should help us achieve the atomicity we were trying to achieve, the before or after atomicity.
+
+You got two threads, A and B.
+
+They both want to update a critical section.
+
+If thread A acquires the lock for the critical section, it may then perform any of the updates it wants.
+
+Thread B will have to wait until the lock has been released by thread A.
+
+Thread A, when it releases the lock, will allow thread-- that will then allow thread B to acquire the the lock and it can use the critical section.
+
+On the other hand, if thread B happens to get the lock before thread A gets the lock, B gets to do his work on the critical section first.
+
+When he releases the lock, A can get the lock and do his work.
+
+So that's the before or after aspect.
+
+The all or none aspect will be achieved by saying, well, when thread A perhaps gets the lock first, he will hold the lock for all of the period of time where he needs to do anything in the critical section.
+
+He'll do all of his work.
+
+Then, after he's done all his work, he will release the lock.
+
+While he holds the lock, nobody will be able to access the critical section.
+
+So either they will see all of the updates or they will see none of the updates.
+
+So we get all or none as well.
+
+So this is going to be really good from the point of view of achieving our atomicity goals.
+
+So if I am using this kind of lock to achieve mutual exclusion, when I write my code, If I need to access one of these critical sections, I try to acquire the lock.
+
+And one of two things happens.
+
+I get it, I achieve my acquirement of the lock, I hold the lock, or I don't.
+
+If I don't, that implies somebody else holds the lock because typically if nobody holds the lock and somebody asks for the lock, they'll get the lock.
+
+So if I didn't get the lock when I asked for it, somebody else holds the lock and I must do something in that circumstance. we will talk about our options for what we do when we don't get the lock later in the class.
+
+Of course, if I get a lock for a particular critical section, I need to do all of my work on that critical section, then release the lock.
+
+I better release the lock.
+
+Once I release the lock, somebody else can get the lock.
+
+They can do their work.
+
+So how do I do this?
+
+Well, if you look at the instruction, you might say, well, wouldn't it be nice if we had an instruction, a lock instruction in our instruction set.
+
+Usually we do not have lock instructions in our instruction sets.
+
+The ISAs do not contain something saying, this is a lock instruction.
+
+So what are we gonna do?
+
+Well, we still need to build the lock somehow or other.
+
+And if we don't have it in hardware, we'll have to build it in software.
+
+We will have to have software locks.
+
+Now there is then a question of, okay, the lock is in software.
+
+How do we ensure that a software implemented lock is actually enforced, that if process A holds a lock for a particular critical section, process B wishes to use that critical section, process B shouldn't be able to get the lock, shouldn't be able to do anything to the critical section until A has released the lock and B has acquired it?
+
+Ensure that B can't just go in and fiddle around with a critical section with the data structure associated.
+
+Well, there must be some way of doing that, some way of ensuring that doesn't happen.
+
+So there are enforcement issues.
+
+And we will talk about our options for enforcement a little bit later.
+
+So let's go back to one of the examples that indicated our need for mutual exclusion that we talked about in the previous class.
+
+So here's this example.
+
+We have thread one, thread two.
+
+They share a variable called counter.
+
+It's in their data area of the process they both belong to.
+
+They both can access the variable counter.
+
+So they both want to perform the instruction counter equal counter plus 1.
+
+And as we pointed out in the previous class, this looks like it's a single instruction, but this is C code.
+
+And when the C code gets compiled, it gets compiled to something like these three lines of assembly code that we talked about in the previous class.
+
+And that meant that each of those lines of code was individually atomic, but the three lines taken as a whole were not, meaning that perhaps thread one could do two of the lines, then thread two could do all three of the lines, after which thread one would get around to doing the third line.
+
+Not mutually exclusive.
+
+It would have interactions between those two threads within the critical section.
+
+Undesirable.
+
+How would we solve this with locks?
+
+Well, here's what we would do at the C level.
+
+So we would take the instruction that we know requires mutual exclusion, counter equal counter plus one, and we would wrap around it locking code.
+
+Now here we're talking about the pthread library.
+
+The pthread library, which you may have had some experience with, allows you to build threads and use threads for multiple threads within the same process.
+
+Within that library, we have built as library functions and library data types, things related to locks.
+
+So for example, here we're going to say pthread mutext is named lock, mutext, pthread mutext t, is a type of lock provided by the pthread library.
+
+And what we are then going to do is use a function built into the library that says, well, you can initialize one of these mutext style locks by calling pthread mutext init, and let's initialize it to null.
+
+That will mean nobody holds this lock.
+
+OK, so we create a lock.
+
+We say nobody holds it.
+
+The way we're going to protect this instruction, counter equal counter plus one.
+
+Same instruction, same piece of code that could be performed by the two threads that we were worried about.
+
+The way we're going to protect it is saying, okay, we're going to wrap it with an if statement.
+
+The if statement will say, if pthread mutex lock equals zero, which means nobody holds a lock, you get to do your counter equal counter plus one.
+
+And having done that, you are going to have acquired the lock.
+
+The lock is yours.
+
+So then you're going to have to, when you're finished with all the things you need to do, which in this case is just adding one to counter, then you're going to have to release the lock.
+
+You'll do that with pthread mutex unlock on the lock in question.
+
+There you go.
+
+That's how it would work.
+
+Now, since both of the pieces of code, both of the threads would be running the same C code, both of them would check to see if they can acquire the lock before they try to do counter equal counter plus one.
+
+Assuming nobody holds a lock, one of them would do that first.
+
+One of them would get the lock and the other would not.
+
+The one that got the lock would be able to do its counter equal counter plus one, then it could release the lock.
+
+You might ask what about the guy who didn't get the lock?
+
+We'll talk about that later.
+
+Now another thing you might ask yourself is okay, fine, but surely if counter equal counter plus one is not one assembly language instruction, pthread mutex lock, that function cannot possibly be one CPU instruction.
+
+And you're right, It can't be.
+
+So, leaving aside how we achieve atomicity of that, and you should think about that, because after all, the two threads could be trying to run pthread mutex lock on different cores simultaneously, and only one of them better get that lock, even though they're trying to run the same code simultaneously.
+
+So, how are we going to do that?
+
+We'll talk about that.
+
+How do we build locks?
+
+How do we actually build one of these software locks?
+
+Now, if you think about on with a software lock, you would say, "Okay, clearly, somewhere there has to be some memory, let's say a RAM location, that represents the lock."
+
+And there'll be a value in the RAM location that says the lock is held, and there'll be a different value for the RAM location that says nobody holds the lock.
+
+Now, clearly, what you want to do to acquire a lock is say, "Well, let's check to see what that memory location says.
+
+Memory location says nobody holds the lock.
+
+I I need to change the memory location to say the lock is held because I'm getting the lock.
+
+Now, if you just use the kind of ISA instructions you're most familiar with, we would say, but isn't that at least two instructions, maybe more?
+
+One instruction where you load in that value, even if you already have it in registers, you're going to then say, what's the value of the register?
+
+You're going to make a test there.
+
+And then if the test says, yes, the value is it isn't locked, you are then going to have to say, now I'm going to change the value to lock.
+
+And if we're talking about memory locations, it's going to be more than two instructions, probably, because you have to load things into memory and so forth, from memory into a register, from the register back into memory, and so on.
+
+So that sounds like that's going to be not atomic.
+
+You're going to run multiple instructions to do what you need to do in order to acquire a lock.
+
+So if two threads are running simultaneously on different cores, they could both be trying to acquire the lock.
+
+They could both run their instructions, same instructions, but one of them will finish a little before the other, but it's now in the middle of those set of instructions that acquire the lock.
+
+Perhaps the other one manages to start up and then finish before the first one who started, but didn't finish, is able to complete his acquirement of the lock. we could get into a situation where two threads both believe they hold the lock.
+
+And we don't have any knowledge that that's not correct.
+
+Okay, so to build a lock, you have to check to see if the lock is available and then say it's mine, or at least it's held by somebody if it was available.
+
+If the lock wasn't available, somebody already held it, you have to then say, fine, you don't get the lock.
+
+But at any rate, in that fortunate case where you do get the lock, you're gonna have to do a check of a value and an update of a value.
+
+So how to make that atomic?
+
+Well, it would seem that you've got sort of a chicken and egg problem there.
+
+How do you make it atomic?
+
+Well, you run a, you have a lock on it, but how do you have a lock while you run these instructions, multiple instructions?
+
+How do you ever do that?
+
+Fortunately, our friends, the hardware designers, have solved the problem for us.
+
+They've said, "We're gonna give you instructions "that you can use to at least perform this critical operation on whether you do or do not acquire a lock.
+
+It's going to be an individual CPU instruction.
+
+If you do your coding correctly, if the code you use to build software locks is set up correctly, you can do this critical check and see if I can get it, change the value if I can, in one CPU instruction, which will be atomic.
+
+So this does sound tricky because this is a cooler operation you have to perform.
+
+Check nobody's got the lock, change the value to say I've got the lock.
+
+Hardware designers have helped us with that.
+
+So here is an example of what they have done.
+
+A hardware instruction called test and set.
+
+Now I need to emphasize, based on what's shown on this slide, this slide is a C description of what is a single machine language instruction.
+
+This says if you were using C code, here's what what would happen, but you aren't using C code in the actual test and set instruction.
+
+It is silicon.
+
+It is built into the hardware chip as part of the instruction set architecture, assuming your instruction set has this particular instruction, the test and set instruction in it.
+
+What's gonna happen?
+
+Well, what would happen in the test and set instruction is you would say, I call test and set on a memory location, some word of RAM, okay?
+
+What happens when you run the test and set instruction on that word of RAM.
+
+Well, effectively, what happens is you say, well, let's have a temporary variable, RC.
+
+In that temporary variable, let's put the current value of whatever is in that memory location representing the lock.
+
+So we'll save that away.
+
+Then we're going to change the value of the lock to be true, meaning somebody holds the lock.
+
+So we'll change the value in the RAM location to be true.
+
+What are we going to say is the result of this instruction?
+
+whatever our C was before we change it to true.
+
+Now, typically, these kinds of locks will be set with two values, true or false.
+
+False means nobody holds the lock.
+
+True means somebody holds the lock.
+
+OK, so what happens if you run test and set instruction on a memory location representing a lock that nobody holds?
+
+Well, since nobody holds it, its value is 0.
+
+Great.
+
+So when we run the instruction, we temporarily save the value of 0. we then set the value to 1.
+
+So we've changed the value in the RAM location to 1.
+
+And then we return whatever it was before we made that change, which is 0.
+
+OK, so if we get a 0 back from our test and set instruction, we say, great.
+
+We asked for the lock.
+
+We got the lock.
+
+What happens if we get a 1 back from the test instruction?
+
+How could that happen?
+
+Well, let's say somebody holds the lock, some other party, not the guy who's running the test and set instruction.
+
+Some other party holds the lock.
+
+In that case, the value of the memory location containing the lock is 1, not 0, but 1.
+
+When the test and set instruction is run, we temporarily save that value 1 into some temporary place.
+
+Then we set the value of that particular memory location representing the lock to be 1.
+
+Now, it was 1 before.
+
+It's 1 after we set it to 1.
+
+It hasn't changed.
+
+We then return what was the value that we temporarily saved to whoever-- and we return that to whoever on the test and set instruction.
+
+What was that value?
+
+Value was 1.
+
+That means you didn't get the lock.
+
+Somebody else held the lock.
+
+So if we run test and set instruction on, let's say, flag-- that's the place where the lock is located in this particular example-- and if it returns a 0, we got the critical section.
+
+Now remember, of course, these-- I'm showing C code here.
+
+This isn't what we're really talking about though, is silicon.
+
+It's a single instruction.
+
+It is atomic.
+
+It does all this stuff.
+
+All the stuff that's in this bool TS in one silicon instruction.
+
+Okay, so what's gonna happen here?
+
+If we call test and set on flag, where flag is the name of the block that we're trying to acquire, then we'll get back either a zero or a one.
+
+If rc was 0, then we're going to get back 0.
+
+That meant nobody else had run the test and set instruction before.
+
+If they'd had, they'd then reset the value of the flag to 0.
+
+So we got the lock.
+
+Nobody held it.
+
+Now we hold it.
+
+The value of flag has been set to 1, so nobody else will mistake the fact that they can get it while we hold it.
+
+And we know we got it, because it wasn't 1 before we ran our test and set instruction.
+
+On the other hand, if RC was true, then before we ran the test and set instruction, the value of flag was 1, which implies somebody else holds the lock.
+
+They ran the test and set instruction before we did.
+
+Now, test and set instruction is not the only instruction of this type.
+
+Compared swap is another example.
+
+Now again, what we have on this slide is C code, but it is C code that is describing.
+
+It's simply showing you what happens and the actual silicon implementation of this particular instruction.
+
+So we do a compare and swap on a particular memory location, p.
+
+In this case, p would represent the lock.
+
+And we say there's an old value and a new value.
+
+So there are three parameters to this instruction.
+
+So first thing that's going to happen if we do this on a particular flag, p, is we're going to see what's in p.
+
+If the value of p is the same as the old value that we have provided, then we're going to change p to the new value and we're going to return true.
+
+Otherwise, we're going to return false.
+
+So what we would tend to do is something like what we see in these lines at the bottom.
+
+If compare and swap a flag, here flag will be the name of the lock that we're trying to get.
+
+And the value unused and in use as the two other parameters of this instruction.
+
+So what's going to happen if we run that instruction on the flag location.
+
+Well, *p now points to flag.
+
+So we go up here and we say, well, OK, we're going to set *p to old.
+
+What's old?
+
+Unused.
+
+We don't set *p to old.
+
+I'm sorry.
+
+We check to see if *p is old.
+
+Is this block flag unused?
+
+If so, nobody holds a lock.
+
+We would like to hold a lock.
+
+So in that case, the compare and swap instruction will change the value of flag to whatever we specified in the third parameter, which is in use.
+
+We've got the lock.
+
+On the other hand, if we call this instruction and we say, OK, what is in flag?
+
+If the value in flag is not unused, it's only going to be two values in flag, unused or in use.
+
+If it's not unused, it's in use, which means somebody else got that lock.
+
+Therefore, we didn't get it.
+
+Okay, so now if we had a true silicon implementation of let's say the test and set instruction, that first one we looked at, that in and of itself doesn't help us completely build a lock.
+
+It's a critical thing to have, but it isn't quite enough.
+
+We need a little bit more code.
+
+Now we are talking about real C code or some other kind of higher level language.
+
+Here's what we do if we wanted to have a software lock and we're gonna use the test and set instruction because our ISA contains that instruction.
+
+So we would have something called, let's say, get lock.
+
+Get lock would say, OK, fine, I will specify a particular lock that I care about.
+
+There may be many locks in the system.
+
+So I will run test and set on that.
+
+And if the test and set instruction returns zero, then overall get lock will return true.
+
+Otherwise, overall get lock will return false.
+
+And then I'll have another piece of code called free lock, which will say, I just set the lock to zero.
+
+Now, I'd better not call free lock unless I hold the lock.
+
+Now, also, of course, all this code is doing is it's returning true or false in get lock.
+
+What's going to happen in your code if you call get lock and you return false?
+
+You didn't get the lock.
+
+What are you going to do?
+
+So this is more than just a single test and set instruction, but it's not a whole lot more.
+
+So it may be the case, of course, that if this is your way of doing locks, if the get lock call is what you've built into your system to manage locks, could be, then you could have multiple threads all calling get lock on the same lock on different cores.
+
+You have 16 different cores, 16 different threads could all be calling get lock on the same lock at the same time.
+
+One of those 16 threads would run its test and set instruction before the others because each of the instructions on each of the 16 cores is atomic.
+
+If one of them starts doing test and set on this particular value, that atomic instruction, the others will not do test and set on that particular location until the first one completes.
+
+So it'll be atomic.
+
+Great.
+
+Now this is all well and good, but of course, you run, as we see here, let's say the get lock thing.
+
+You've got a program where you're doing all kinds of complicated stuff.
+
+You need to get a lock on a data structure.
+
+So you call get lock, and back comes false. you didn't get the lock.
+
+What are you gonna do?
+
+Well, it better not be the case that you say, ah, the hell with it, I'm going to go ahead and make use of the data structure anyway.
+
+I'm gonna start updating.
+
+I didn't get the lock, but what the hell?
+
+If you didn't get the lock, somebody else held the lock.
+
+That means they are doing something to that data structure.
+
+If you start without holding the lock, fiddling around with that data structure while somebody else holds it, you're gonna run into synchronization problems, which is just what we are trying to avoid.
+
+So how can we enforce the lock?
+
+How can we make sure that somebody obeys the rules?
+
+I mean, it's even possible that one of the parties here is going to say, oh, the hell with this locking business.
+
+I'm just going to the data structure and doing whatever I want.
+
+I'm not even going to check to see if the lock is available.
+
+How are we going to prevent that from happening?
+
+Well, if there's some way that we can say, you can't get to the resource without going through somebody who is going to enforce the lock, well, with them we can enforce the lock.
+
+Otherwise, we're going to have to say, OK, people who write the code, the programmers here, have to know about where critical sections are.
+
+And all the programmers who are working here all need to know that if they want to use the critical section, they must follow the rules of locking.
+
+Their code must be built to not only check locks, but obey locks.
+
+So that may or may not work out very well.
+
+We'll talk about other options that you sometimes have that are more enforceable later.
+
+But one thing that I've alluded to a few times already is of course, when you try to get a lock, the very nature of why you have a lock there and why you're trying to get it is that other people may also want that lock in other threads, other processes, which implies that there's at least a possibility that when you try to get a lock, you're not gonna get it.
+
+So then what?
+
+Well, one thing you could do is you could say, fine, I wanted to update this critical-- I wanted to run this critical section.
+
+I can't get the lock.
+
+I can't run the critical section.
+
+Let's forget about it.
+
+Let's just not do that.
+
+Well, that probably is not going to be feasible in most cases.
+
+The reason you were doing all of this kind of stuff with critical sections is you really needed to run the critical section.
+
+But you can't, because you didn't get the lock.
+
+Well, what else could you do?
+
+You could say, well, try to get it again.
+
+Try again.
+
+And with a little bit of luck, whoever was holding the lock that first time when I tried to get it, prevented me from getting it.
+
+They're finished.
+
+They release the lock, then I'll get it.
+
+So that's great.
+
+But what happens if you try a second time and you can't get the lock again?
+
+What then?
+
+Well, you could try to get it a third time.
+
+So this is called spin waiting, if you keep this up.
+
+It's kind of a computer science analogy to a bunch of kids in the back of the car asking their parents repetitively, are we there yet?
+
+Are we there yet?
+
+Are we there yet?
+
+When they're on a trip.
+
+This is the computer science equivalent of that.
+
+So what do you do?
+
+You check to see if the event occurred.
+
+If not, you check again, and again, and again.
+
+And you just keep checking until it occurs.
+
+Now, spin waiting can be used for locking purposes.
+
+It can be used in other situations where you're waiting to see if something occurred.
+
+If you were using it to determine if you can get a lock, then spin waiting is called spin locking, naturally enough.
+
+So what's good and what's bad about this approach to trying to achieve locks and doing something when you don't get the lock you need?
+
+The good point, it is correct.
+
+If everybody does spin waiting on their locks, then only the people who acquire the locks will be able to make use of the data structures in question, will be able to make use of the critical sections associated with the locks.
+
+Therefore, you will have achieved all the mutual exclusion you need to achieve.
+
+That's good.
+
+We're assuming properly implemented locks here, but let's assume that for the moment.
+
+It's easy to program as well.
+
+I mean, all this is is this is a loop.
+
+You say, call the lock code, and while the lock code returns, you didn't get the lock, call the lock code again.
+
+It's a while loop, a very, very simple thing to program.
+
+Well, it's wasteful.
+
+When you are running, spin waiting, spin locking, what are you doing?
+
+Well, you're running instructions.
+
+You're running a bunch of instructions associated with get lock or whatever, the test and set instruction, whatever else you may be doing, on some core.
+
+And you're running them, and you're running them, and you're running them, over and over and over again.
+
+And if you keep spinning, if you keep trying to get the lock and failing to get the lock, because somebody else holds the lock for a long period of time, you're going to use a whole lot of cycles.
+
+And those cycles are not going to help anything get done faster.
+
+They're just wasted cycles.
+
+If somebody else was running an unrelated piece of code on that core, code that was not going to require the lock that can't be gotten yet, you'd have made progress.
+
+You'd have had better throughput.
+
+Some job would have gotten done quicker.
+
+Whereas if you keep spinning, your job is never going to make any progress until a lock is released.
+
+Also, when will the lock be released?
+
+I'm trying to get the lock, can't get the lock, keep trying to get the lock.
+
+Sooner or later, you hope it'll be released.
+
+When?
+
+Well, there's some other party, perhaps some other thread that holds the lock.
+
+How long is it gonna hold the lock?
+
+Till it has done all of the work it needs to do in its critical section.
+
+Then, assuming everything is done correctly, it will release the lock.
+
+Okay, so great, it's gotta do some work.
+
+Why might it not be doing that work?
+
+Why might it not be doing anything that leads to the release of the lock?
+
+Well, perhaps it hasn't been scheduled.
+
+Perhaps it's ready to run, but it hasn't been scheduled.
+
+Why might it not be scheduled?
+
+Well, there's a thread running on one of these cores, and this thread has a time slice, which allows it to run as many instructions as it wants, as long as it hasn't used up its time slice. only when it is used up its time slice will it be switched off of the core and will something else such as perhaps the thread that holds the lock be put on that core to run code.
+
+If this is the case, if this is what's happening, then the fact that your thread is spinning is actually slowing down your thread.
+
+It's saying it's going to be longer before I get the lock that I need to get because I can't get the lock I need to get until somebody releases it.
+
+Nobody's going to release it until they get scheduled on the core.
+
+They won't get scheduled on the core until I am not scheduled on the core, and I'm busy spin waiting.
+
+I'm burning cycles doing that.
+
+And of course, if you have a bug in your code, you could spin event indefinitely, infinitely even.
+
+All right.
+
+So there are other options.
+
+There are things where you can say I'll spin a few times and then I will stop.
+
+Maybe I'll yield for a while and maybe I'll wait till I get scheduled again and then if I get scheduled again I'll, you know, check a few times and then I'll yield and, you know, sooner or later whoever has got the lock will release it and then I'll get to run.
+
+That's one choice.
+
+There's another choice and this choice relates to that second problem that we discussed, that we mentioned early in the class, the other problem in synchronization, which is the asynchronous completion problem.
+
+In the general case, not just talking about here about these waiting for lock things, but in the general case, you may have multiple things happening on your computer simultaneously.
+
+We typically do.
+
+They may be related to each other.
+
+Now, that means that there are multiple threads or multiple processes that are trying to run simultaneously with multiple cores.
+
+Some of them may even be running truly simultaneously and something that one of them does is going to allow one of the others to make progress.
+
+The other can't make progress until the one that is going to finish this operation finishes its operation.
+
+Once it finishes its operation, then that other thread or process will be able to make progress.
+
+Not until then.
+
+Well, if that's the case, Do we want to run that other process, that second process or second thread that can't do anything until the first process or first thread is finished doing whatever it's going to do?
+
+What's the point of running that second process before the first process has performed the magic operation that allows the second process to make progress?
+
+Why would we bother?
+
+Well, we really would prefer not to bother.
+
+But we do want to make sure that once that first process has done whatever it's supposed the second process can make progress, that we will schedule that process, that we will allow it to take advantage of whatever is done by that first process that it was waiting for.
+
+Now, in the case of locking, this is an obvious situation.
+
+The first process holds the lock.
+
+The second process wants to get the lock.
+
+Second process can't do anything effective until the first process releases the lock.
+
+Okay, well why would we want to schedule that second process at all before the first process has released the lock?
+
+But certainly once the first process releases the lock we really would like the second process to start running to start trying to acquire the lock.
+
+So effectively what we have here is we have processes or threads that are waiting for other processes or threads to do things and we don't want to spend processor cycles waiting.
+
+The guy who's waiting should not spend processor cycles.
+
+He should just be sitting off to the side not doing anything, not getting in the way of anything else that might go on on the computer.
+
+Now waiting for a lock is one example of this, but there are many, many others that we see in computer systems.
+
+So for example, when we We say, I'm going to read a block of data off the flash drive.
+
+You cannot make progress, typically, in your code until you've got the block of data read.
+
+So you're going to want to not be running until that block of data has been read.
+
+We typically do this particular one by blocking the process.
+
+OK, what happens if we are going to send the message and we expect that somebody on a remote computer that we're sending the message to is going to send us a response?
+
+Probably can't run until we get the response.
+
+Well, we're waiting for the response.
+
+What happens if what we want to do is say, we've set a real-time timer.
+
+Perhaps we're interacting with actual human beings out there, and we want to give them three seconds to answer this question.
+
+When the three seconds are up, then we want to move on if they haven't already answered the question.
+
+If they answer the question before the three seconds are up, we don't want to make them wait the rest of the time.
+
+Okay, how can we do that?
+
+How can we say, let's wait until either we hear from them or a timer is expired?
+
+We could, of course, use spinning in various ways to achieve this synchronization.
+
+Sometimes it's the right thing to do.
+
+Now, if it is the case that the following things are true, then spinning could make sense.
+
+First, we're waiting for something.
+
+This thread is waiting for some other thread to do something.
+
+If that other thread is going to be operating in parallel with the thread that's waiting, then presumably, it's going to make progress on doing whatever it's doing.
+
+So in that case, it kind of makes sense to say, maybe we'll spin because maybe in just a few instructions, the guy we're waiting on will do what he's supposed to have done.
+
+And then when we check the next time, it'll be done.
+
+The lock will be released, for example.
+
+Then it might make sense.
+
+Also, of course, if we know that whatever it is we're waiting for is bound to happen very soon, because we understand what the implications are of what we're waiting for.
+
+For example, we know this other thread holds the lock, but we know that everybody who holds the lock holds it for no more than a microsecond.
+
+They never hold a lock for more than a microsecond.
+
+Okay, fine, maybe it makes sense to spin for a microsecond because it may be more expensive to stop this process, to block the process and do something else and restart it once the lock has been released. if I'm not gonna delay the awaited operation.
+
+If you're running on a single core machine, which sometimes we still are nowadays, then you know that if you are running, nobody else is running.
+
+There's only one process at a time, one thread at a time, running on the core because this is the one core.
+
+So if you're running, the guy you're waiting for isn't running.
+
+And therefore it might be a good idea in those circumstances not to run Because after all, that can only delay how long it'll be before you get whatever you need to get, because you can't get what you need to get till the other guy's running, and you're running and preventing him from running.
+
+So it's also reasonable to spin.
+
+If you don't really think you're gonna run into these problems where somebody else is holding a lock, for example, you don't think people lock that very often.
+
+Yeah, to be on the safe side, you're locking, because other people might lock it.
+
+But nobody locks this very often.
+
+So the chances are very poor that somebody else holds the lock.
+
+Therefore, why don't you use something really simple, really cheap?
+
+If it happens, you're on to one of those really rare cases when somebody else holds the lock.
+
+If you have a whole lot of people who are contending for the lock, spinning makes a lot less sense.
+
+So you can yield and spin.
+
+We've already discussed this choice a little bit.
+
+So you check to see if the event release of the lock, for example, but not only releases of locks-- Remember, this isn't only about blocking.
+
+You check for the event, and if it didn't happen, you check again.
+
+Maybe you check three times.
+
+Maybe you check five times.
+
+But after you've checked a certain number of times without having gotten notification that the event has occurred, you say, OK, I have no reason to believe it's going to happen anytime real soon, so I'm going to yield.
+
+I am not going to block.
+
+I'm just going to yield.
+
+I'm going to say, OK, schedule somebody else.
+
+And sooner or later, my turn will come around again because I didn't block.
+
+I just yielded.
+
+And once my turn comes around again, I'll do the same thing.
+
+I'll check once, I'll check twice, I'll check five times.
+
+And if I still can't get what I want, I yield again.
+
+And sooner or later, I will run again.
+
+And sooner or later, one hopes, whatever I'm waiting for will have occurred.
+
+So just keep doing this and doing this and doing this.
+
+Is this a good idea?
+
+Well, every time you yield, you have a context switch.
+
+As we discussed in earlier classes, context switches lead to overhead.
+
+The more context switches you have, the more overhead is spent on context switches.
+
+So if you do this a lot, if you run for very brief periods of time, and then you yield, then you run again for very brief periods of time, and then you yield, and even though the event has not occurred, you're going to do this over and over and over again.
+
+You could have a lot of context switches. you could have a lot of overhead.
+
+Also, your timing may be poor.
+
+You checked five times, the event hasn't happened.
+
+Immediately after yielding, the event happened.
+
+Aha, if you checked six times, you wouldn't have had the yield, you wouldn't have had to wait for a full scheduling cycle.
+
+It may be a long time before you get scheduled again if your machine is busy.
+
+So it may be that you just missed your opportunity. if only you check one more time or two more times, it would have been much quicker for you.
+
+It also doesn't work so well if there are multiple people who are all waiting on the same thing.
+
+Because then there's a pretty good chance that the moment that thing occurs, one of them is actually in this yield and spin cycle and they will get whatever it is that they were waiting for.
+
+They'll get to move ahead.
+
+And if it's something that only one processor thread at at a time could work with, such as a lock, then whoever is lucky enough to be running at the time that the lock is released by whoever holds it, they're going to be the lucky party that gets to move ahead.
+
+If you've been a good guy and you've been doing this yield and spin stuff, you may not be running at the moment that the lock is released, even though you were the first person to ask for that lock.
+
+You asked for that lock a long time ago, you've waited a long, long time, but somebody who who just happened to be lucky.
+
+The very first time they asked for the lock, they happened to be running on a core.
+
+When the lock was released, they get the lock instead of you.
+
+That doesn't seem fair.
+
+All right, now this is generally a problem that we see with issues of mutual exclusion.
+
+In many cases with mutual exclusion, there are events that can only be responded to by one processor thread at a time.
+
+Somebody gets to work with it.
+
+Others don't.
+
+Locks are a good example.
+
+Multiple threads are all waiting for the same lock.
+
+When it's released, one of them will get to get the lock.
+
+The others will not.
+
+There are other events that we could wait for that have the same characteristic, such as we are all waiting to send the message.
+
+Okay, well, we can't send the message now because somebody's using the network interface.
+
+Well, what are you gonna do about that?
+
+Probably you don't wanna say, whoever happens to be lucky enough to ask when the network interface becomes available, he gets to use it next.
+
+So what we'd like to do is have guarantees of fairness.
+
+So if we have multiple parties, we're all waiting for some particular event to occur, we want to be fair.
+
+Now we've talked about fairness in the context of scheduling, priority scheduling, for example.
+
+Here's another example where fairness could come into play.
+
+So what we'd like to be able to say is, If somebody needs a particular thing, they're waiting for a particular thing, we wanna be very sure that sooner or later they get that thing, assuming of course that the thing is eventually available.
+
+If it's a lock, for example, somebody who wanted to get the lock gets the lock sooner or later.
+
+They don't remain unable to get the lock forever.
+
+We might want to have something that is fair in terms of FIFO.
+
+Whoever asked first should get it.
+
+Whoever asked second should get it after the guy who asked first, but before the guy who asked third, and so on.
+
+Or maybe we have priorities.
+
+Maybe there are very important things, and the important things get access to the event more quickly than the less important things.
+
+So maybe we want to do that.
+
+But we still want to ensure that we avoid starvation, regardless of how we're going to deal with this issue.
+
+So how could we wait?
+
+We can certainly do the spin locking, busy waiting that we talked about before, for locks for any other type of event we're waiting for.
+
+Keep trying until you get it.
+
+We could do yield and spin, which we've discussed as well.
+
+Now, we are still going to have to have something that's going to ensure mutual exclusion, so something like a lock.
+
+And of course, there's a wastefulness associated with any kind of spinning.
+
+Fairness could be an issue as well.
+
+What else could we do?
+
+There's another approach called completion events.
+
+What is a completion event?
+
+Okay, so let's say we're talking about a lock and we are gonna try to acquire the lock.
+
+We try to acquire the lock and we can't.
+
+The reason we can't is somebody else holds the lock.
+
+What do we do?
+
+Well, if we have a completion event, we're going to eventually say, well, since we can't get the lock, we're gonna block.
+
+But anytime you block a process, you need to make sure somebody's gonna wake up the process, unblock the process at an appropriate moment when it should be unblocked.
+
+When it should be unblocked in this case is when the lock becomes available.
+
+So before we actually block our process, we will tell the operating system, hey, operating system, when this particular lock becomes available, when it is released by whoever is holding it, wake me.
+
+And then I will get the opportunity to acquire the lock.
+
+And if it's for something other than the lock, such as being able to use a particular piece of hardware.
+
+Is it my turn to use that hardware?
+
+Then again, I will say, I'm going to block until the hardware is free, till whoever's using it releases it.
+
+When it becomes free, operating system wake me up, awaken me, allowing me to obtain the use of that particular piece of hardware.
+
+So how do we do this?
+
+How do we actually build this ability into the operating system?
+
+we have what are called condition variables.
+
+What is a condition variable?
+
+Well, what we do is, first of all, we create a special object, which we're going to call a condition variable.
+
+This special object will be associated with some particular thing, like a particular lock, a particular event happening in another process, such as that process is creating a piece of work, or a particular piece of hardware becomes available.
+
+The condition variable is specific to whatever we have associated with.
+
+So there may be a whole lot of different condition variables at any given moment in a system, each associated with a different thing that will be happening at some point in the future.
+
+The only reason we have condition variables is because people are going to have to wait for the condition to occur, which implies that whatever it is, whatever the event is that we are waiting for, release of the lock, creation of the piece of work, whatever it might be.
+
+It hasn't happened yet.
+
+So you don't have a condition variable for things that have already happened, unless there are things that recur over and over and over again.
+
+You have a condition variable for things that you, somebody, or maybe multiple parties are waiting to have happen.
+
+Okay.
+
+So when we create a condition variable for the first time, we're going to set its value to whatever event this is for.
+
+It hasn't happened yet.
+
+And also associated with the This will be a queue of processes or threads that are waiting for that event to happen.
+
+They're waiting for the lock to be released.
+
+They're waiting for the work producer to produce the piece of work, whatever it may be.
+
+So there's one or more processes or threads sitting in this queue, waiting and waiting and waiting.
+
+Everyone in the queue is blocked.
+
+They can't make any progress until the event occurs.
+
+Now, sooner or later, the event in question occurs.
+
+Whoever held the lock releases it.
+
+The process that was creating the work has created the piece of work, whatever it may be.
+
+At that point, somebody must recognize that this event has occurred.
+
+A piece of code somewhere says, aha, the event has occurred.
+
+In hardware cases, it may be caused by an interrupt.
+
+In software cases, it may be caused by something in a library that occurs, and perhaps the pthread library. or it may be caused by an IPC operation or something of that nature, all depending on what it is we're waiting for.
+
+OK, whenever that event associated with a particular condition variable has occurred, we say the event is posted.
+
+Posting an event to a condition variable unblocks one or more of the parties, the threads or processes that are waiting for that event to occur.
+
+And that unblocking of them will then eligible to be scheduled.
+
+When they get scheduled, they will check to see if whatever it is that they were awoken for, whatever it is they were waiting for, actually still is available.
+
+And if it is, they will be able to acquire the lock, work on the new piece of work that's been created, use the hardware device that has become free, whatever it may be that they were waiting for.
+
+Okay, so posting is the event has happened.
+
+We might unblock more than one party.
+
+So if there are eight different threads all waiting for the same lock, they're all sitting in the queue of the condition variable waiting for that lock, all block, then when the lock is free, we might wake all eight of them, which will have some implications.
+
+So generally speaking, operating systems provide variables.
+
+Thread libraries like pthread also provide condition variables.
+
+So usually those are the places you see them.
+
+You can of course build your very own condition variables into complex applications that have a requirement for using them.
+
+So basically something has to be able to say, well, whenever the active interpreter, the processor, the thread is trying to do something, waiting is checking to see if some event has occurred, then we're going to block that processor thread if the event has not occurred.
+
+And we are going to put them into the ready queue.
+
+Now, into, excuse me, not the ready queue, the ready queue is the scheduler queue.
+
+They're blocked, they're not in the scheduler queue.
+
+Instead, we're going to put them into the queue of the condition variable.
+
+Now, the operating system, assuming that these are condition variables produced in the operating system, will observe when the event has occurred.
+
+The interrupt will happen, IPC will happen, a system call from some other process that isn't blocked that was related to the event will happen, such as I release this lock, and then the operating system will say, okay, I got a condition variable associated with that event.
+
+Let's go, let's wake up one or more of the things that are queued in that condition variable, put them in the ready queue again, and then we'll go ahead.
+
+Now, of course, we could have one condition variable for all the conditions in the operating system, but that would be kind of silly because some people are waiting on a particular lock, some people are waiting on a producer process to produce an element of work, some people are waiting on a consumer process to finish consuming the piece of work before they produce more work, some people are waiting on this particular piece of hardware to become available.
+
+We don't want to wake up people for events that are unrelated to what they were waiting for.
+
+So we'll typically have multiple different condition variables, each one associated with a particular event.
+
+Now, we could, of course, have several processes or threads all waiting for the same event.
+
+There is a data structure that is used by all the 12 threads in this multi-threaded program.
+
+We require mutual exclusive access to that data structure.
+
+Therefore, at some point, each of those 12 threads is going to request access to that data structure.
+
+It's going to have to lock the data structure.
+
+It's going to perform the locking operation.
+
+And sometimes, one of the threads already holds the lock.
+
+The other threads that want it will not be able to acquire it because only one party will hold the lock at a time.
+
+And if there's more than one such thread that wants that lock because it doesn't have the lock, some other thread is holding the lock.
+
+If two or three or four processes all need that lock, we're going to have to put two or three or four processes or more processes into a list associated with that condition variable saying, this is a condition variable for people who are waiting for this lock.
+
+So typically, we assume if we have a condition completion event, a condition variable associated with a completion event, that we are going to have a waiting list were that particular condition.
+
+Excuse me.
+
+Now, whenever the operating system, the thread library, whatever it is that has built this completion event, observes that the event in question has occurred, it'll go to this list for the condition variable.
+
+And it'll say, OK, who in this list is the one I should wake up?
+
+Or should I wake up more than one of them?
+
+When the event is posted, then, you go to the list and you say, what are we going to do?
+
+We can wake up everyone.
+
+We can wake them up in FIFO order.
+
+Maybe we can do priority order.
+
+It all depends on what we want to do.
+
+Now, remember, the waiting list that we are talking about here is not the scheduler's ready queue.
+
+That's a totally different list.
+
+This waiting list is associated with particular events.
+
+It may or may not lead to processes being totally blocked.
+
+So somebody who is on this completion events waiting list may be blocked, which means they're perhaps not in the scheduler queue, but they are two different queues.
+
+The purpose of this queue is to say, I'm waiting for an event.
+
+The purpose of the ready queue is to say, when I, the operating system, choose to schedule something, who should I schedule next?
+
+All right, so an event gets posted.
+
+There's a completion event associated with it.
+
+The operating system goes to the completion event and says, what do I do?
+
+Well, it goes to the list.
+
+And it could be that it's going to wake up one party on the list, whoever's the head of the list, for example, a FIFO list, or it could wake up all of them, or it could wake up a few of them.
+
+It all depends.
+
+Now, for example, in the Pthread library, we have condition variables built in.
+
+There are data types, and there are library calls in that library that deal with condition variables.
+
+So for example, you can have pthread condition wait that you call when a particular condition has occurred, and that's gonna wake up at least one blocked thread.
+
+Pthread condition broadcast, wakes up all blocked threads that are in the list.
+
+Now, what's gonna happen if you wake them all up?
+
+Well, they currently were sitting previously before this event got posted, they were sitting in this condition variable list and they couldn't run, they were blocked.
+
+All right, when you post the event and you wake all of them, what that means is all of them, maybe there are five of them sitting in that list, all five of them become unblocked.
+
+All five of them then become eligible to run.
+
+However, their eligibility to run, which one gets scheduled next, may not be related to what order they were in that event list.
+
+There could be other criteria used by the scheduler to determine who gets to be scheduled next.
+
+So you're not going to guarantee if you wake all of them that the guy at the front is going to get the first shot at working with the event that has occurred.
+
+It could be any of them, and you may not have much control over which of them it is.
+
+Now, if it is the case that what was going on here was, let's say there's a big data structure, a lot of threads are sharing the big data structure, somebody is making an important change to the big data structure.
+
+Once the important change has been made, all five of the other threads don't need to write.
+
+They just need to read the data structure so they can see the important change.
+
+Now, if they're just reading the data structure, then you don't really care as much about which of them is going to run next.
+
+Any of them can run next.
+
+You can run all five of them at once, assuming you had five cores to run them on, and that would work out just fine because they're not gonna require mutually exclusive access to that data structure.
+
+Okay, so there are various good reasons why you might wanna do a broadcast here, and there are various good reasons while you might not want to do a broadcast here.
+
+All right, so most commonly, you're probably going to say, if I don't have a very, very good understanding of what happens if I wake up everybody, I probably will wake up one at a time.
+
+FIFO being a common approach.
+
+Okay.
+
+We're going to get into a little bit of difficulty if that's what we want to do.
+
+Now, we discussed earlier in lecture how we probably don't want to do a lot of spin locking.
+
+We don't want to say, I try to get the lock.
+
+If I don't get the lock, I keep spinning till I get the lock.
+
+So fine.
+
+We've got a lock on some kind of critical section that multiple threads are using.
+
+And we're not going to spin locking on it.
+
+So what do we do instead?
+
+Well, let's have a waiting list on that lock.
+
+So if one thread gets the lock, fine, he runs.
+
+If a second thread tries to get the lock while that first thread holds the lock, the second thread gets put in the waiting list.
+
+If a third thread tries to get the lock while the first thread still holds the lock, the third thread gets put into the waiting list.
+
+So fine, we'll build up a waiting list that might have one or more threads on it waiting for the lock to be free.
+
+Now, unfortunately, what is the waiting list?
+
+The waiting list is data.
+
+It's a data structure.
+
+It is some kind of list.
+
+Maybe it's just a table.
+
+Maybe it's a linked list.
+
+Maybe it's something else. whatever data structure you want to use here, but it is a data structure.
+
+And in the little example we talked about with those three threads, two of the threads want to use that data structure.
+
+Now, what are you going to do if you do not have synchronized access to that data structure?
+
+We're not talking about the lock that is being associated with this event list anymore.
+
+We're talking about the waiting list that's part of the event list, part of the event completion event.
+
+Well, what could happen?
+
+Thread one holds the lock.
+
+Thread two says, "I want the lock, can't get it."
+
+He starts putting himself into the waiting list.
+
+Simultaneously or near simultaneously, thread three tries to get the lock.
+
+He can't get the lock, thread one still holds it.
+
+He, thread three, tries to put himself in the waiting list.
+
+Now, if you don't synchronize updates to the waiting list, threads two and threads three may screw up their entries into the waiting list.
+
+They may overwrite each other.
+
+Thread two might have its entry in the waiting list written by thread three, for example, or vice versa.
+
+Or each of them might get half of their entry in the waiting list and now we've completely messed up the waiting list.
+
+It doesn't have anything proper in it at all.
+
+So that sounds bad.
+
+What are we going to do?
+
+Well, somehow or other, we have to have a piece of code.
+
+There's code somewhere that builds these waiting lists associated with an event completion, a completion event.
+
+There is code that does that.
+
+That code is going to update a shared data structure.
+
+Gee, what do we do to ensure that code that updates a shared data structure does so properly with proper synchronization?
+
+Why we lock it?
+
+Let's put a lock on that data structure.
+
+All right, now we have a little problem.
+
+So we have a lock, a lock on data structure foo.
+
+Thread one got a lock on data structure foo.
+
+Threads 2 and threads 3 both try to get the lock on data structure to foo, and they can.
+
+So, there is a waiting list associated with the completion event for release of the lock on foo.
+
+Fine.
+
+We want to put threads 2 and 3 into that waiting list.
+
+We want to make sure that when we put thread 2 in the waiting list, it gets put in properly without any interference from thread 3 being put in the waiting list or vice versa.
+
+So what are we going to do?
+
+Well, we got a waiting list for the lock for lock on Foo, and we'll have various things sitting in the waiting list waiting for their turn on the lock in order to make sure that when we add somebody to that waiting list, it does not run into other people who are trying to be added to the waiting list or removed from the waiting list for that matter.
+
+So put a lock on that.
+
+Okay, but now what happens if somebody wants to be put into the waiting list, but there's a lock on the waiting list because somebody else is being put into the Shall we have another waiting list?
+
+A waiting list on the lock on the waiting list.
+
+And how do we make sure that's properly updated?
+
+Well, maybe we need to lock that.
+
+In which case, are you going to have a waiting list on the waiting list on the waiting list?
+
+Where is it going to end?
+
+You can't keep this up forever.
+
+Now, this is a genuine problem.
+
+And the reason it's a genuine problem is because in the real world, actually working with these things in genuine code, we have seen what's called a sleep-wake-up race.
+
+What's a sleep-wake-up race?
+
+Here we go.
+
+So let's say there's some event.
+
+We're not going to talk about locks as being the event for the moment.
+
+It's a generic event, any old event.
+
+All right, now, if I am running a piece of code and I need to run after that event has occurred, I want to wait for that event to occur and only go ahead once the event has occurred, what I would do is I'd call the sleep code.
+
+Now, the sleep-- calling a sleep code does not necessarily mean I'll go to sleep.
+
+What it means is I'm going to check to see if the event has occurred.
+
+So if the event has occurred, I'll just go ahead and do whatever I want to do.
+
+If the event has not occurred, I better go to sleep because I need to wait for the event.
+
+So I call a sleep code to see if I need to go to sleep.
+
+What is the sleep code going to do?
+
+Well, here's how it might work in C.
+
+I'm going to check on the event and say, has the event been posted?
+
+It might have already happened, in which case need to sleep at all.
+
+On the other hand, if the event has not been posted-- so E pointing to posted is false-- then I'm going to have to get put into the waiting list associated with this event.
+
+So what do I do?
+
+I'll call add the queue.
+
+That's going to put me in a queue.
+
+So this waiting list is built with a queue as its data structure.
+
+And it's the particular queue associated with this event's waiting list.
+
+And who gets put in the queue?
+
+I get put in the queue.
+
+My proc gets put in the queue.
+
+And of course, as long as I'm in the queue, can't run because I'm waiting for the event.
+
+The event hasn't occurred yet.
+
+So I set myself to blocked.
+
+My proc run state equal blocked, and then I yield and I say, fine, I can't run anymore.
+
+I expect that I will be woken when the event has occurred.
+
+So there better be some code that's going to wake me up, and of course, there will be such code.
+
+Now, this queue, e pointing to queue, is the waiting list we've been talking about.
+
+Here's the wake-up code.
+
+This is the code that is supposed to wake people up when events have occurred.
+
+So associated with every event there would be wake up code and this code might say fine if the event has occurred What are we going to do?
+
+Well fine, let's go to let's set up a structure a temporary structure called P and P is going to be keeping track of People who might need to be woken up or at least one person who might need to be woken up When the event occurs, so you call wake up if the event occurs Whoever notices that the event has occurred, whoever's job it is to do that, says, "Ah, the event has occurred.
+
+I will call wake up on this event."
+
+What happens then?
+
+Well, associated with the event is a value, a condition called whether it was posted or not.
+
+Before it was false, we just had the event occur, so we post the event to true.
+
+We say the event has occurred.
+
+That's there's a possibility that somebody is waiting for this event.
+
+So, let's go to the queue by calling getFromQueue and see if there's anybody in the queue who's waiting for this event.
+
+Maybe there is, maybe nobody's waiting for this event.
+
+Now, if nobody's waiting for this event, when I go to the queue, there won't be anyone in there.
+
+P will get set to null.
+
+On the other hand, if there's at least one party waiting for it, whoever is at the front to the list or whatever I do with get from queue, it's going to return one process that is waiting for this event.
+
+So if there is such a process, here's somebody who was waiting for the event.
+
+That meant he called sleep.
+
+He had previously called sleep.
+
+If he called sleep previously, well, then clearly, in addition to being put into the queue, he blocked himself and he yielded.
+
+So what are we going to do?
+
+Well, the event has occurred.
+
+He is the lucky guy at the front of the queue.
+
+Let's unblock him.
+
+So we set his run state to be not blocked.
+
+Great, and then of course, since we now need to say he could run, maybe he should run, maybe he's now the most important thing to run in the entire system.
+
+Let's call reschedule and see if he should run.
+
+So you see if he should run, and maybe he runs and maybe he doesn't run because it isn't his turn yet, but he's in the ready queue, he'll get there sooner or later.
+
+Okay, now on the other hand, if when the event is posted and you call wake up on the event, you look in the queue and you say, nobody in the queue, There is nobody in that queue.
+
+Well, what do we need to do then?
+
+We've said that the event posted is true.
+
+So if somebody later calls sleep on that event, they'll see, oh, it's true.
+
+I don't have to sleep.
+
+That should be all we have to do, right?
+
+Nobody was waiting.
+
+We've said that the event is posted for future use.
+
+Don't have to do anything.
+
+So let's just return.
+
+Okay, now this seems straightforward enough.
+
+It seems like this should be fine.
+
+Why is there a problem with this?
+
+and there is a problem with this.
+
+The problem is called the sleep-wakeup race.
+
+So let's say we're talking about threads here, and we have two threads, A and B.
+
+And we're talking, let's say, in this case, about the event being getting a lock.
+
+So there's a lock on a particular resource.
+
+Thread B has acquired the lock.
+
+Thread A needs to get the lock.
+
+Fine.
+
+So what does thread A do?
+
+Because we're gonna use condition variables here waiting lists, thread A calls that sleep code on that particular lock and he says, "I want that lock.
+
+Is the lock available?
+
+No, the lock isn't available.
+
+Please put me to sleep and when the lock becomes available, please wake me up."
+
+All right.
+
+Now, what we hope is going to happen is that after thread A has gotten put into that queue, thread B eventually finishes with what it's doing, releases the lock, calls wake up, wake up code wakes up thread A, everything's fine.
+
+But what could happen is the following.
+
+At the very moment that thread A calls sleep and checks to see, is the lock available?
+
+No, the lock isn't available.
+
+Pretty much the next thing that happens after that is thread B finishes using the resource and unlocks it.
+
+What's he going to do then?
+
+He's going to call wakeup.
+
+Now, maybe all of the wakeup code is going to get run before thread A completes running the sleep code.
+
+And let's say for the moment that thread A and thread B the only parties, the only threads in the system that care about this lock, that care about this resource at all.
+
+And thread B is done.
+
+He doesn't need the lock again ever.
+
+He's never going to ask for that lock again.
+
+What's going to happen here?
+
+Here's what might happen.
+
+Thread A and thread B are running.
+
+Thread A starts running sleep on the event, the event in question being let's get the lock.
+
+Can I get the lock?
+
+No, you can't get the lock because lock free has not been posted.
+
+So thread A says, OK, I'm out of lock.
+
+I can't get the lock.
+
+I'll need to wait one guy.
+
+The event hasn't happened yet.
+
+So unfortunately, immediately after running that line of code, we get a context switch.
+
+Thread B starts running.
+
+Thread B says, I'm done with that lock.
+
+So it calls the wake up on lock is free.
+
+That's the event.
+
+And it says, great, fine.
+
+So I'm going to post the event that the lock is free.
+
+So the event lock is free is true.
+
+And then I'm going to go to the queue and see who's in the queue who might have been waiting for this lock to be free.
+
+Now, what's in the queue at this moment?
+
+Thread B wasn't in the queue because he held the lock.
+
+Thread A isn't in the queue.
+
+He will be put in the queue, but he's not there yet.
+
+And there are no other threads who want this lock, so nobody else is in the queue.
+
+So when he calls p = get from queue, when thread B calls that piece of code, but there's nobody there.
+
+Nobody's in the queue.
+
+So fine, thread B says, I have done my duty.
+
+I released the lock.
+
+As part of releasing the lock, I set this condition variable to say, this lock is free.
+
+The event lock is free is true.
+
+I checked to see if anybody was waiting.
+
+Nobody appears to be waiting.
+
+Therefore, I am done.
+
+And thread B is finished with a lock.
+
+It's never gonna use that lock again.
+
+Never going to do anything with the long.
+
+Meanwhile, thread A gets to run again because thread B has finished.
+
+Context switch goes back to thread A.
+
+Last thing that thread A did was check to see if the event was posted.
+
+And the answer was no.
+
+So, next thing it's going to do is say, all right, I need to run the next instruction after my last instruction.
+
+Last instruction said, the event posted was false.
+
+Therefore, what am I supposed to do?
+
+Add me to the queue, block me, I yield.
+
+What is the effect?
+
+Threat A is sleeping, waiting for this event to be posted, but nobody is ever going to wake him.
+
+He is going to sleep forever.
+
+Now, the reason we had a problem here is because there was a critical section in sleep, and for that matter, a critical section in wake up.
+
+And it started before we tested the posted flag, and it ended after we put ourselves in the notify list and we blocked.
+
+Now, during this period, during this critical section, we don't want the wake-up code to run, because we might be part of the way through putting ourselves on the list, but not all the way through.
+
+We might not really be there yet.
+
+So we don't want to have the wake-up code run.
+
+And for that matter, we also don't want other people to run the sleep code while we're doing this, so we don't screw up our list.
+
+So this is a mutual exclusion problem.
+
+Critical section.
+
+How do we solve critical sections?
+
+locks.
+
+Let's set up a lock.
+
+Okay, so we just need to have a lock.
+
+But now we're having a lock on that queue, effectively on event list queue.
+
+What happens if we get a sleep/wakeup race on that lock?
+
+What are we going to do then?
+
+There's contention for that lock.
+
+How do we solve that problem?
+
+I would like you to try to figure that out for yourself.
+
+You have heard enough in this lecture that you should be able to come up with the general idea of what the solution would be.
+
+You might need to fiddle around a little to say exactly where do I put the various things in the solution.
+
+But the general approach, you should be able to figure out for yourself.
+
+Now, we aren't finished talking about synchronization, but we are finished talking about these two problems, mutual exclusion and asynchronous completion.
+
+These are the two big classes of synchronization problems.
+
+Mutual exclusion is a problem where we say there are several activities that could happen simultaneously.
+
+We want to make sure that at any given moment, only one of them at most happens.
+
+Asynchronous completion is we're going to be waiting for something to happen.
+
+We want to do that in an efficient way, but in a correct way, in a fair way frequently.
+
+Therefore, we want to synchronize multiple things that are going on, one party waiting for something that another party has done.
+
+Now locks allow us to assure mutual exclusion.
+
+Spinning and completion events are ways to handle asynchronous exceptions.
+
+Okay, we will talk about more issues of synchronization, such as what we actually do in real programs and some theoretical associations and some other problems that we see with synchronization in the next couple of classes.
