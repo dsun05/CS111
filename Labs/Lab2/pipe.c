@@ -9,9 +9,6 @@ int main(int argc, char *argv[])
 	//pipe process id
 	pid_t pid;
 
-	//final exit code
-	int final = 0;
-
 	//Create pipes
 	int fd1[2];
 	int fd2[2];
@@ -98,21 +95,25 @@ int main(int argc, char *argv[])
 			}
 				
 		}
-
-		//clean up all child processes
-		int status = 0;
-		for (int i = 1; i < argc; i++) {
-			wait(&status);
-
-			if (WIFEXITED(status)) {
-				if (WEXITSTATUS(status) != 0) {
-					final = 1;
-				}
-			} else {
-				final = 1;
-			}
-    	}
 	}
 
+	//clean up all child processes
+	int final = 0;
+	int status = 0;
+	for (int i = 1; i < argc; i++) 
+	{
+		wait(&status);
+		if (WIFEXITED(status)) 
+		{
+			if (WEXITSTATUS(status) != 0) 
+			{
+				final = 1;
+			}
+		} 
+		else 
+		{
+			final = 1;
+		}
+    }
 	return final;
 }
