@@ -1,4 +1,4 @@
-# CS 111: Semaphores and Other Synchronization Primitives
+# Lecture 9: Semaphores and Other Synchronization Primitives
 
 ## 1. Introduction to Synchronization Primitives
 Synchronization primitives are tools used to manage access to shared resources in a concurrent environment, ensuring correctness and preventing race conditions. This lecture covers semaphores, a foundational theoretical tool, as well as more practical mechanisms like mutexes and various locking strategies. It also explores the performance implications and common problems associated with locking, such as contention and priority inversion.

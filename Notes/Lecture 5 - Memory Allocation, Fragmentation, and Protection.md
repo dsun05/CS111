@@ -1,4 +1,4 @@
-# CS 111: Memory Management
+# Lecture 5: Memory Management
 
 ### 1. Introduction to Memory Management
 Memory management is a critical function of an operating system that involves managing the computer's primary memory, or Random Access Memory (RAM). According to the von Neumann architecture, a computer's instructions and data must be in RAM to be processed by the CPU.

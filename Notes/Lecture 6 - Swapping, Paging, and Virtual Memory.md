@@ -1,4 +1,4 @@
-# CS 111: Memory Management – Swapping, Paging, and Virtual Memory
+# Lecture 6: Swapping, Paging, and Virtual Memory
 
 ## 1. Recap of Previous Memory Management Issues
 

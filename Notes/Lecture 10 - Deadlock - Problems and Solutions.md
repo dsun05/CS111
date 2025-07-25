@@ -1,4 +1,4 @@
-# CS 111: Deadlock - Problems and Solutions
+# Lecture 10: Deadlock - Problems and Solutions
 
 ## 1.0 The Deadlock Problem
 

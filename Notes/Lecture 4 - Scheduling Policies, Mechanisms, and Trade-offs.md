@@ -1,4 +1,4 @@
-# CS 111: Operating System Principles - Lecture 4: Scheduling
+# Lecture 4: Scheduling
 
 ## 1\. What Is Scheduling?
 
