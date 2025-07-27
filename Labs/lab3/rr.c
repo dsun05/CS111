@@ -212,9 +212,9 @@ int main(int argc, char *argv[])
     int finished = 0;
     int requeued = 0;
     struct process *head;
+        
     //Then, we run processes for one time quantum. q = how much of the quantum we have used up so far. 
     for(int q = 0; q<quantum_length;){
-
       //Get head if list not empty
       if(TAILQ_EMPTY(&list)){
         break;
@@ -286,21 +286,19 @@ int main(int argc, char *argv[])
         }
         curr = TAILQ_NEXT(curr, pointers);
       }
-
-      printf("Debug: Queue contents after quantum slice: ");
-      if(TAILQ_EMPTY(&list)) {
-        printf("EMPTY");
-      } else {
-        curr = TAILQ_FIRST(&list);
-        while(curr != NULL) {
-          printf("P%d(r:%d,w:%d,rt:%d) ", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
-          curr = TAILQ_NEXT(curr, pointers);
-        }
-      }
-      printf("-----------------------------------------------\n");
     }
 
-    
+    printf("Debug: Queue contents after quantum slice: ");
+    if(TAILQ_EMPTY(&list)) {
+      printf("EMPTY");
+    } else {
+      curr = TAILQ_FIRST(&list);
+      while(curr != NULL) {
+        printf("P%d(r:%d,w:%d,rt:%d) ", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
+        curr = TAILQ_NEXT(curr, pointers);
+      }
+    }
+
     //After each quantum, we check if we have exhausted the processes.
     if(TAILQ_EMPTY(&list))
     {
