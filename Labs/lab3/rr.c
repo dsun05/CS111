@@ -23,6 +23,7 @@ struct process
   /* Additional fields here */
   u32 remaining_time;
   u32 waiting_time;
+  int response_time;
   /* End of "Additional fields here" */
 };
 
@@ -184,6 +185,7 @@ int main(int argc, char *argv[])
         //add process to list
         data[j].remaining_time = data[j].burst_time;
         data[j].waiting_time = 0;
+        data[j].response_time = -1;
         TAILQ_INSERT_TAIL(&list, &data[j], pointers);
         //lastAdded = process
         last_added_process = &data[j];
@@ -195,13 +197,13 @@ int main(int argc, char *argv[])
 
     printf("Debug: Iteration i = %d, Current time = %d\n", i, i * quantum_length);
 
-    printf("Debug: Queue contents: ");
+    printf("Debug: Queue contents before quantum slice: ");
     if(TAILQ_EMPTY(&list)) {
       printf("EMPTY");
     } else {
       struct process *curr = TAILQ_FIRST(&list);
       while(curr != NULL) {
-        printf("P%d(r:%d,w:%d) ", curr->pid, curr->remaining_time, curr->waiting_time);
+        printf("P%d(r:%d,w:%d,rt:%d) ", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
         curr = TAILQ_NEXT(curr, pointers);
       }
     }
@@ -221,11 +223,10 @@ int main(int argc, char *argv[])
       }
 
       //if this is the first time head is being processed, calculate and add its response time
-      if(head->remaining_time == head->burst_time)
+      if(head->response_time < 0)
       {
-        total_response_time += (i*quantum_length + q)  - (head->arrival_time); 
-        //total = (# of quantums * time of quantums so far) + (how much of this current quantum we've used) - (when the process arrived)
-      }
+        head->response_time = (i*quantum_length + q)  - (head->arrival_time); 
+      } 
 
       //If the head process will finish within the quantum, we finish the process and start the next one
       if(head->remaining_time <= quantum_length - q)
