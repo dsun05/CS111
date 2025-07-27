@@ -292,11 +292,11 @@ int main(int argc, char *argv[])
 
     //printf("Debug: Queue contents after quantum slice: ");
     if(TAILQ_EMPTY(&list)) {
-      printf("EMPTY");
+      //printf("EMPTY");
     } else {
       struct process *curr = TAILQ_FIRST(&list);
       while(curr != NULL) {
-        printf("\nP%d(r:%d,w:%d,rt:%d)", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
+        //printf("\nP%d(r:%d,w:%d,rt:%d)", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
         curr = TAILQ_NEXT(curr, pointers);
       }
     }
