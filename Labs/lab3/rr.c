@@ -192,6 +192,12 @@ int main(int argc, char *argv[])
       }
     }
 
+    printf("Time %d: Process list after adding new arrivals: ", i * quantum_length);
+    struct process *p;
+    TAILQ_FOREACH(p, &list, pointers) {
+      printf("P%d(rem:%d) ", p->pid, p->remaining_time);
+    }
+    printf("\n");
 
     //count number of processes removed from process list (finished)
     //count number of processes requeued
@@ -208,6 +214,7 @@ int main(int argc, char *argv[])
         break;
       }else{
         head = TAILQ_FIRST(&list);
+        printf("Processing head: P%d (remaining: %d)\n", head->pid, head->remaining_time);
       }
 
       //if this is the first time head is being processed, calculate and add its response time
@@ -252,13 +259,15 @@ int main(int argc, char *argv[])
         requeued++;
         break;
       }
-    total_waiting_time += (process_list_size - requeued) * quantum_length;
-    //waiting time = # of processes - those which were processed this quantum, times the quantum length
-  }
-  if(TAILQ_EMPTY(&list)){
-    break;
-  }
+      total_waiting_time += (process_list_size - requeued) * quantum_length;
+      //waiting time = # of processes - those which were processed this quantum, times the quantum length
+    }
 
+    //After each quantum, we check if we have exhausted the processes.
+    if(TAILQ_EMPTY(&list))
+    {
+    break;
+    }
 }
 
 
