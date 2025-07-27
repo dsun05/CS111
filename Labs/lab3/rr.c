@@ -22,6 +22,7 @@ struct process
 
   /* Additional fields here */
   u32 remaining_time;
+  u32 waiting_time;
   /* End of "Additional fields here" */
 };
 
@@ -221,6 +222,7 @@ int main(int argc, char *argv[])
       {
         finished++;
         q += head->remaining_time;
+        total_waiting_time += head->total_waiting_time;
         // Remove the finished process and get the new head
         TAILQ_REMOVE(&list, head, pointers);
         process_list_size--;
@@ -240,6 +242,9 @@ int main(int argc, char *argv[])
       {
         if(finished > 0){
           head->remaining_time -= (quantum_length - q);
+
+          //how long the head waited before running this time quantum
+          head->waiting_time += q;
         }else
         {
           head->remaining_time -= quantum_length;
@@ -251,14 +256,31 @@ int main(int argc, char *argv[])
         requeued++;
         break;
       }
-      total_waiting_time += (process_list_size - requeued) * quantum_length;
-      //waiting time = # of processes - those which were processed this quantum, times the quantum length
+
+
+      struct process *curr = head;
+      for(int w = 0; w <(process_list_size - requeued); w++)
+      {
+        //waiting time:
+        // if waiting time == 0; then this is its first time waiting. waiting time = current time - arrival time
+        // else, add time quantume to waiting time
+
+        if(curr->waiting_time == 0)
+        {
+          curr->waiting_time = ((i+1)*quantum_length) - curr->arrival_time;
+        }
+        else
+        {
+          curr->waiting_time += quantum_length;
+        }
+        curr = TAILQ_NEXT(&list);
+      }
     }
 
     //After each quantum, we check if we have exhausted the processes.
     if(TAILQ_EMPTY(&list))
     {
-    break;
+      break;
     }
 }
 
