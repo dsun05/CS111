@@ -192,13 +192,6 @@ int main(int argc, char *argv[])
       }
     }
 
-    fprintf(stderr, "Time %d: Process list after adding new arrivals: ", i * quantum_length);
-    struct process *p;
-    TAILQ_FOREACH(p, &list, pointers) {
-      fprintf(stderr, "P%d(rem:%d) ", p->pid, p->remaining_time);
-    }
-    fprintf(stderr, "\n");
-
     //count number of processes removed from process list (finished)
     //count number of processes requeued
     int finished = 0;
@@ -214,7 +207,6 @@ int main(int argc, char *argv[])
         break;
       }else{
         head = TAILQ_FIRST(&list);
-        fprintf(stderr, "Processing head: P%d (remaining: %d)\n", head->pid, head->remaining_time);
       }
 
       //if this is the first time head is being processed, calculate and add its response time
