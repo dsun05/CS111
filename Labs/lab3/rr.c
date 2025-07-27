@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
 
   // pointer to most recently added process (for easy access of the next one)
-  struct process *last_added_process;
+  struct process *last_added_process = NULL;
   int process_list_size = 0;
 
   //Infite loop, this will determine our absoloute sense of "time". i = # of quantums processed, starting at 0
