@@ -19,18 +19,13 @@ struct process
   u32 burst_time;
 
   TAILQ_ENTRY(process) pointers;
-
-  /* Additional fields here */
   u32 remaining_time;
-  int waiting_time;
-  int response_time;
-  /* End of "Additional fields here" */
+  u32 waiting_time;
+  u32 response_time;
 };
 
 TAILQ_HEAD(process_list, process);
 
-//Parsing a string representation of a number and converting it to an actual integer value. "123" -> 123. Loose implementation. Ignores leading non-integer characters. Returns current value 
-// if non integer is found. Takes file input.
 u32 next_int(const char **data, const char *data_end)
 {
   u32 current = 0;
@@ -67,7 +62,6 @@ u32 next_int(const char **data, const char *data_end)
   exit(EINVAL);
 }
 
-//Parsing a string representation of a number and converting it to an actual integer value. "123" -> 123. Strict implementation. Crashes if any non integer character is found. Takes C string input.
 u32 next_int_from_c_str(const char *data)
 {
   char c;
@@ -99,7 +93,6 @@ void init_processes(const char *path,
                     u32 *process_size)
 {
 
-  //Opening the file
   int fd = open(path, O_RDONLY);
   if (fd == -1)
   {
@@ -108,7 +101,6 @@ void init_processes(const char *path,
     exit(err);
   }
 
-  //Getting the file info
   struct stat st;
   if (fstat(fd, &st) == -1)
   {
@@ -117,7 +109,6 @@ void init_processes(const char *path,
     exit(err);
   }
 
-  //Mapping the file to memory. File sized chunk, that is read only, and cannot be accessed by other processes. Aligned to page size address.
   u32 size = st.st_size;
   const char *data_start = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (data_start == MAP_FAILED)
@@ -163,7 +154,6 @@ int main(int argc, char *argv[])
 
   u32 quantum_length = next_int_from_c_str(argv[2]);
 
-  //Empty/null list for processes
   struct process_list list;
   TAILQ_INIT(&list);
 
@@ -175,134 +165,83 @@ int main(int argc, char *argv[])
   struct process *last_added_process = NULL;
   int process_list_size = 0;
 
-  //Infite loop, this will determine our absoloute sense of "time". i = # of quantums processed, starting at 0
+  //For each quantum: 
   for(int i = 0; i!=-1; i++){
 
-    //First, we need to loop through the input data and insert all data that has newly arrived at this time
-    for(int j = last_added_process ? (last_added_process - data + 1) : 0; j < size; j++){
-      if(data[j].arrival_time <= i * quantum_length)
-      {
-        //add process to list
-        data[j].remaining_time = data[j].burst_time;
-        data[j].waiting_time = -1;
-        data[j].response_time = -1;
-        printf("Debug: Added P%d to queue (r:%d, w:%d, rt:%d)\n", data[j].pid, data[j].remaining_time, data[j].waiting_time, data[j].response_time);
-        TAILQ_INSERT_TAIL(&list, &data[j], pointers);
-        last_added_process = &data[j];
-        process_list_size++;
-      }else{
-        break;
-      }
-    }
-
-    printf("Debug: Iteration i = %d, Current time = %d\n", i, i * quantum_length);
-
-    printf("Debug: Queue contents before quantum slice: ");
-    if(TAILQ_EMPTY(&list)) {
-      printf("EMPTY");
-    } else {
-      struct process *curr = TAILQ_FIRST(&list);
-      while(curr != NULL) {
-        printf("\nP%d(r:%d,w:%d,rt:%d) ", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
-        curr = TAILQ_NEXT(curr, pointers);
-      }
-    }
-    printf("\n");
-
-    int finished = 0;
-    int requeued = 0;
+    int slice_start_time = i*quantum_length;
+    int slice_end_time = slice_start_time + quantum_length;
     struct process *head;
-        
-    //Then, we run processes for one time quantum. q = how much of the quantum we have used up so far. 
-    for(int q = 0; q<quantum_length;){
+
+    //Then, we run processes for the length of the quantum
+    for(int time = slice_start_time; time < slice_end_time; time++)
+    {
+      //Add processes that arrive during time to the end of the list
+      for(int j = last_added_process ? (last_added_process - data + 1) : 0; j < size; j++)
+      {
+        if(data[j].arrival_time <= time)
+        {
+          data[j].remaining_time = data[j].burst_time;
+          data[j].waiting_time = 0;
+          data[j].response_time = 0;
+          TAILQ_INSERT_TAIL(&list, &data[j], pointers);
+          last_added_process = &data[j];
+          process_list_size++;
+        }else
+        {
+          break;
+        }
+      }
+
+      //Get head process
       if(TAILQ_EMPTY(&list)){
         break;
       }else{
         head = TAILQ_FIRST(&list);
       }
 
-      //if this is the first time head is being processed, calculate and add its response time
-      if(head->response_time < 0)
+      //Set response time
+      if(head->response_time == 0)
       {
-        head->response_time = (i*quantum_length + q)  - (head->arrival_time); 
-        total_response_time += head->response_time;
-        printf("Debug: Set P%d response_time = %d\n", head->pid, head->response_time);
+        if(head->remaining_time == head->burst_time)
+        {
+          head->response_time = time - head->arrival_time;
+        }
       }
-      if(head->waiting_time < 0){
-        head->waiting_time = 0;
-        printf("Debug: Set P%d waiting_time = %d\n", head->pid, head->waiting_time);
-      } 
 
-      //If the head process will finish within the quantum, we finish the process and start the next one
-      if(head->remaining_time <= quantum_length - q)
+      //Decrement head remaining time
+      head->remaining_time--;
+
+      //If head's remaining time is filled, remove from list. 
+      if(head->remaining_time < 1)
       {
-        finished++;
-        q += head->remaining_time;
-        total_waiting_time += head->waiting_time;
-        printf("Debug: P%d finished (waiting_time: %d added to total)\n", head->pid, head->waiting_time);
-        TAILQ_REMOVE(&list, head, pointers);
         process_list_size--;
+        total_waiting_time += head->waiting_time;
+        total_response_time += head->response_time;
+        TAILQ_REMOVE(&list, head, pointers);
         if(TAILQ_EMPTY(&list)){
           break;
-        }else{
-          head = TAILQ_FIRST(&list);
         }
-      }
-      else
-      {
-        if(finished > 0){
-          head->remaining_time -= (quantum_length - q);
-          //how long the head waited before running this time quantum
-          head->waiting_time += q;
-          printf("Debug: P%d partial execution (r: %d, w: %d)\n", head->pid, head->remaining_time, head->waiting_time);
-        }else
-        {
-          head->remaining_time -= quantum_length;
-          printf("Debug: P%d full quantum execution (r: %d)\n", head->pid, head->remaining_time);
-        }
-        // Move head process to back of queue
-        TAILQ_REMOVE(&list, head, pointers);
-        TAILQ_INSERT_TAIL(&list, head, pointers);
-        head = TAILQ_FIRST(&list);
-        requeued++;
       }
 
-      //Count waiting times
-      struct process *curr = head;
-      for(int w = 0; w <(process_list_size - requeued); w++)
+      //Increment all other processes' waiting and response times
+      struct process *curr = TAILQ_NEXT(head, pointers);
+      while(curr != NULL) 
       {
-        if(curr->waiting_time < 0)
-        {
-          curr->waiting_time = (i*quantum_length) - curr->arrival_time;
-          printf("Debug: P%d first waiting time calculation = %d\n", curr->pid, curr->waiting_time);
-        }
-        else
-        {
-          curr->waiting_time += quantum_length;
-          printf("Debug: P%d waiting time += %d = %d\n", curr->pid, quantum_length, curr->waiting_time);
-        }
-        curr = TAILQ_NEXT(curr, pointers);
-      }
-      break;
-    }
-
-    printf("Debug: Queue contents after quantum slice: ");
-    if(TAILQ_EMPTY(&list)) {
-      printf("EMPTY");
-    } else {
-      struct process *curr = TAILQ_FIRST(&list);
-      while(curr != NULL) {
-        printf("\nP%d(r:%d,w:%d,rt:%d)", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
-        curr = TAILQ_NEXT(curr, pointers);
+          curr->waiting_time++;
+          curr = TAILQ_NEXT(curr, pointers);
       }
     }
-    printf("\n");
+    
+    //After each time quantum, we move the current head to the back, and replace the head with the next element. 
+    TAILQ_REMOVE(&list, head, pointers);
+    TAILQ_INSERT_TAIL(&list, head, pointers);
 
-    if(TAILQ_EMPTY(&list))
-    {
+    //If the list is empty after this quantum, exit. 
+    if(TAILQ_EMPTY(&list)){
       break;
     }
   }
+
   printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
   printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
   free(data);
