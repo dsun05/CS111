@@ -164,9 +164,10 @@ int main(int argc, char *argv[])
   // pointer to most recently added process (for easy access of the next one)
   struct process *last_added_process = NULL;
   int process_list_size = 0;
+  bool finished = false;
 
   //For each quantum: 
-  for(int i = 0; i!=-1; i++){
+  for(int i = 0; i<11; i++){
 
     int slice_start_time = i*quantum_length;
     int slice_end_time = slice_start_time + quantum_length;
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 
     printf("\n");
     printf("==========================================\n");
-    printf("DEBUG: QUANTUM %d START (time %d-%d)\n", i, slice_start_time, slice_end_time - 1);
+    printf("DEBUG: QUANTUM %d START (time %d-%d)\n", i, slice_start_time, slice_end_time);
 
     //Then, we run processes for the length of the quantum
     for(int time = slice_start_time; time < slice_end_time; time++)
@@ -209,6 +210,16 @@ int main(int argc, char *argv[])
         printf("DEBUG: Head process is %d (remaining: %d)\n", head->pid, head->remaining_time);
       }
 
+      //Increment all other processes' waiting and response times
+      printf("DEBUG: Incrementing waiting time for processes after head\n");
+      struct process *curr = TAILQ_NEXT(head, pointers);
+      while(curr != NULL) 
+      {
+          printf("DEBUG: Incrementing waiting time for process %d from %d to %d\n", curr->pid, curr->waiting_time, curr->waiting_time + 1);
+          curr->waiting_time++;
+          curr = TAILQ_NEXT(curr, pointers);
+      }
+
       //Set response time
       if(head->response_time == 0)
       {
@@ -232,28 +243,34 @@ int main(int argc, char *argv[])
         total_response_time += head->response_time;
         printf("DEBUG: Process %d final waiting time: %d, response time: %d\n", head->pid, head->waiting_time, head->response_time);
         TAILQ_REMOVE(&list, head, pointers);
+        finished = true;
         printf("DEBUG: Queue size after removal: %d\n", process_list_size);
-        if(TAILQ_EMPTY(&list)){
+
+        if(TAILQ_EMPTY(&list))
+        {
           printf("DEBUG: Queue empty after removal, breaking\n");
           break;
         }
-      }
-
-      //Increment all other processes' waiting and response times
-      printf("DEBUG: Incrementing waiting time for processes after head\n");
-      struct process *curr = TAILQ_NEXT(head, pointers);
-      while(curr != NULL) 
-      {
-          printf("DEBUG: Incrementing waiting time for process %d from %d to %d\n", curr->pid, curr->waiting_time, curr->waiting_time + 1);
-          curr->waiting_time++;
-          curr = TAILQ_NEXT(curr, pointers);
+        else
+        {
+          head = TAILQ_FIRST(&list);
+          printf("DEBUG: Head process is %d (remaining: %d)\n", head->pid, head->remaining_time);
+        }
       }
     }
     
     //After each time quantum, we move the current head to the back, and replace the head with the next element. 
-    printf("DEBUG: Moving head process %d to back of queue\n", head->pid);
-    TAILQ_REMOVE(&list, head, pointers);
-    TAILQ_INSERT_TAIL(&list, head, pointers);
+    if(finished == false)
+    {
+      printf("DEBUG: Moving head process %d to back of queue\n", head->pid);
+      TAILQ_REMOVE(&list, head, pointers);
+      TAILQ_INSERT_TAIL(&list, head, pointers);
+    }
+    else
+    {
+      finished == false;
+    }
+
 
     printf("DEBUG: QUANTUM %d END\n", i);
     printf("==========================================\n");
