@@ -22,7 +22,7 @@ struct process
 
   /* Additional fields here */
   u32 remaining_time;
-  u32 waiting_time;
+  int waiting_time;
   int response_time;
   /* End of "Additional fields here" */
 };
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
       {
         //add process to list
         data[j].remaining_time = data[j].burst_time;
-        data[j].waiting_time = 0;
+        data[j].waiting_time = -1;
         data[j].response_time = -1;
         TAILQ_INSERT_TAIL(&list, &data[j], pointers);
         //lastAdded = process
@@ -215,7 +215,6 @@ int main(int argc, char *argv[])
         
     //Then, we run processes for one time quantum. q = how much of the quantum we have used up so far. 
     for(int q = 0; q<quantum_length;){
-      //Get head if list not empty
       if(TAILQ_EMPTY(&list)){
         break;
       }else{
@@ -235,11 +234,8 @@ int main(int argc, char *argv[])
         finished++;
         q += head->remaining_time;
         total_waiting_time += head->waiting_time;
-        // Remove the finished process and get the new head
         TAILQ_REMOVE(&list, head, pointers);
         process_list_size--;
-
-
         if(TAILQ_EMPTY(&list)){
           break;
         }else{
@@ -247,14 +243,12 @@ int main(int argc, char *argv[])
         }
       }
 
-      //If the head process will not finish, there are two cases:
       // it is the first process -> decrement remaining time by time quantum length, then requeue and break the loop
       // it is not the first process -> decrement remaining time by quantum length - how much of the quantum we've used so far, then requeue and break the loop
       else
       {
         if(finished > 0){
           head->remaining_time -= (quantum_length - q);
-
           //how long the head waited before running this time quantum
           head->waiting_time += q;
         }else
@@ -266,18 +260,13 @@ int main(int argc, char *argv[])
         TAILQ_INSERT_TAIL(&list, head, pointers);
         head = TAILQ_FIRST(&list);
         requeued++;
-        break;
       }
 
-
+      //Count waiting times
       struct process *curr = head;
       for(int w = 0; w <(process_list_size - requeued); w++)
       {
-        //waiting time:
-        // if waiting time == 0; then this is its first time waiting. waiting time = current time - arrival time
-        // else, add time quantume to waiting time
-
-        if(curr->waiting_time == 0)
+        if(curr->waiting_time < 0)
         {
           curr->waiting_time = ((i+1)*quantum_length) - curr->arrival_time;
         }
