@@ -228,6 +228,10 @@ int main(int argc, char *argv[])
         head->response_time = (i*quantum_length + q)  - (head->arrival_time); 
         total_response_time += head->response_time;
         printf("Debug: Set P%d response_time = %d\n", head->pid, head->response_time);
+      }
+      if(head->waiting_time < 0){
+        head->waiting_time = 0;
+        printf("Debug: Set P%d waiting_time = %d\n", head->pid, head->waiting_time);
       } 
 
       //If the head process will finish within the quantum, we finish the process and start the next one
@@ -273,7 +277,7 @@ int main(int argc, char *argv[])
       {
         if(curr->waiting_time < 0)
         {
-          curr->waiting_time = ((i+1)*quantum_length) - curr->arrival_time;
+          curr->waiting_time = (i*quantum_length) - curr->arrival_time;
           printf("Debug: P%d first waiting time calculation = %d\n", curr->pid, curr->waiting_time);
         }
         else
