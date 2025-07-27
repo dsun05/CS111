@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
         TAILQ_REMOVE(&list, head, pointers);
         process_list_size--;
 
-        
+
         if(TAILQ_EMPTY(&list)){
           break;
         }else{
@@ -252,11 +252,13 @@ int main(int argc, char *argv[])
         requeued++;
         break;
       }
-
-    
     total_waiting_time += (process_list_size - requeued) * quantum_length;
     //waiting time = # of processes - those which were processed this quantum, times the quantum length
   }
+  if(TAILQ_EMPTY(&list)){
+    break;
+  }
+
 }
 
 
