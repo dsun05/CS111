@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
     } else {
       struct process *curr = TAILQ_FIRST(&list);
       while(curr != NULL) {
-        printf("P%d(r:%d,w:%d,rt:%d) ", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
+        printf("\nP%d(r:%d,w:%d,rt:%d) ", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
         curr = TAILQ_NEXT(curr, pointers);
       }
     }
@@ -294,10 +294,11 @@ int main(int argc, char *argv[])
     } else {
       struct process *curr = TAILQ_FIRST(&list);
       while(curr != NULL) {
-        printf("P%d(r:%d,w:%d,rt:%d) \n", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
+        printf("\nP%d(r:%d,w:%d,rt:%d)", curr->pid, curr->remaining_time, curr->waiting_time, curr->response_time);
         curr = TAILQ_NEXT(curr, pointers);
       }
     }
+    printf("\n");
 
     //After each quantum, we check if we have exhausted the processes.
     if(TAILQ_EMPTY(&list))
