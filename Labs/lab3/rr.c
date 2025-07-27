@@ -193,7 +193,8 @@ int main(int argc, char *argv[])
       }
     }
 
-        
+    printf("Debug: Iteration i = %d, Current time = %d\n", i, i * quantum_length);
+
     printf("Debug: Queue contents: ");
     if(TAILQ_EMPTY(&list)) {
       printf("EMPTY");
@@ -285,7 +286,6 @@ int main(int argc, char *argv[])
         curr = TAILQ_NEXT(curr, pointers);
       }
     }
-    printf("Debug: Completed iteration i = %d\n", i);
 
     
     //After each quantum, we check if we have exhausted the processes.
