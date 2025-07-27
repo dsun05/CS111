@@ -177,13 +177,13 @@ int main(int argc, char *argv[])
   //Infite loop, this will determine our absoloute sense of "time". i = # of quantums processed, starting at 0
   for(int i = 0; i!=-1; i++){
 
-
     //First, we need to loop through the input data and insert all data that has newly arrived at this time
     for(int j = last_added_process ? (last_added_process - data + 1) : 0; j < size; j++){
       if(data[j].arrival_time <= i * quantum_length)
       {
         //add process to list
         data[j].remaining_time = data[j].burst_time;
+        data[j].waiting_time = 0;
         TAILQ_INSERT_TAIL(&list, &data[j], pointers);
         //lastAdded = process
         last_added_process = &data[j];
@@ -193,13 +193,22 @@ int main(int argc, char *argv[])
       }
     }
 
-    //count number of processes removed from process list (finished)
-    //count number of processes requeued
+        
+    printf("Debug: Queue contents: ");
+    if(TAILQ_EMPTY(&list)) {
+      printf("EMPTY");
+    } else {
+      struct process *curr = TAILQ_FIRST(&list);
+      while(curr != NULL) {
+        printf("P%d(r:%d,w:%d) ", curr->pid, curr->remaining_time, curr->waiting_time);
+        curr = TAILQ_NEXT(curr, pointers);
+      }
+    }
+    printf("\n");
+
     int finished = 0;
     int requeued = 0;
     struct process *head;
-
-
     //Then, we run processes for one time quantum. q = how much of the quantum we have used up so far. 
     for(int q = 0; q<quantum_length;){
 
@@ -276,13 +285,15 @@ int main(int argc, char *argv[])
         curr = TAILQ_NEXT(curr, pointers);
       }
     }
+    printf("Debug: Completed iteration i = %d\n", i);
 
+    
     //After each quantum, we check if we have exhausted the processes.
     if(TAILQ_EMPTY(&list))
     {
       break;
     }
-}
+  }
 
 
   printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
