@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
       {
         finished++;
         q += head->remaining_time;
-        total_waiting_time += head->total_waiting_time;
+        total_waiting_time += head->waiting_time;
         // Remove the finished process and get the new head
         TAILQ_REMOVE(&list, head, pointers);
         process_list_size--;
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
         {
           curr->waiting_time += quantum_length;
         }
-        curr = TAILQ_NEXT(&list);
+        curr = TAILQ_NEXT(curr, pointers);
       }
     }
 
