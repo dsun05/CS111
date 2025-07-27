@@ -226,6 +226,7 @@ int main(int argc, char *argv[])
       if(head->response_time < 0)
       {
         head->response_time = (i*quantum_length + q)  - (head->arrival_time); 
+        total_response_time += head->response_time;
       } 
 
       //If the head process will finish within the quantum, we finish the process and start the next one
