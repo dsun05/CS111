@@ -283,6 +283,7 @@ int main(int argc, char *argv[])
         }
         curr = TAILQ_NEXT(curr, pointers);
       }
+      break;
     }
 
     printf("Debug: Queue contents after quantum slice: ");
