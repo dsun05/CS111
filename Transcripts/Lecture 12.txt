@@ -1,0 +1,1202 @@
+﻿We're going to move on today to talk about one of the primary things that we do with devices, particularly the persistent storage devices. We're going to start talking about file systems.
+So we'll talk about why we have file systems, what their purpose is. We'll talk about why there are important issues in how we build them, why it isn't trivial to build a file system.
+We'll talk about some of the basic elements of file system design, and then we'll talk about a couple of very, very early examples of file systems in operating systems you may be somewhat familiar with.
+We'll talk about the DOS FAT file system, which was the very earliest Microsoft file system, and the Unix System 5 file system, which was a file system built for a predecessor to Linux.
+So why are we talking about file systems? Why are they important in operating systems?
+Most systems, most computer systems need to store data persistently. And what we mean by persistently in this context is that if you shut the computer down completely, no power whatsoever to it, and you start it up again at some point in the future, the data is still there. The data persists.
+It remains in place and becomes available whenever the computer is running. So this is something that we really kind of need. For one thing, of course, the operating system itself is a piece of code.
+If we want to boot up the operating system when the computer is not available, we have to have a persistent copy of it somewhere. But of course, this is also the case for all of the applications that we're likely to want to run on our computer, and for all of the data files that we're working with on our computer. So this is very important. This is core functionality. This is something a system really has to have, unless we're talking about a very specialized, simple system for very limited purposes.
+Moreover, not only is it necessary at a few particular points, but really, when you're doing almost anything on your computer, you're going to be using the file system almost all the time. Now, this means we're going to have to have some way of doing it. And it's going to be some way that probably is going to need to be integrated into the operating system. As we discussed in the last class about devices, we know that the flash drive or the rotating hard disk drive, where we store file systems, is going to be much slower than other elements of the computer. And there are certainly going to have to be things done to make sure that we are able to make use of that device to store and retrieve our persistent data without suffering all of the penalties that we would see from having the slowness of that device get in the way. So, what could we do? We have these devices, like the flash drive, that can persistently store data. You put the data there, you shut the power off, you bring the power back, data is still there. Same pattern of zeros and ones is still there, despite the fact that the power is turned off. Great. Now, these are block devices, as we've discussed before, meaning that they work with data one block at a time, or a block is some fixed number of bytes. So, 4k, for example, would be a common block size.
+So, one thing we could do is we could say, okay, these devices store blocks. You write a whole block, you read a whole block.
+You don't write a few bytes, you write a block. So, why don't we just tell our programmers and our users, find some empty blocks and write your stuff there. And when you want it, go to those blocks, pull it back.
+So, the problem with this is that it just doesn't make any sense to users, or for that matter, to programmers.
+How are you going to remember where you put things? How are you going to know which of the many, many, many blocks of data on this device store the stuff you're really interested in, as opposed to storing stuff you're not interested in? You're going to have to have something to help you keep track of that.
+Even the operating system developers themselves don't want to work this way. It just is not a feasible way to deal with persistent data. Now, at the exact opposite end of functionality, we could say, well, database designers have worked out a way to store data on these devices, often using the raw device.
+they take care of everything. And they're able to do all kinds of stuff with storing and retrieving the data.
+Now, the issue with that is that databases were meant for a particular purpose.
+They were meant to store collections of data that would be dealt with as a collection of data.
+There would be searching. There would be updates to particular records.
+You would have tables or similar types of things that represent several related pieces of data.
+There would be a lot of structure. Now, for file systems, for the other uses that we're going to use these devices for, these persistent storage devices, we don't need quite that much structure.
+And you might say, well, okay, fine. You've got structure. You don't need it. Maybe you don't have to use it. But you pay for the structure. There are important costs, performance costs, paid to provide the structure that databases provide. And for what they are used for, for what databases are designed for, that structure is necessary. That cost is worth paying. But for other types of things, it's not necessary and the cost is not necessarily worth paying. So we don't really want that much structure.
+We want something in between a collection of random blocks and a full database.
+And that's where file systems tend to fit in. So the file system will have some degree of structure, some degree of organization in how it puts together pieces of these storage devices to build up collections of data that make sense to users and make sense to programs.
+The basic concept here is one that has been inherited from many, many years ago from the world in which we used exclusively paper for persistent data, pretty much. The file concept.
+You may still all be familiar with the concept of a real world physical filing cabinet where you pull open a drawer and there are a bunch of folders in the drawer. Each of the folders holds a bunch of pieces of paper. You find the folder you want, you pull it out, it's got the papers in it that you want.
+That was a concept that was very, very useful before computers were invented.
+So you could organize data. So for example, a company could keep track of all of its sales by organizing its data into separate files within the filing cabinet.
+Or you could keep track of records of your customers or records of your citizens when you were trying to determine if they paid their taxes or whatever it was you wanted to do with large organized collections of data.
+These filing cabinets were very useful and they served as a metaphor for what we could do with a computer. We don't need the paper anymore, but we still want to collect data and we still want to have some way of saying, here are several individual collections of data which all relate to each other. And we want to keep them together somehow and make it easy to find the things that we want to find. That's what we are trying to do with file systems. It's going to be a simple, powerful organizing principle for collections of data.
+We need to be able to find the collection we need to be able to organize different collections of data. And of course, we need to have some efficient, fast way of accessing and using the data we've stored in these files. Now, we're going to be using the hardware that we talked about, things like the flash drive and the rotating hard disk drive to actually store this. Now, the expectation is that if we as a user or as an application have said, here's a file, let's put data into this file, we put the data in the file, you, the system, have told us the data is in the file. We then have the expectation that at some point in the future, if we go back and say, show me the file, the file is there. We expect that the bits in the file have not changed, that they are exactly the way they were the last time we wrote them, assuming, of course, neither us nor any other party has removed the file or altered the bits. We don't expect things to randomly change for no apparent reason. Of course, we are going to have some important performance implications here. We're going to store, for example, the actual application code, the code that is the load module for a particular application in a file. And when we want to start that application, we're going to have to go to that file and pull that data out and put it into memory so we can start running the program. Now, that implies that there will be a performance penalty on starting up a program based on how long it takes to get the data out of the file.
+Further, for anything else that we do involving files, there's going to be a performance penalty because ultimately you're going to have to pay the cost of going to these devices and storing data there or retrieving data from there, which is going to be a lot more than the cost of going to RAM or going into your cache. Now, it's also the case that while we do use flash drives very, very widely, they're probably the most popular current storage technology. That has not always been the case.
+And there are other situations in which we use other devices, other kinds of hardware to store our persistent data. Rotating hard disk drives being an example. CDs, DVDs, those kinds of things are another example. Tapes are another example. Now, we don't want our system to have to worry about, gee, you know, am I working with the tape today? Am I working with this heart rotating hard disk drive? Am I working with the flash drive? Which one is it? And we don't want them to have to go through different steps using different methods, different system calls to work with those different devices. We want the file system technology that we're going to build to work properly on all of those devices, even though they have very different physical characteristics, different performance characteristics. And if we want to get effective, correct use out of them, the actual code we're going to have to run to implement the file system on each of these different types of devices, it's likely to be quite different than the code to implement the same file system on a different type of device. So what we want is to say the users at the top get to work with something that is general. We'll work with any of these. Any, their file system interface will be generic. Doesn't matter what's underneath storing the data. Down at the bottom, we're going to have to have code that says, okay, this one is a rotating hard disk drive. Therefore, to do this open of this file, here's the code we're going to have to run to get data off of the hard disk drive in order to open the file.
+Now, I've said before, and we'll say again, that flash drives are what we use most commonly today. Flash drives are solid state, by which we mean they're fully electronic circuits. There are no moving parts in a flash drive. That wasn't true for hard disk drives, or for that matter, for CDs or DVDs. The CD and the DVD itself have no moving parts on them, but in order to use them, you have to rotate them.
+So, flash drives have a big advantage in that sense. Anytime that something physically moves, we're going to have to have a bunch of constraints on how fast can it move, how fast can we deal with its movement.
+With flash drives, any solid state device, it's all going to be done electronically. So, our limitations on speed are likely to be related to speed of light and that kind of thing.
+So, flash drives are faster than these other devices, by and large. Reads and writes are pretty fast. So, you can read up to, say, 100 megabits per second off a flash drive, and you can write up to 40 megabits per second, which is quite a lot of data.
+However, there are some limitations to the flash drive technology. One of those limitations is that, yes, it's a block-oriented device, but when you write to a block on a flash drive, you cannot overwrite that data.
+You cannot change the bits in that block. They are permanently there. You can read it as often as you like, but you can't overwrite it.
+What you can do is you can say, I'm going to erase some of the data, but you can't erase one block. You can erase a collection of blocks that are located in the same part of the flash drive called a sector.
+So, you're going to erase the whole set of them if you want to erase one of the blocks. This is going to have some implications.
+Further, erase cycles are slower, a lot slower than writes, a lot slower than reads.
+That means that if we can't perform, can't finish an operation for an application because we need to do an erase, we'll take a fairly heavy delay, fairly heavy performance penalty when that happens.
+So, we don't want that to happen when we're in the middle of trying to do something fast for an application.
+You should think about, how will these factors affect file system design?
+Because we'll be going through file system design issues for the next few classes.
+And these do have an effect. They change how you build your file system.
+What kind of file system, what approach to storing and retrieving data is going to make the most sense.
+And it's also, of course, the case that flash drives have replaced other technologies as being the primary technology for persistent storage.
+It's possible that a decade down the line or some other time in the future, something else will prove to be better than flash drives.
+And it will probably have its own unique characteristics.
+Then you're going to have to say, well, how do I design to those characteristics to get what I want out of the persistent storage hardware while still providing the same interface, if at all possible, to the users?
+Okay. Now, we're going to be storing data persistently.
+And it turns out there are two types of information that we have to store persistently in order to build a file system.
+Data and metadata.
+What is that?
+Well, data is what you actually want it to store.
+Those are the customer records, the information about what your program is supposed to do in source code form, the application code, the load modules, the configuration information about how your system should be set up, all that kind of stuff.
+That's data.
+That's what you want to store.
+So, ultimately, file systems are all about storing data.
+What's metadata?
+Metadata is information.
+Meta always means about.
+So, metadata is data about data.
+Metadata is going to be describing how you've set things up in the file system.
+That's going to have to be stored persistently as well.
+If you think about this for a moment, you'll see there has to be.
+I've put a bunch of blocks of data somewhere out there on the flash drive that represent my term paper.
+Okay.
+I want to work on my term paper.
+I've got to find those blocks.
+And there are a lot of blocks out there.
+How do I know where they are?
+Well, I better have something that points me to those blocks.
+That's one example of metadata.
+And that better be persistent because if it isn't persistent when I reboot, I don't know where all those blocks are.
+So, the metadata also will have to be stored persistently.
+There's more information involved in metadata than merely saying here's where the pieces of the file are.
+There are things like how big is the file?
+How many bytes?
+There might be things involving who is allowed to access this file and in what ways.
+You might want to keep track of when was the last time somebody wrote data to this file.
+There might be other things of that nature that you'd like to keep track of.
+All of these things are called attributes.
+So, you're going to have to persistently store the attributes, a type of metadata, as well as the data.
+So, you're going to usually use exactly the same piece of hardware for storing the metadata and the data, which means you're going to take some of the overall collection of blocks that you have on that device.
+And some of them will be used to store metadata.
+Some of them will be used to store data.
+Now, we do, of course, as I've said before, want to be sure that whatever we build will work on any of these pieces of hardware.
+Now, we can't be sure that it will work equally well on every kind of piece of hardware.
+As we go through our design issues in the next few classes, you will see that some of these designs are better suited for particular types of hardware than others.
+But, nonetheless, at least mechanically, you want to be able to say, I can make this work on a CD.
+I can make this work on a flash drive.
+I can make this work on a hard disk drive.
+You'll probably have to write some different code for each of those.
+But you'd like, ideally, for that different code to be down below the level of the file system itself.
+You'd like to say, that's an issue for the device.
+I will simply tell the device that, hey, I, the file system code, would like to write the following block, write the block.
+And I won't care about exactly how it does that, whether it has to do with races and so forth.
+And I won't care about how long it takes.
+You know, I'll just have to be told when it's done.
+But I want to make sure that higher levels, I don't have to worry about what's down at the bottom.
+And this is very important because that's the fact of the matter.
+While I've said that flash drives are the most popular form of persistent storage technology, they're not the only form still in use.
+Even leaving aside legacy machines, it's still the case that if you have the need to store very, very, very large amounts of data, which, for example, cloud storage systems do, it is cheaper per megabyte to use rotating hard disk drives than it is to use flash drives.
+And since that business is about making money, they will typically go with a cheaper solution, which means that the file system has to work for them for both flash drives and for the rotating hard disk drives.
+For that matter, you don't even necessarily have to say, well, it works only on persistent storage devices.
+You can have file systems based in RAM.
+RAM is not persistent unless you have a battery-backed DRAM or something like that.
+So that means that if you store your file system in RAM, it is not going to persist.
+Shut the power down, it goes away.
+Now, you might say, well, why are you going to bother doing that?
+Of course, RAM has a big advantage over these other technologies.
+It's faster.
+It's a lot faster.
+So if what you are going to do is saying, I need to, during the run of this program, create a file.
+And I'm going to use the file while the program is running, which might be for a few hours, a few days, maybe quite a while.
+But I don't really need that file after I have exited, after my program has stopped running.
+I don't need that anymore.
+Well, in that case, what you need is a temporary file, a file that is going to be around for when you need it, while you're running, but not afterward.
+Well, RAM is perfectly good for that.
+And it's a lot faster than using the hard disk drive or the flash drive.
+So you might have a file system, in fact, in Unix systems we typically do, that is capable of working on RAM.
+And that's going to be very different, of course, than working with a flash drive.
+So what are we looking for in our file system design?
+What properties would we like to see?
+Well, there are a number of properties we'd like to see in the file system.
+Obviously, we'd like persistence.
+That's the whole point of the exercise.
+We'd also like it to be easy to use.
+We'd like to have some way for users and for application writers to make use of the file system that makes sense to them.
+So they can say, I understand what I have to do in order to work with this particular file that I want to work with.
+And we'd like to offer the mechanisms that allow them to collect groups of files together.
+So if you're working on a big software project, you probably have several different files representing different components of that system.
+You might like to say, let's make sure that all of those files representing the different components in source code form are all in the same place.
+So anytime I want to work with one of them, I can find where it is.
+You need to organize collections of files.
+We'd like our file system to be flexible.
+Ideally, we don't want to say, based on the design of this file system, you may have 1,000 files, but you can't have 1,001 files.
+We'd like to be able to say that there are no limits on size, if possible.
+We don't want to say, you can have 4K files, but you can't have 4K plus 1 byte files.
+We'd like to say, we don't care about what you store in the file.
+It's bytes.
+You've stored a bunch of bits in the file.
+We don't care what those bits represent.
+We don't care if it's a video format.
+We don't care if it's ASCII text.
+We don't care if it's executable code in machine language form.
+We don't care.
+It's bits.
+All the file system cares about is storing and retrieving bits.
+So that would be desirable as well.
+We may run into some constraints on some of those things, on things like file size.
+And certainly, any particular storage device that you're working with, a particular flash drive or hard disk drive, is going to be able to store some number of blocks and no more.
+That will put a limitation on things like how many files can you store, because you're going to have to take some space to store every file.
+You have a limited number of blocks.
+That's going to put a fairly hard limit on how many files you could support, similarly with file size.
+But there could be other things, other elements of how you designed your file system, that also put these kinds of limits on how much you can have.
+We'd like, of course, it to be portable.
+We'd like to say, this file system, the code we have built here, it'll work on any one of the technologies that we might want to use to store files.
+We need high performance.
+We also need reliability.
+We want to be sure that if we say, I have written a file, and the system says, yes, you've written the file, that the file is actually written.
+If there's a crash after we've been told you have written the file, we want to be sure, when the system comes back up, that the file is actually there in the form we wrote it, that it doesn't disappear.
+Of course, we want to make sure that things just don't randomly disappear out of the file system, or randomly change the value of various bits in a file.
+We want reliability in those terms.
+We also want suitable security.
+We'll talk more about that in a moment.
+Now, these are all ideals.
+And it turns out that we may not be able to achieve all of these ideals in any particular file system.
+So, the performance issue, let's talk about that one.
+That's an important one.
+How good does the performance have to be?
+Well, ideally, we'd like it to be as fast as the CPU cores.
+We're running at the same speed as our CPUs.
+Never going to happen.
+We can't do that.
+It's just never going to be able to put the file system on the same chip with the CPU.
+There won't be space for that.
+So, we're not going to achieve that.
+It would be nice if it was running at the speed of memory.
+Maybe, maybe if we were using a RAM file system that stored its data in RAM, not persistently, maybe we could approach that.
+But even that would be difficult because there will be extra code involved in providing the file application, the file operations that wouldn't happen if you were just saying fetch a word of data out of RAM.
+And, of course, the bus is also going to put constraints on how fast things can be.
+But that's what we'd like things to be like.
+We'd like them to be that fast.
+And the reason for that is we don't want to slow down the overall system every time we perform some file operation.
+However, all of these devices, even the slowest of these devices, like the RAM itself, is really fast.
+And we're not going to achieve those speeds with any of the devices we use for persistence.
+Flash drives are approximately 1,000 times slower than RAM.
+So, we are going to take a serious slowdown every time that we go out to one of these storage devices to get information about a file or to store something.
+But we need to hide the mismatch as best we can.
+So, we're going to have to do something that hides the fact that we're not working at the speed we would like to be working at.
+Reliability.
+As I've said, we want to be 100% sure always that if we have a file out there and we haven't done anything and nobody else has done anything to change or get rid of that file, when we go to that file system, the file will be there in the same place, in the same state, same bit values in the file.
+And we want that to be true every single time.
+Not just when things are going well, but when things are going badly.
+So, we want our file system code.
+And there's going to be code that does this.
+System code, typically.
+We want that code to be free of errors.
+And, of course, the hardware that we're using to store the data persistently must also be free of errors.
+It must not be going around and randomly flipping bits.
+So, when we think about what's going to be going on here and we start talking about some file system design issues, and you think about, well, you know, at any moment you might have a crash, things might stop running.
+How are we going to make sure that we always have a state on this persistent device that is consistent, given that there is concurrency, possibilities of race conditions?
+Might there be something kind of challenging about that?
+Yeah.
+And what did I mean by that suitable security issue?
+Well, not on every system, but on most systems, we support multiple possible users.
+Even when you're talking about a laptop computer like the one I'm using, where I am the only person who actually uses it, we want to have not just me, my account, but we also want to have the ability for me to set up another account, for example, for a family member.
+Or, even though I don't want to do that, we probably want to have a system administrator account, which perhaps I can log into myself, because it's my machine, but ordinarily I wouldn't use.
+And the reason I wouldn't use it is because, you remember from the last class when we were talking about the slash dev directory, and having read-write permission on those hard disk drives?
+Well, if I logged in all the time as a system administrator and I made a mistake, I could wipe out my hard disk drive because I, as a system administrator, would have permission to write it.
+And if I write it, life could get very bad.
+So, we want to be able to support, for many purposes, different users in the system with different permissions to do different types of things.
+That's what we mean by suitable security.
+Now, if we say that user Bill should not be able to write this file, and user Bill tries to write the file, we need to prevent him from doing so.
+We need to detect, we need to determine, that is not permitted.
+So, we're going to have to build in features into the file system that allow us to make that determination and enforce that decision.
+Okay, given all that, how do we design file systems?
+And how do we fit them into the operating system?
+This will turn out to have a lot to do with control structures.
+We're going to store data on the persistent storage device that describe the state of the file system.
+Where is this file?
+How big is this file?
+How many of the blocks in the file, in this device, have we already used?
+And how many have we not used?
+Where are the ones we haven't used?
+And various other things of that nature.
+We're going to have file control data structures that will perform that task for us.
+And we're going to store those in one form on the flash drive or the hard disk drive itself.
+But first, let's talk about how file systems fit in.
+Here's a diagram showing how file systems fit in.
+Now, some elements of this diagram you've seen before.
+We have the applications at the top.
+I'm not showing the hardware at the bottom, but I'm showing the device drivers down at the bottom.
+And you know the hardware is below the device drivers.
+And below the applications, of course, we have system calls.
+Now, system calls can do various kinds of things.
+You know, for example, you can have a system call that does a fork.
+And you fork off a new process.
+But some of the system calls are going to be related to the file system.
+There will be system calls that are specifically about dealing with files.
+So below the system call layer in this particular diagram, we see three types of operations.
+File container operations, directory operations, and file I.O. operations.
+Those are all going to be types of system calls that deal with file systems.
+And below that, we have other stuff, which we'll get to as we go through the lecture today.
+Now, here, this is the API that application programmers can use to access the file system.
+And in turn, this will mean that the application will offer to the users ways of opening files, creating files, closing files, deleting files, and so on and so forth.
+All of which will eventually go through the system calls and hit the file system API.
+Now, below that, we have something that you may not be familiar with.
+And you should be able to guess that, yeah, of course, we have an API for the file system.
+But what's this virtual file system integration layer?
+What's that all about?
+Well, we will see as we go through the next few lectures that there are many different ways to build a file system.
+And it would be desirable to say the applications at the top level can work with any one of those and don't even have to worry about which one they're working with.
+And in fact, even on the same machine, even on one machine, wouldn't it be nice if we could support a whole lot of different file systems?
+Three, four, half a dozen.
+Why not?
+Now, why not?
+Well, if they each had a different API, that would make it very difficult to write applications because you'd have to say, okay, the guy wants to open a file.
+Which one of the file systems is it in?
+Is it in file system A, B, or C?
+So do I need to make a system call of type A, type B, or type C?
+You don't want to require the applications to worry about that.
+That would also reduce the flexibility that you have in where you stored things, which file system you used on a particular machine at a particular time.
+So wouldn't it be nice if we said, yes, you can have multiple file systems, but they all also have to plug into something.
+They have to plug into an interface.
+And this interface offers a general API, a programming interface, not really a programming interface, but an interface that allows applications to make system calls that will be diverted through this interface, a general interface, to whichever one of the file systems happens to be the one that's using, storing the file that they wish to work with.
+If they want to work with a DOS file, it'll go to the DOS file system.
+If they want to work with an EXT4 file system, it'll go to the EXT4 file system.
+They won't have to specify that in the application, in the way they open it from the user perspective.
+It'll just go to the right place.
+And in order for this to work, then there must be a set of system calls that are performed that are common to all of them.
+Open, you're going to use the same open system call for all of your file systems.
+Read, use the same system call for all of your file systems, and so on.
+Now, in order to make that work, we are going to have to have a piece of software that says, okay, yes, here is an open system call.
+Fine, he wants to open file foo.
+You're going to have to be able to figure out, okay, I got four different file systems here.
+Which one stores foo?
+Well, I will now, having figured out that it's stored by file system B over there, I will now have to tell file system B, you just got an open call on foo.
+And file system B can then do whatever it does to open that file up.
+If it turns out that it was file system D instead, we're going to have to direct that open call to file system D.
+That's what the virtual file system integration layer is all about.
+Now, if you have such a layer, you can then support on a single computer multiple separate file systems.
+And they can all just plug into the bottom of this virtual file system integration layer.
+At the time that you set up the computer, create your file systems, organize your file systems, you would indicate at the VFS level, here is this file system, here's that file system, here's the other file system.
+Here's the set of files that are handled by file system A, here's the set of files handled by file system B, here's the set of files handled by file system C, and so on.
+That will then allow the applications to open whatever files happen to be around that they're allowed to open, in whatever ways they're allowed to open them, without worrying about which of the file systems is implementing the ability to access those files.
+It'll get directed to the right one by the virtual file system integration layer, and then that right one will do whatever it does, whatever magic it performs, to actually cause the access to the file you were requesting to happen.
+As we will see, those can be quite different things, but you want it to look the same to anybody who is using your file systems.
+Now, as you may have already been aware, I mean, you probably are aware because you've done some socket programming, we use file system calls to get at things that aren't files at all.
+Sockets aren't files, and various other things aren't files.
+So, in the last lecture, we talked about the slash dev directory in Linux systems.
+Things in the slash dev directory, they're not files.
+They look like files, but they're not files.
+They're actually mechanisms we use to allow you to use file system calls to access devices, to make commands happen at devices.
+So, the file system call interface also leads, depending on exactly what you're doing, to device I.O., the ability to issue commands directly to devices, and to socket I.O., the ability to perform various kinds of interprocess communication via sockets.
+These are not file systems.
+There is no file in the file system that represents these things.
+There appears to be for the device I.O., but that's not a real file at all.
+And then, of course, we're going to have, don't have it listed here, the device-independent block I.O.
+We'll talk about that as well.
+Okay, now, this is, if you think about this, obviously, another example of layered abstractions in operating systems.
+At the top, applications say, I open a file.
+At the bottom, a device driver issues a command to a particular hardware device, like a flash drive, saying, access this following block and read it for me.
+Okay, there's a lot happening in between.
+The things at the top, open the file, write the file.
+And the things at the bottom, fetch this block of data, write that block of data.
+Now, why do we have all this multiple layers in between?
+We saw those layers in the previous diagram.
+We could directly translate from the application file operations to a block operation on a particular device.
+Well, there are good reasons for doing that, the typical reasons that we see.
+It allows us better generality.
+It allows us to hide details of what's happening at the low level.
+It allows applications to work in a simpler way, to have less knowledge, less concern about how the file system is implemented.
+Now, we're going to go through this diagram and look a little more carefully at the various important abstractions that we see here.
+So, here's the system call level.
+And below the system call, of course, we are now running privileged code.
+This will all be run as operating system code.
+We're going to try to provide on any given system, a Windows system, a Linux system, a Mac OS system, one API for accessing files.
+It doesn't matter what your underlying file system is.
+It doesn't matter if you have several of them running on the same computer.
+There will be one interface for the applications and the users to work with to get to their files.
+Now, this is great, but it does mean that you are going to have different things happening in different cases from the same kind of call.
+The same read call is going to result in different mechanical operations depending on various factors, including which file system you go to, what device is it being stored on, which implies what device driver are you using, and so on.
+Now, this is very important.
+When you write a program, let's say you're a professional programmer working for a company that sells software, you want to sell that software to as many people as possible.
+All of the Windows customers in the world.
+You want them all to be able to use your software.
+Now, all of the Windows customers in the world have a very wide variety of machines that they run on, different hardware, different versions of their operating system, and so on.
+So you're going to have to say, I don't want to figure out what everybody's got.
+I can't.
+There are billions of them, perhaps.
+And I also don't want to have to have the users who are working with my application understand that because they have this particular model of storage device using that particular file system, they're going to have to twiddle my application in various different ways.
+I don't want to do that.
+I just want them to install the application and get at their files.
+So if there's a single file system API, then that'll work because it will mean that you can write the application using that single API.
+And regardless of what's happening down there at the bottom and in between, it's all going to work because everything that uses the file system will meet that API.
+This is very, very important.
+Now in the API, as we saw, there are three different types of operations.
+File container, directory operations, file I.O.
+We'll look at each of these in a little more detail.
+What are file container operations?
+These are operations that treat an entire file as one object, just as one thing.
+So, for example, delete the file.
+You delete the whole file.
+You just treat that file as one thing.
+Change the file location, things of that nature.
+You want to learn how big the file is.
+Well, that's about the entire file.
+That's a file container operation.
+You want to change the name of the file.
+That, too, will end up being a file container operation.
+Now, the work here is going to happen in the file system implementation.
+So this is pretty much going to be dropping stuff down to the implementation.
+Directory operations.
+Now, the way we're going to work to organize large collections of files in a computer is we're going to organize them into directories and directories with subdirectories, typically in a very hierarchical fashion.
+We'll talk about that a lot more in one of the future lectures on file systems.
+But you're all familiar with this.
+I mean, you've used computers.
+You know this is how we do things.
+You have your home directory and subdirectories and so on and so forth.
+So there are sometimes a few extra wrinkles.
+It's not entirely hierarchical.
+It's a little bit different.
+But basically, that's what we do.
+So what is a directory?
+Well, a directory, as it turns out, is a file.
+It itself is a file.
+And what does it do?
+Well, it's got contained in the file, excuse me, a bunch of names, names of files that are within that directory, and pointers to where that file is located, to how you find the file.
+Maybe pointers to pieces of data of the file.
+Maybe pointers to something else that allows you to find the pieces of data of the file.
+But at any rate, a handle, a way to get to the data associated with that file.
+So what we're going to do with directories is manipulate what's in the directory or use what's in the directory.
+So if you say, I want to find this file, what you're going to have to do is go into the directory in question that contains the file and look up the name.
+Find the name.
+There's going to be an entry of the directory.
+A field in the directory that says, this is the file name foo.
+And then associated with that will be something that says, here's how you get to the data associated with foo.
+Or other information, metadata information associated with foo.
+So that's one of the kinds of things you're going to do very frequently with directories.
+That's a directory operation.
+If you want to change the name, well, the name is typically kept in the directory.
+So if you want to change the name, you're going to go into the directory and change foo to bar or to whatever you want it to be.
+If you want to know what are all the files in this directory, you want to go into the directory and list all the files in the directory.
+That's another directory operation.
+And then, of course, there are the I.O. operations.
+This is where you say, I'm going to open a file.
+Now, it was not absolutely necessary, perhaps, to say we are going to have a separate open operation.
+You could have just designed a file systems interface where you said, read the file, write the file.
+Don't worry about whether it's open.
+Open if you need to open it.
+This is not how we did things.
+And it's not how we do things anymore.
+We always explicitly say, I need to open this file.
+And then I can do things like read the file and write to the file.
+So, open is one of the file I.O. operations.
+And you can pretty much guess what it's going to have to do.
+It's probably going to have to go out and get information about that file, the one you want to open, off of the storage device, and set up something in system memory, in the operating system's internal memory, that says, this is a file that is opened by this process, and it is doing the following things with this file.
+So, that's more or less what will happen with open.
+Then, of course, you're going to read data and write data to open files.
+And this is going to be implemented by saying, I would like to read, for example, bytes 500 through 600.
+That's what it will look like to the user and to the application.
+But, of course, what that really means is that somewhere along the line, you have to figure out, where are bytes 500 and 600?
+Oh, they're in this particular block of data.
+I need to go and get that block of data, bring that block of data in, and make bytes 500 through 600 available to the application that wanted to do the read.
+Okay.
+So, this is typically going to mean that, first, you're going to have to go to the device and get a block or several blocks off of that device.
+You're going to have to do something with them.
+Typically, you're going to bring them into system space, into space belonging to the operating system, buffers.
+But, the user asked to have data in a particular place.
+So, when he said read data, he said read data and put in this variable.
+Put it in this location in my data space.
+So, we're probably going to copy some data from the buffers into the user's own data space.
+Which means we're going to transfer a copy of the data from system space to user space.
+There will be copying operations performed there.
+Writing will go in the other direction.
+I want to write what's in my data space, in this location in my data space, into bytes 7,000 through 7,500.
+Okay.
+We figure out.
+Fine.
+You want to write into this particular block of data.
+We're going to copy the data that you want to write into a buffer somewhere.
+And, we're going to force that to get written properly to the device in question.
+All of the file system interfaces that we work with in popular operating systems have a concept that, when you have a file open, you have a pointer.
+A process that has the file open has a pointer.
+The pointer is the pointer to the next byte you're going to access, read or write.
+And, normally, what you do is you read, read, read, read, read.
+As you read, the pointer moves.
+You've read the first 100 bytes.
+Now, the pointer is at the 101st byte and so on.
+Sometimes, though, you don't really want to read the whole thing.
+There's a particular part of the file that you want to read or a particular part of the file you want to write.
+The seek operation is used to move this pointer around.
+Another thing you can do with files, which is kind of cool, is you can say, I, my application, this application, no longer wants to treat this file as a file.
+I want to treat this as a piece of my address space, as if it were in RAM.
+So, I'm going to not say, from this point onward, read byte 1000.
+I'm going to say, go to the start of the data structure in my address space that represents this file, and go to the thousandth byte within that data structure.
+This will allow me, once I've done this, to treat that file as if it were just sitting in my memory already.
+You can do this.
+Now, this is going to require, of course, the operating system to do a bunch of work to make this happen.
+But, you can do it, and it will allow you to work with the file in that fashion.
+Now, we've already talked a little bit about the virtual file system integration layer, the thing that sits there.
+This, basically, is what's called a federation layer.
+A federation layer is something that says, you're going to have generic requests coming in at the top, and we're going to spread it out to several totally different things at the bottom, each of which is, under certain circumstances, able to handle one or more of those operations from the top.
+So, you're kind of multiplexing.
+You're saying, I've got five file systems.
+I've got opens.
+Some of the opens go to one.
+Some of them go to the other.
+This federation layer is going to be what determines which goes where.
+And if you decide you want a sixth file system, that shouldn't be a problem.
+But you're now going to have to plug it into the federation layer at the bottom and tell it, here's where the files representing the sixth file system can be found, which ones you should send open requests for to the sixth system.
+And then, from that point onward, once you've plugged it into the federation layer, applications can start working with that sixth file system.
+So, this allows you, if you have set things up properly, and this is the way that modern commercial operating systems work, you can plug in a bunch of different file systems.
+This is how you can say, you know, I don't have a CD drive built into my computer anymore, but I can plug one into one of the ports on the computer.
+Clearly, there's going to be a file system that handles the CD file system, the files that are stored on that CD.
+How am I going to make that work with the same interface with everything else?
+Well, I have plugged in the code for that CD file system into the bottom of my VFS on my operating system, and now, if I go to a file that's stored on that particular CD, it will, at the federation level, say the open goes to the CD file system code, not to the code that is implementing the file system on the flash drive.
+All right.
+So, these file systems now become plug-in modules.
+I can plug them, I can unplug them.
+And they all implement the same kind of thing.
+In order to plug in properly to the federation level, they must meet the interface that the federation level requires.
+You've got to handle opens.
+You've got to handle closes.
+You've got to handle reads.
+You've got to handle writes, et cetera, et cetera.
+So, when you say, I'm going to plug in this file system into my federation layer, it's going to be an operation that requires the virtual file system code to check to see that, yes, this is somebody who does indeed implement all these things.
+I can plug in.
+He will respond properly.
+He'll do some useful thing when I tell him, open a file.
+Now, the fact that you've done this is totally hidden from the higher level clients.
+You don't need to make people aware that you added a new file system to your existing operating system.
+You just see, okay, now I can get to these files.
+Then, of course, we have the actual file systems.
+These are the things that are going to say, here's how you open a file.
+Here's how you read 100 bytes of data.
+Here's how you write a file.
+Here's how you delete a file.
+All that kind of thing.
+That's what we have here.
+And in this little example, we see we have four different file systems all plugged into the VFS layer.
+What's happening here?
+Well, this is where the actual business of working with files occurs in this layer.
+They're going to all, of course, be working with block devices.
+Now, RAM isn't a block device, and you do have RAM file systems.
+But essentially, we're going to say you're working with block I.O. devices.
+So they're moving blocks of one particular size.
+Every operating system will have a chosen block size.
+That's the block size that operating system works with.
+It's going to be a power of two.
+It's common to have block sizes of 4K.
+They need not be 4K, but that's common.
+The hardware devices often have blocks of 4K as well.
+It's kind of convenient if they have the same size.
+Remember, pages, page frames are often 4K as well.
+Very convenient to have everything the same size.
+However, we do not care about what the underlying devices are doing, other than the fact that they work with blocks.
+So the file system is going to say, fine, I work with this block I.O. layer.
+And I'm not going to worry too much about how a block gets written to this particular device, whether it's a rotating disk drive or a flash drive or whatever.
+That's their problem.
+I just say, this is block 1723.
+And 1723 needs to have the following values in it.
+Write these values into 1723.
+So, of course, in order to do that, to be able to tell these device drivers, this is what I want you to do to your device, I'm going to have to perform some magic.
+Because the user's code, the code that the application issued with system call on, did not say block 1723.
+It said, I want to write the next 500 bytes of this file following where my current pointer is.
+Somebody had to figure out that's block 1753.
+That's going to be the file system code.
+So it's then going to say, okay, you want file foo, location 500 and file foo.
+Ah, that's this particular flash drive block 1753.
+Now, we're going to have to do a bunch of other things in the file system code.
+For the device that this file system is stored on, and it will be stored typically on one device, we're going to have some of the space on that device already used by files and metadata.
+Other portions of the space, we certainly hope, are not used.
+They're empty.
+They're unused.
+This is important because if somebody says, I want to create a new file, we can't get rid of old blocks that represent files already in existence.
+That would be unreliable.
+What we have to do instead is find unused blocks, blocks that do not yet have any files data stored in them.
+In order to do that, the most convenient way to do that is to keep track of which ones are free.
+So if you keep track of which ones are free, then when somebody needs more space, they're creating a new file, you can say, let's look through my list of free blocks.
+Ah, here's a free block they can use to create their file.
+So I'm going to actually have to also create and destroy files.
+As we've alluded to earlier, we're going to have metadata that is associated with a file.
+Every file will have some structure that represents that file.
+Clearly, somebody's going to have to create that structure.
+That somebody is the file system.
+And when we decide we're going to delete a file, we're going to need to reclaim that structure and anything associated with it, like a bunch of data blocks.
+We're going to have to be able to get the attribute.
+Somebody wants to know how many bytes in this file.
+We have to be able to tell them.
+File system code will take care of that.
+We're going to have to manipulate the file namespace.
+That's going to be done by writing and reading directories.
+And we have to be careful with directories.
+Directories are files that have a very particular structure.
+For any given file system, there is a data structure that represents a directory entry.
+We must not allow that data structure to become corrupted.
+So therefore, any changes we make to the directory must be made in a very controlled way.
+In most systems, you are not allowed to do arbitrary writes to a directory.
+You can do directory operations.
+Create the file.
+Delete the file.
+Move the file.
+Change the name of the file.
+But you cannot say, write the following into the first hundred bytes of the directory.
+File system won't let you do that, because that would corrupt the data structure that is being used to keep track of the directory.
+Now, as I said, we have multiple possible file systems plugged into our VFS layer.
+For in the example in the diagram I've been showing you.
+Why do we have four or three or 17 or whatever the number is?
+Why not just one?
+Why not one good one?
+Why doesn't somebody come up with a right file system design and stick with that?
+Well, there may be multiple storage devices.
+You might have a hard disk drive.
+You might have a flash drive.
+And you might have a CD drive.
+You might have a DVD drive.
+And you might have a tape drive.
+It will certainly be the case that each of those is going to require different code at the bottom.
+Now, yes, you can say, I will have a fast file system, a Berkeley fast file system that can run on any one of those.
+Yeah, you could do that.
+It will work.
+But sometimes, particular file systems work well, in terms of performance particularly, with particular types of storage devices and less well with other types of storage devices.
+So, you might do better off having different file system implementations for different types of storage devices.
+Also, some file systems are built to give you very high reliability.
+Others are built to optimize performance rather than reliability.
+Sometimes, you have a read-only file system.
+So, when you get a CD from somebody, it may not be a writable CD.
+It's got a bunch of files on it.
+You want to use the file system interface to read those files, but you cannot write those files.
+Clearly, the file system that you're going to work with there is not going to actually support any writing.
+So, you might want to have a file system that's really good at reading, particularly because if you have a CD that's been set up ahead of time with a set of 23 files on it, it'll never have anything but those 23 files.
+They'll never change.
+They'll never move.
+You can design a file system that will be highly optimized for dealing with that particular situation.
+Wouldn't be so good if you were creating files, deleting files, altering files, writing data.
+But, if you're not changing anything, it's a great file system.
+In which case, you'll get better performance out of having that file system optimized for that purpose.
+So, it is desirable to be able to support different file systems even on the same machine.
+Okay, now, there's one other block diagram and element of this diagram that I've not discussed in detail, which is the block IO layer.
+Device Independent Block IO, right there.
+Now, as you can see, this is sitting in between those file systems, all of them, four in our example, and all of the device drivers that allow you to actually get to the devices.
+What's it doing there?
+Well, this is the way that we actually set up pretty much all systems.
+Windows does this.
+Mac OS does this.
+Linux does this.
+And the reason that we do this is we say, you know, all those devices down there at the bottom, they're so slow.
+They are so damn slow.
+We would prefer not to actually go to a device and read a block of data off that device when we don't have to do so.
+When don't you have to do so?
+Well, if you've already read a particular block of data off that device, you don't need to go to the device to read it again, as long as it hasn't changed.
+So, why don't you cache it?
+This would be a great opportunity for caching.
+That's what's happening in this device-independent block I.O. cache.
+It's a general abstraction that's going to make all the hardware look the same.
+You basically say, I want this block.
+And you look in the cache to see if you've got the block.
+On a good day, you've got the block.
+In which case, that means the block is sitting in RAM.
+That means you don't have to go to the slow device to get hold of that block.
+You can just say, well, here it is in RAM.
+You wanted the 500th through 550th byte in this block.
+Here they are, sitting in RAM.
+Got them available for you right away.
+So, this is going to allow you to perform a lot better.
+And it's going to limit also the number of I.Os you have to perform.
+One thing you need to be aware of about these devices, which has been alluded to in the previous lecture on devices, is that they each have a capacity.
+They can do a certain amount of work in a unit time.
+And some of that limitation is based on, for storage devices, how many blocks can they read per second?
+If you try to read more blocks than that per second, they can't keep up with that.
+So, they'll build up a queue.
+And if you keep adding to the queue, saying, I need more blocks, I need more blocks, I need more blocks, then the queue will grow and we'll get one of those convoys that we talked about several lectures ago.
+Now, if it is the case that you've already read a block and it's sitting in a cache somewhere, you don't need to put that block in the queue because you already got it in the cache.
+So, you can reduce the number of read or write operations you perform on a particular device by making aggressive use of caching, which we do.
+So, basically, what we are going to have to do at this level is say, okay, fine.
+First, you want to see if this block is available.
+Yes, it's available in the cache.
+What if it isn't available?
+Next thing we have to do if it isn't available is figure out which device stores this particular block.
+You know, I've got a bunch of different devices out there.
+All of them store some data.
+Which one stores this data?
+And then you're going to have to say, fine, this is the one that stores this data.
+I have to tell its device driver this is the particular block I want.
+So, I'll have to figure out what is the block address that I have to tell the device driver to go out and get that block.
+And this is going to involve things as well like buffer management.
+Because when you tell the device, read this block, and you've got to tell it to put it somewhere.
+Where are you going to put it when you've read it?
+You have to have a buffer set up.
+So, there will be buffer management happening here as well.
+And it's better to have the buffer management shared by everybody who's trying to do these block operations.
+There may be errors.
+You try to read a block of data off a device and you get an error.
+Perhaps the block has become corrupted.
+Well, you need to do something about that.
+It's not going to be wonderful.
+You're probably going to have to send the error up and say, you know, hey, this didn't work.
+You can't read that block.
+But you have to do something.
+So, that handling, the error handling, will also happen at this layer.
+Now, another issue, of course, is that we said, oh, yes, there's one block size, 4K.
+What happens if you have a hardware device that says, I don't do 4K blocks.
+I do 2K blocks.
+Okay.
+Everybody else is doing 4K blocks on this particular computer.
+That's what the operating system does.
+Well, in that case, what am I going to do when my file system says, I want to get the following 4K block?
+Well, he gets 2K blocks.
+What will I do?
+Assuming it's not cache, I will issue requests, two requests to the device saying, get this 2K block and that 2K block and put them in these places.
+I'll set up a 4K buffer to hold those.
+And then once they've both been read, I will be able to tell the higher level code in the file system, here's your 4K block.
+Same thing happens if the people down below have 8K blocks and I've got 4K blocks, similar type of thing.
+Then if I say, I want to read this 4K block, I cannot tell them to read a 4K block, but I can tell them to read an 8K block.
+I'll have to set up two buffers adjacent to each other in RAM.
+And I will then have to say, okay, read your 8K block in here.
+And then I will tell the file system that wanted one of those two 4K pieces of the 8K block.
+Here's your 4K block.
+Now, what's good about doing this in a device independent fashion is it means you're going to have a unified cache.
+It's always going to be the case in systems that having a lot of people share the same cache will result in better efficiency than having individual caches for each of them.
+This is simply an observed phenomenon throughout computer science.
+Shared caches perform better.
+Better hit ratios.
+Better performance.
+So we're going to be making aggressive use of caching here.
+This is the primary mechanism we're going to use to try to deal with that speed mismatch that we have between the CPU and these devices that store our files.
+We're going to expect that many times when we get a request from an application saying I want to read a piece of a file, we're going to already have the necessary piece of the file sitting in the cache somewhere.
+We'll already have read that.
+In which case, we can satisfy the request from the cache, not from going to the device.
+All right.
+So this is going to be one reason why having a shared buffer cache for all of your block I.O. devices is going to be more efficient.
+It's also going to be better for that re-blocking issue.
+I do 4K, you do 2K.
+I do 4K, you do 8K.
+It's going to be easier to work with that way.
+Further, we're going to be allocating and deallocating these things all the time.
+We're going to have lots and lots of requests where we allocate and deallocate.
+And another thing that's going to happen, as we can see, is occasionally we do a write.
+We say, I want to write the following file.
+Well, what we're really going to do in order for that to happen is we're going to say, okay, fine, we're going to put the data you want to write in this buffer in the shared cache.
+And then we're going to issue a command to the device saying write that buffer.
+Well, sooner or later, the device will get around to doing so, but it's slow.
+So it'll be a while.
+We're going to want to make sure that that happens properly.
+And there are other issues.
+We don't always tell that device, go ahead and write that back right away.
+Maybe sometimes we delay for performance reasons.
+So it turns out that this cache is vital for high performance in our systems.
+And the reason it's vital is because of our old friend locality of reference.
+Locality occurs not just in the data structures or in the code that we're running.
+Locality of reference also occurs in our use of files.
+Typically, when you write a file, you start at some point in the file, and you write, you write, you write, you write, you write, you write. You keep writing. You keep going further and further into the file. Inherent locality of reference. Similarly for most, though not all, reads.
+You start reading a file. You read, you read, you read, you read, you read. You keep reading.
+Unless you are reading a full block at a time, the second read is probably going to be met by a piece of that block that you use for the first read, locality of reference.
+And if you read in your applications relatively small chunks of data, I got 128 byte records stored in this file. I read the first record, 128 bytes. I work with the first record. I'm done. I read the second record, 128 bytes, and so on and so forth. You're going to have a whole lot of those 128 byte records in one 4K block. If you've cached the block, you're going to get great locality of reference.
+You're going to get high performance. You really want to eliminate as many accesses to the flash drive or the hard disk drives you possibly can, because you will pay in performance for every single one that you issue. And if you issue too many, you'll start paying more and more and more as you start getting convoys and contention on the disk drive. And we're better off, as we said, because a single cache is more efficient than multiple caches. Now, you might say, why can't I, the user, say, I have my very own cache. It's not mine alone. I don't have to share it. Because one of the effects of sharing a cache, of course, is that sometimes you don't get as much use of the cache as you would have liked. Other people get some of the cache that you would have liked to use for yourself.
+Well, it turns out that it's just more efficient that way. You get a better hit ratio. You always want high hit ratios on caches. This is the way that you get a better hit ratio.
+Okay. Now, I've already said a few times that we are going to have to have data structures that represent files. These data structures are going to be stored on the persistent storage device.
+And when we want to deal with a file, we're probably going to go to that storage device and fetch that data structure and do something with it in order to operate on the file.
+The file essentially is a collection of data, collection of information, collection of bits.
+It's got a name, maybe some multiple names for some systems. And its role is to store, retrieve data, and to manage the data space where that data is stored. So we're going to do various things with the file system. What are we going to do? What kind of things might we do? Here are a few.
+We might say, okay, we want to get the first block of the file. Where's the first block of the file?
+We might say, we're finished with the first block of the file. Where's the next block of the file?
+You've been reading the file one byte at a time. You finish reading the last byte of the first block of the file. You ask for the next byte. You, the application or the user, you don't know you've gone from block to block. But your file system code knows that. It says, oh, we finished with the last byte of that block that I've already read. I got to find the next block. Where is it? And sometimes it's not the next block you want. It's a particular block. Okay. This guy wants to go to this particular location in the file. Oh, that's in block 35. Where's block 35 of the file? You need to be able to answer that question based on this data structure. File has a particular length at any given moment.
+You have a bunch of records representing your various customers. You got a bunch of new customers. So you want to put new records in the file at the end of the file saying, here are my new customers.
+Okay. You want to extend the file because you don't have enough space in the blocks already allocated.
+You need more blocks. You're going to add blocks to the end of the file. You're going to have to be able to do that. And it may be that you're going to say, I'm done with this file. I want to release all of these blocks that I'm using to store data so they can be used for other purposes. That means I need to find all those blocks. I need to know which ones they are so that I can say, here are the ones to release.
+There are many other types of things that we do with files that are going to require the code in the file system to be able to understand things about the file in order to do what it's supposed to do. Okay. So many of these things are all about, well, I got a device out there that's got a bunch of blocks on it. And the data I'm looking for is in some block on that file, on that device.
+Where? Well, you need to find that block. You need to find which block it is. And finding which block it is, is sort of going to be related to how did you choose when you created that block of data, which block of data you chose? Why was that the one you chose? And what did you do with the information that I have chosen that block? We're going to manage space somehow or other on the device.
+Now on these devices, there are a lot of blocks. There are millions and millions of blocks.
+And there might be thousands and thousands of files on a particular device.
+We create them and we destroy them fairly quickly. There are devices, there are files and devices that live essentially for the entire life of the computer. Never changed, never moved, never deleted.
+But a lot of them come and go. So we're going to have to be prepared to deal with that in our file system code. It's also the case that files do not get created with a particular length and a particular content and it never changes. Sometimes they get longer, sometimes they get shorter. We have to deal with that issue. Depending on what kind of storage device we've got, exactly where on this device we put the block of data we want to put for the new file may have a big performance implication. If we choose one choice, it'll be relatively fast. If we choose a different choice, it'll be relatively slow. We have to take that into consideration. And overall, if we aren't careful about how we allocate the blocks for various different files, many of which are being created and destroyed all the time, we're going to see poor performance for the overall file system, not just for the individual files in question. So ultimately, this boils down to saying, well, for each file that we are storing, we're going to have to manage what space is made available to that file. Where do we put its bytes? And the way we do that is by storing on the device, typically, some kind of data structure that will allow us to figure out where are all the blocks that store this file's data.
+So, this on-device structure is going to be per file. There'll be a separate one for every file. Directories are files as well, so there'll be a separate one for each directory. And it's going to have a bunch of information, potentially, such as, when was the last time somebody wrote this file? Those very few things.
+various attributes of the file. But one critical thing it's got to have is the ability to find all of the blocks that are used to store this file.
+pretty much any one of the many, many, many file systems people have designed and built over the years has some kind of data structure of this sort. However, there are very different ways of doing it. These different implementations have different implications in performance and different implications on what can you do with them.
+So, it's a big decision when you're designing a file system. What is this structure going to look like? How is it going to operate? Choose well, you have a good file system. Choose badly, your file system will not perform well and will not be successful. So, this is a core design element if you're building a file system. Now, of course, what you stored on the disk cannot actually be actively used. Because all you can do with stuff that's out there on the disk is read it or write it.
+it or write it. Now, you can read it into memory. You can read that per file data structure for file foo into memory. But that doesn't really tell you everything you need to know, typically, about what you're doing with file foo right now. You're going to probably have an in-memory data structure that is derived from the on-disk data structure, but is not bit for bit identical.
+Why would it not be identical? Okay, well, you've read a bunch of blocks of the file.
+You open file foo, you read 12 blocks of file foo. What does that mean? Well, that means probably out there in that block I.O. cache, you've got 12 buffers, each one block size containing the 12 blocks of your file. Where? Where are they? Which place is in the buffer cache? Well, what you want to do is say your in-memory data structure doesn't say, oh, yeah, this block is out there on that place on the disk. What you want to say is, this is a block I read. It's sitting here in this buffer cache in this location. So that's something you need in the in-memory data structure. You don't need that on the on-disk data structure because the place it's sitting in the block I.O. cache is temporary. It's not going to be there forever. So you don't need to remember it forever. So here's the basic problem on how we are going to have to go about designing, choosing our design for this file control data structure. A file typically is bigger than a single block. Many files are small, but you have to be able to support bigger files. When you say, I want to work with this file, you have to be able to find all of the blocks that are used to store the file. Ideally, you'd like to be able to find any of those blocks very, very quickly. You would like to not have to go through a lot of operations to find block 253 of this file. You'd like to be able to get the block 253 just as quickly as you got to block one, ideally.
+You don't want to have to go to the very end of the file to find the last block of the file.
+Block contents can be changed. Now, depending on the data, the type of device you've got, whether the block you've chosen to store can be changed or not, maybe, maybe not. For flash drives, obviously, you can't write something you've already written. But somehow or other, you have to say, I'm going to update this file. It's a writable file. Why can't I update it? So you have to be prepared to change your data structure in such a way that says, block 500 of this file used to be here.
+Now, block 500 of this file is over there. Because I wrote it and I couldn't write it in place, I had to write it over there. We can add data to the file at any time. We can remove data from the file at any time.
+we can shorten the file. We have to design a data structure that's going to work well with these constraints. As I said, there is an in-memory representation. We've already talked about that.
+And whenever you open the file, application says, open file foo, we are going to have an in-memory representation of file foo set up by the operating system. And the operating system will connect up this in-memory representation in some way or another to the process descriptor for whoever said open file foo. So then that process, having successfully opened foo, will now be able to say, when I want to read file foo, I can go to this descriptor or I can have the operating system do it for me and figure out what it needs to do to get block, to get, you know, byte 700 of file foo for me.
+This is not obviously an exact copy of the device, on-device data structure for the file.
+Now, there is an issue here with the fact that in many cases, files can be used by multiple different processes. So what are you going to do then? What if you have multiple processes that have the same file open? Well, one thing you could do is you could say, all right, somebody opened file foo. Nobody else open file foo yet. We'll set up an in-memory data structure for foo. Somebody else also wants to open foo. They're allowed to do that. We already got an in-memory data structure. We'll point them to that one. Third guy wants to open file foo. We already got an in-memory data structure. Point them to that one. One of the things you're going to have in this in-memory data structure is a pointer.
+A pointer saying, whoever is reading this file, for example, has read the first 342 bytes.
+They want to read the next byte, give them byte 343. That's how you tell that that's the next byte you should give them. If you have three different processes sharing the same in-memory data structure, what if they're all reading? Well, they don't want to say, you know, I've read the first byte, I've read the second byte. Whoops, suddenly I've got the 750 second byte. They wanted to see the third byte. They wanted their own data pointer. Each one of the three wanted its own data pointer.
+So, maybe we should have these data structures be per process.
+Well, that's fine unless, of course, you have cooperating processes that are trying to work with the same file. In which case, you kind of want to have the same data pointer. If you have several processes and they're looking at records in the file, and if that process has already looked at this one of the records, this other process doesn't want to look at the same record. He wants to look at the next record. Maybe then they should share a cursor. And also, of course, you care about when can we get rid of this data structure. It's taking up space in our memory or in our RAM. So, we'd like to reclaim it if nobody's using it. So, typically what we do, what we do in Linux systems, for example, is we have a two-level structure. Whenever a file is open, there is one structure that is shared by everybody who has that file open. But there's a second structure that is per process.
+So, this is how it works in Unix. It works a little bit differently in some other systems, but they all tend to have something similar. So, here we have open file references, file descriptors. You've written programs in which you use file descriptors. That's what they are. So, each file descriptor has a per process element. Each file that the process is opened has an entry saying, this is my file descriptor for that process. Standard in, standard out, standard error are automatically set up when the process is created. There are file descriptors for those. Any other opens you do result in new file descriptors. Okay. So, those are per process. That's what's happening at this yellow level. Each of those is a separate process. We also have open file instance descriptors. These are particular instances where you're going to say, I have this file open by this particular process for this particular purpose. Some might have it open for read, some for read write, etc. And then you have in-memory file descriptors. This is keeping track of everything about the file that you currently need to know because this file is open. They're inode descriptors.
+And then out there on the disk, you have on-disk inode descriptors. D-inodes is what they're called in the source code for the operating system. Okay. So, two processes are allowed to share one descriptor. So, we can see the two yellow processes here are sharing that descriptor. That means they have one pointer saying, here's how much we've worked with. Here's when you do the next read or the next write. Here's the byte of the file you're going to work with. They share that. Same pointer. Two descriptors can share the same inode.
+So, here we see that this particular inode and that particular inode are shared by two descriptors, the standard out, standard error. And they all point to the same inode.
+Okay. So, that's how we're going to deal with these sharing issues. But now let's get down to the nitty-gritty of what are these data structures going to be like. How can I take a device that stores a bunch of blocks of data and organize that device so that I can store a file system in an effective way?
+Many people have come up with different answers to that. We'll be going through a few answers in this class in the next couple of classes. Let's start with a couple of early answers. These are answers that go back to the 1970s and the early 1980s. So, they're old. But they still have legacies.
+We'll talk about a linked extent approach, which is what the DOSFAT file system, the very first file system Microsoft used in their products, worked with. And we'll talk about file index blocks. This is what early Unix systems worked with. And this is actually commonly used in many, many, many file systems today.
+We'll look at the Unix system 5 version. Okay. So, as I've said several times, file systems live on block-oriented devices. They're built out of blocks. The blocks on these devices are a fixed size. For any given device, there is a block size, period. One block size. Always a power of two. 4K is a very common choice, but not necessarily the only choice.
+We would like to be able to store as much user data on the device as possible. So, we'd like to have most of the blocks that are on this device used to store data. We're going to have to store some metadata. So, some blocks will be used for metadata. Minimizing that would be desirable.
+The metadata is going to have to have a number of characteristics. One characteristic is going to be a description of the file system. It'll turn out that we're going to perhaps, in some file systems, set aside some portion of the device to store metadata only. We need to know, well, what is that portion? How big is it? Where is it?
+And we're going to have to have other information about what's going on with this overall file system, with the complete collection of files.
+For each file, we're going to have to have some on-disk, on-device control structure saying, this represents this file. This represents file foo. This other one represents file bar. This other one represents file baz, and so on.
+And then, with luck, we haven't used up all of the blocks on our device storing data and metadata. Some of them are free. Those are useful blocks, because when we want to create new files, we're going to have to find blocks that are not already in use that can be used to store the data and metadata for the new files.
+So, we want to keep track of where are those free blocks.
+We have these kind of structures pretty much everywhere on all file systems. Different operating systems and different file systems do it in different ways, but they all have something with different implementations.
+Now, one thing that's shared in most systems is the boot block. What's the boot block?
+Booting is the process of starting a computer from nothing. The computer is turned off. Nothing is running. You turn the computer on. You want it to start working.
+In order to start working, it's got to get its operating system up. This process is called booting.
+Now, you have to have some information available in a place that you know where to look so you can boot the operating system.
+So you know, for example, where's the operating system? Where do I have a copy of that?
+Canonically, for decades, we've reserved on these storage devices the zeroth block of the device as the boot block.
+This is going to contain a very small amount of code that will allow you to start booting the operating system.
+We do this pretty much for all operating systems. DOS, Linux, macOS, pretty much all of them.
+Generally speaking, we do not regard the boot block as being part of the file system.
+This is a tiny portion of the storage device that is not used by the file system at all.
+In fact, usually things are set up so that the file system code ignores entirely block zero of a device.
+It doesn't even consider that it exists.
+Now, the reason that you have this available is when you start up the computer, you have to look somewhere to figure out what to do.
+Here's where you look. What if you have 12 devices, 12 storage devices attached to your computer because it stores a lot of data?
+Well, you really only need to have information on how to boot the machine on one or maybe two of them for liability purposes.
+And you got 12.
+Oh, well. We waste block zero on all of the other devices.
+We don't use it anyway.
+So many blocks of these things that it really doesn't matter.
+There are millions of blocks on these things.
+So you lose one, so what?
+So generally speaking, file systems start working at block one.
+Okay.
+Now, as I've stated before, we have to know what space have we already allocated and what space have we not allocated of the overall space that's available to us.
+All file systems are going to have to manage this because they all have to figure out what can they do.
+If it's a non-writable file system, then you don't really have to.
+But you have to figure out what you've allocated at least.
+So what could we do?
+We're going to, starting from scratch, set up a file system.
+What are our choices?
+Well, one thing we could do is we could say, you can create files.
+Every file will be this many bytes long, implying that many blocks long.
+So every file is 12 blocks long.
+They're all 12 blocks.
+No 11-block files, no 13-block files.
+They're all 12 blocks.
+Okay.
+Now, if you did that, of course, you're going to get internal fragmentation.
+Because some of the files are going to be a byte.
+And you gave them 12 blocks.
+Well, they sure didn't need 12 blocks.
+Of course, it's also going to have the limitation that you can't have bigger files.
+So you do things like artificially divide up the big files into several smaller files, which would mean you've offloaded the task of dealing with that onto some other piece of software, probably something in a library or something in the application code, which is undesirable.
+So this is a really good choice.
+Well, we could allocate exactly what the file needs.
+This is going to lead to external fragmentation because we're getting exactly what it needs.
+You have a file that's 12,003 bytes long.
+Well, that's going to require you to have three blocks of 4K, assuming.
+But there's a little bit of extra space in that last block.
+So we'll use that for some other file.
+If you do that, things are going to get kind of complicated.
+You're going to get external fragmentation.
+You're going to require memory compaction.
+It's going to get complicated.
+So what we typically do is we say, well, why don't we do the same trick that we did for virtual memory?
+In virtual memory, we allocated memory in pages.
+You didn't want an exact number of bytes that fit a particular number of pages.
+We'll give you the number of pages necessary, and a little bit of space on the last page might be unused.
+A little bit of internal fragmentation there.
+We can do the same thing with files.
+But then we run into the question of saying, okay, we're not giving you pages.
+We're giving you blocks.
+So how many blocks are we going to give you?
+Are we going to give you 10 blocks?
+Are we going to give you 50 blocks?
+Are we going to give you 12,000 blocks?
+Probably we don't want to give you all that, but maybe we want to allow you to grow to that size.
+Or do we want you to grow to any size that you possibly could grow to?
+As long as we have blocks free and you want more, we'll give you more.
+What are we going to do there?
+Whatever solution we choose may have the characteristic of saying there is a limit in how many pieces, how many blocks in this case, can you have in your file?
+And that limit will then translate into how big can your file get?
+If you say you can only have 10 blocks in the file, you can't have more than 40k files.
+And that's going to be a limitation.
+But it's going to have some issues related to how many blocks can you have?
+How many blocks can you have?
+Okay.
+So you're going to be able to have that many blocks.
+And if you want a bigger file, well, too bad.
+You can't have a bigger file.
+How do you want to organize the space in the file?
+So you're seeing some number of blocks.
+How do you say for this particular file, here are where the blocks are?
+One solution is called linked extents.
+This is a very simple solution.
+This basically says somewhere you've got a file control block.
+It says this is the name of the file foo, and here's some information on how to get to file foo's data, the blocks that hold file foo's data.
+Let's have one pointer in that scripter.
+Just one pointer.
+This pointer will point to the first chunk of the file.
+Well, what's a chunk?
+A chunk is a piece of the file.
+It could be a full block.
+It could be several full blocks, whatever.
+But at any rate, it's some piece of the file, probably at least one block long.
+And that block is going to be almost entirely filled up with data for the file.
+But perhaps we will save the last word or thereabouts for a pointer.
+A pointer to the second chunk.
+The second chunk will, again, be at least a block, maybe bigger.
+And it'll be filled up with data, except the last bit of that second chunk will be a pointer to the third chunk.
+And the last bit of the third chunk will be a pointer to the fourth chunk.
+And so on, and so on, and so on.
+Now, that's a simple way of doing it.
+You put the pointers in the chunks.
+You do have another option.
+You can say, let's set up a table.
+And let's have this table contain the pointers.
+So the blocks themselves don't contain the pointers, but the table contains the pointers.
+Now, this table is metadata, and it's metadata we have to save.
+It's metadata that is the only way you find the other chunks of the file, because you're going to look it up in the table.
+But perhaps this is what we'll do.
+So we'll have a table in this auxiliary chunk linkage table.
+And the advantage, one advantage of doing this, is what happens if we want to get to the 50th chunk of the file?
+Well, if we kept the pointers in the chunks themselves, we'd have to read the first chunk to get the pointer to the second chunk.
+We'd have to read the second chunk to get the pointer to the third chunk, etc., etc., etc., etc.
+We'd have to read the 49th chunk to get the pointer to the 50th chunk.
+And all we wanted was the pointer to the 50th chunk.
+If we had an in-memory table that kept these pointers, we'd just go 1, 1, 1, 1, 1, 1, 1, 1.
+We'd do a bunch of memory references instead of a bunch of IOs to the drive.
+And we would find, after a few memory references, here's the 50th chunk.
+So we'd be able to get to the 50th chunk without doing any extra IOs, instead of having to do 49 IOs to get to the one we wanted to get to.
+Now, this is how the DOS file system worked.
+So the DOS file system was set up kind of like this.
+In the original days, this is back in the early 1980s.
+Now, back then, 512-byte blocks were common on these devices that they were using for storage, which were rotating hard disk drives.
+So they had 512-byte blocks.
+Block 0 was their boot block.
+Fine.
+Block 1 was what was called a BIOS parameter block.
+This basically kept information about the file system as a whole.
+So what was your cluster size?
+How big was your chunk?
+And how big was this table that you were keeping, this linkage table that contained all of the pointers to other chunks?
+That would be specified in this one block in block 1.
+Then block 2 would contain that table, because you have to save that persistently.
+If you don't save it persistently, you'll never find the pieces of the files again.
+So it's got to be saved persistently.
+This was called, in this particular implementation, the file allocation table, or FAT for short.
+This is often called the FAT file system as a result of that.
+After that, you would have clusters that contain data.
+Canonically, always, cluster number 1, the very first cluster in this set, would contain the root directory of the file system.
+And then the other clusters would contain pieces of whatever file they contain.
+So our DOS file system divided the overall space on this device into clusters.
+The cluster size could be 512.
+It could be 1024.
+It could be some other multiple of 512.
+For any given file system on a particular device, a particular operating system, a DOS operating system, there would be one cluster size.
+You'd have some number of clusters on your system, 1 through N.
+Okay.
+So every file would have a control structure.
+And the control structure would contain one pointer.
+It would contain a pointer to the first cluster of the file.
+Then the file allocation table would contain the pointers to the other clusters of the file.
+So if the first cluster of your file was in, let's say, block cluster 100, then if you went to the file allocation table and looked up what is in an entry 100 of that table, it would say, here is a pointer to, let's say, 172.
+That would be where the second cluster of that particular file was located.
+We'll go through an example of this later.
+Some of the clusters, one hopes, are not yet allocated.
+You'd have zero in the file allocation table for those.
+So if you want to find empty space for a new file or to extend a file, you would start searching through this table until you hit a zero.
+Ah, there's an empty cluster.
+If you put a minus one in a particular location in this table, that meant whatever file you're following, this is the last cluster in that file.
+There are no more clusters in this file.
+So this is a chunk linkage table of the type we talked about a couple of slides back.
+So here's kind of what it looks like.
+So now we're talking here about clusters.
+So we have cluster 1, 2, 3, 4, 5, 6, etc., etc., etc.
+And somewhere we have a directory entry.
+And what would be in the directory entry?
+In this version of the FAT file system, it doesn't have very much.
+It would have the name, which is myfile.txt.
+It would have a length, 1500 bytes.
+And it would have a pointer to one of the clusters, the first cluster.
+It would say, this is cluster 3.
+Okay.
+We also have stored in memory.
+This is set up when you boot the system.
+It reads in the FAT table, stores it in memory permanently.
+You would have the file allocation table.
+So directory entries here are the FAT file descriptors.
+I said there's a file descriptor in pretty much every file system.
+This is theirs.
+So what would happen if you wanted to read?
+You open file, myfile.txt, and you want to start reading it.
+So you would read, assuming let's say these are 512-byte clusters, you would read cluster 3.
+And you read the first 512 bytes of the file.
+Now, you can tell that there are 1500 bytes in the file because that's in this file descriptor.
+Let's say you want to read more file.
+Well, you would say, fine.
+I am currently in cluster 3.
+I need to find the next cluster.
+What is the next cluster?
+You go to the file allocation table following entry 3 for cluster 3 because that's the one we're currently working with.
+And it says 4.
+That means that the second cluster of this file happens to be cluster 4.
+So you go and get cluster 4 and you read another 512 bytes of the file.
+You want to read more of the file.
+What do you do?
+You say, okay, I'm currently in cluster 4.
+I want to find more of the file, the next cluster.
+Where is that?
+Okay, that's going to be in cluster 5.
+All right.
+So I read the remainder of the file.
+Now, this cluster isn't full because it's only 1500 bytes for the full file.
+1024 were in the first two clusters.
+There are only 476 bytes left in the cluster.
+Now, if you want to follow further to see where it is, you would go to entry 5 in the file allocation table and it would say, eh, nothing more there.
+Minus 1.
+You wouldn't need to do that because you were told that there are 1500 bytes in this file.
+You've already gotten your 1500 bytes.
+Now, you don't have to read a cluster to find the next one.
+If you wanted to go directly to the last cluster of the file, you would have just had to say, well, let's see.
+I don't care about the first cluster, but it's 3.
+I'll go to the fat table entry for 3.
+That gives me 4.
+I don't care about that cluster, but I'll go to the fat table entry for 4.
+And that gives me 5.
+5 is the last cluster.
+It's one I care about.
+I will go to 5.
+And you would then read off of the disk, cluster 5.
+And you'd get the last piece of the file.
+Note the block area here in this last cluster.
+That's internal fragmentation.
+If you remember from our fragmentation discussions in the memory management system, I said, if you allocate in fixed sizes, you will get internal fragmentation.
+Well, here it is.
+Now, it's not bad internal fragmentation.
+You're never going to have internal fragmentation on a per file basis of more than the size of one cluster minus one byte.
+That's the worst it'll ever get.
+And that's per file at most.
+And often it's going to be more like this, where perhaps you have 36 bytes of internal fragmentation.
+There's no external fragmentation in this system.
+None whatsoever.
+And you should be able to figure out why that is based on what we talked about in the memory management lectures.
+So what are the characteristics of this particular file system?
+If we wanted to find a particular block of a file, we get the number of the first cluster from the directory entry.
+Then we follow a chain of pointers through the in-memory file allocation table.
+It's always kept in memory.
+And we have to keep the entire file allocation table in memory at all times.
+There's no disk IO as a result to find a cluster, to find whatever cluster we want to work with, because all the information about where the clusters are is in the file allocation table, given that we've gotten already the pointer of the first cluster of the file we care about.
+Now, if it's a very large file, you may be poking in this table a whole lot of times, thousands of times for a very big file, which has its performance implications.
+But nonetheless, you know, you're not going to have to do IO.
+You only have to do IO for the actual data you want.
+Now, how big can the file system get?
+Well, the width of the file allocation table determines that.
+What do we mean by width?
+How many bits are there in each of these file allocation table entries?
+Remember, the file allocation table is going to have things like 4 and 5 and minus 1 and 0.
+It's going to have a signed integer in there.
+How many bits in the signed integer?
+The more bits there are in the signed integer, the bigger the file allocation table has to be, because you have to say there is an entry for 4, so it has to be at least 4.
+There's an entry for 5.
+Oh, it has to be at least 5.
+If you have an entry in the file allocation table for cluster 1,000, the file allocation table must be at least 1,000 entries.
+And the width of each entry has to be big enough to hold that number.
+So, you know, if it's 1024, if you have 1024 entries in your file allocation table, you would have to have a width of 10 bits, etc.
+Okay, so originally it was 8 bits, which wasn't very many.
+But on the other hand, devices back then were very, very small.
+So that wasn't that big a deal.
+But it got expanded to 32.
+That's a much, much bigger table, which has its implications because it has to be stored in memory.
+But it also has the ability to store bigger files.
+How big?
+Well, it's one entry in the fat table per cluster.
+And if you don't have an entry in the fat table, effectively, that cluster doesn't exist.
+It just isn't there at all.
+So the fat table has some maximum size, which was originally 4,096 entries.
+And this was important because back then there wasn't a whole lot of RAM in any of these machines.
+And the cluster had some size.
+Originally, it was 512 bytes.
+So the original maximum size was 2 to the 12th, 4,096 entries, times 2 to the 9th, 512 bytes, is 2 to the 21st.
+So if you used up all of your disk for one file, you could have a file of 4 megabytes.
+Not huge, but not tiny.
+Okay.
+Now, that's one approach to designing a file descriptor structure and building a file system around it.
+It's not the approach that's widely used anymore.
+Though, actually, the fat file system still lives on.
+It's still used in a few places.
+I mean, I think that the current version of Windows still comes with a fat file system in a more up-to-date version than the one I've talked about.
+But anyway, it's not a popular file system for any real purpose.
+What do we do instead?
+One thing we can do is use a different approach to how we describe what files are like, where they have their data located.
+We can use what are called file index blocks as our file descriptors.
+So we set aside for every file a block, a whole block, 4K, let's say, or perhaps part of 4K, depending on exactly what we want to do.
+And what we will do is say within this file control block, we'll have a bunch of pointers.
+Each of these pointers will point to a data block.
+So if you want to find a particular data block, you'll go into the file control block for the file, look up the right pointer, and follow it.
+Now, an issue here, of course, is, well, if that's what you do, if that's exactly what you do, whatever size your file control block is, it can hold a certain number of pointers.
+And that would be how many blocks you can actually use in this device.
+So that would control how big your file could get.
+So you could say, well, you know, I can place a trick kind of like the cluster trick in the DOS file system.
+I can say each of these pointers doesn't point to a 4K block.
+It points to two adjacent 4K blocks or 8K, which double the size of the file you could get.
+But that has its limitations as well.
+It still would be fixed.
+So what we did in, well, not we, I didn't do it.
+What they did in early Unix systems, and this actually predated the FAT file system, was they said, well, let's set up our file control block, our index block, in a hierarchical fashion.
+And this will allow us to have much, much bigger files if we want to have bigger files.
+So we're going to have some pointers in our file descriptor, our file index block.
+And they will, in most cases, or at least in most, many of the cases, point directly to a data block, to the zeroth data block, the first data block, the third data block, etc., etc., etc.
+But some of these pointers are going to be reserved not to point to a data block of the file, but to point to a block that contains pointers to data blocks of the file, and so on and so on.
+And this will allow us, through indirection, to have much, much larger files.
+Let's see how this works.
+Now, here's how the Unix system 5, an early version of Unix, set this up.
+Block 0, boot block, same as before.
+Block 1 is called the super block.
+This is something that has data containing the entire characteristics of the file system, such as how big is our block, and how many inodes have we set aside.
+Inodes are the data structure we're going to keep on disk that will describe the file.
+And inode 1, traditionally, is going to be the root directory, so we always know how to find the root directory.
+It's always inode 1.
+And we have a bunch of inodes.
+This whole area, several blocks of this device, only store inodes.
+That's all they store.
+They don't ever store anything else.
+And then all the rest of the device is available blocks that we could use for whatever purpose we need, including data.
+Here's how the block pointers would work.
+So there's a bunch of stuff that is in each of these inodes, each of these file descriptors, one file descriptor per file.
+And some of it is stuff like, when was the file created?
+How big is the file, et cetera?
+But a lot of the space in this descriptor is block pointers, pointers to blocks of data in the file.
+In particular, in this particular file system, system 5 file system, 13 pointers were set aside in every inode for pointers to data blocks.
+But some of them didn't point directly to data blocks, as we'll see.
+Over here, we have data blocks.
+All the stuff out on the disk that could be holding data that's part of the file.
+So block pointer 1 would point to data block 1.
+Block pointer 2 would point to data block 2.
+All the way up through block pointer 10.
+So if you wanted to get to, let's say, the 8th data block of this file, you open the file, very first thing you want to do is to get to something that's in the 8th data block.
+All that would have to happen is the file system code would go down to the 8th pointer and would say, let's get that one off of disk.
+It wouldn't have to get the first 7 data blocks at all.
+It wouldn't have to touch them.
+It wouldn't have to get anything else.
+It would have that.
+It wouldn't have a fat table lying around permanently in memory.
+We wouldn't need that either.
+We would just need this inode that we had brought in from memory when we opened the file.
+Okay, so that's the first 10 pointers, but we have three pointers left.
+What's in the 11th pointer?
+The 11th pointer points to an indirect block.
+Same size as the data block, but instead of holding data, it holds pointers to data blocks.
+A lot of pointers to a data block.
+So the first pointer in the indirect block is going to point to the 11th block of the file.
+The last pointer in that data block, it turns out, points to the 1034th block of that file.
+We're getting to have pretty big files here, potentially.
+However, we've only used up so far 11 of our pointers, and we have 13.
+What's in the 12th pointer?
+A doubly indirect block.
+What's in a doubly indirect block?
+A bunch of pointers.
+What do they point to?
+Indirect blocks.
+Each of the indirect blocks contains pointers to data blocks.
+So the 1035th data block, how do you find that one?
+If that's the one you happen to want, you open the file and say, I want the 1035th data block.
+You would go to the 12th pointer.
+That would give you the doubly indirect block.
+You'd read that off the disk.
+You go to the first pointer in the doubly indirect block.
+That would give you the indirect block location.
+You read the indirect block off the disk.
+You go to the indirect block you just read.
+Read the first pointer there.
+That would tell you where the 1035th block is.
+And that indirect block that you've read would take you through the 1058th block.
+Then you would move to the second pointer in the doubly indirect block.
+And that would point to another indirect block.
+And that would take you to the 1059th through a bunch more.
+And if that isn't enough, well, there's a 13th pointer with a triply indirect block, just playing the same trick, but now three levels of indirection.
+Now, this seems like it's kind of an ad hoc slap together type of thing.
+Seems kind of complicated.
+We could say, well, let's do something simpler.
+All the 13th pointers are triply indirect blocks.
+Every single pointer in the inode is exactly the same kind of thing.
+It's a pointer to a triply indirect block.
+The reason they didn't do that is because they know.
+They knew back then, and it's still true today.
+That file sizes are not random.
+They are not randomly distributed between the biggest and the smallest.
+Many, many, many files are quite small.
+They need one block or two blocks or three blocks of data, but they don't need more than that.
+So that being the case, we do not need to deal with indirect blocks, doubly indirect blocks, triply indirect blocks for most of these files.
+So we can access, if we have 4K blocks, up to 40 kilobytes of data without any extra IOs.
+We do one IO to get the inode.
+And then for every one of the first 10 data blocks, we have to do an IO to get the data block, of course.
+But we don't have to get any indirect blocks, any doubly indirect blocks, any triply indirect blocks to get the first 40K of data.
+And that takes care of a very large percentage of all the files that exist.
+This is important because indirect blocks, doubly indirect blocks, triply indirect blocks, they're stored on disk.
+You need to look at them.
+You have to get them off of disk.
+You have to do an IO.
+So, given this is how they did things, how big a file could you manage?
+Well, we have 13 block pointers on the disk.
+First 10 points to the first 10 blocks of a file.
+The 11th points to an indirect block containing pointers to 1024 data blocks.
+The 12th points to a doubly indirect block.
+The doubly indirect block points to 1024 indirect blocks, each of which points to 1024 blocks.
+The 13th points to a triply indirect block, which points to 1024 doubly indirect blocks, each of which points to 1024 indirect blocks, each of which points to 1024 data blocks.
+So, if we have 4K blocks and 4 bytes per pointer, then we are going to end up being able to store 4 terabytes.
+Now, I think you still can't buy any 4 terabyte devices.
+This file system was built in the 1970s.
+You sure as hell couldn't buy 4 terabyte devices then.
+You couldn't even buy gigabyte devices then or megabyte devices.
+This was a design that showed serious forethought.
+They were really thinking about what's it going to be like in the future.
+So, we're getting to the point where, you know, you can imagine with different technologies actually having files of this size.
+I mean, 4 terabytes is not an inconceivable amount of data.
+We do manipulations of more than 4 terabytes in many of these data intensive applications quite often.
+So, they were prepared.
+So, how does it perform?
+Well, when you open a file, you bring the inode into memory and you keep it in memory as long as anybody has that file open.
+That means that anybody who wants to get, who has the file open, wants to get to one of these first 10 blocks, can do it without doing any more IOs.
+They have to do the IO to get the block, but they don't have to do IOs to get indirect blocks and so forth.
+After that, they read indirect blocks.
+Now, that's an overhead, extra cost.
+However, reading the indirect block gets you 1024 pointers.
+Okay?
+That means that you can get to another 1024 data blocks worth without doing any extra IOs except for the data blocks you actually want to get to.
+Double indirect blocks, well, you have to do an IO to get the double indirect block.
+And that doesn't really get you much except it tells you where the indirect block you need is.
+So, you do an IO to get that.
+That's two IOs.
+Then, you have to follow the pointer in the indirect block to get to the one you really want to get to.
+So, three IOs to get to that one.
+However, if you cache the double indirect block and the indirect block that you've already read, you've already read them once, keep them in the cache.
+Then, for a whole lot more data from that file, you don't have to do extra IOs.
+Only the IOs to get the data you actually need.
+For triply indirect blocks, well, you have to do three IOs.
+One to get the triply indirect block.
+One to get the doubly indirect block you need.
+One to get the indirect block you need.
+And then, you actually get to get the block of data you want.
+But again, cache.
+If you cache the triply indirect, the doubly indirect, the indirect block, you'll be able to get to a whole lot more data without doing extra IOs.
+Any block in the four terabyte file, if you had such a thing, could be found with three extra reads at most.
+You have to read the block of data that you want to get to, plus at most three extra reads.
+Okay, now, these are far from the only ways that we can build file systems.
+People have come up with many, many other designs.
+And we'll talk about a few of those in subsequent classes.
+So, in conclusion, this is the preferred way for an operating system to manage data, to manage persistent data.
+We use file systems for that purpose.
+We have to design file systems with some characteristics in mind, in particular, performance, reliability, and security.
+There are many different ways to build file systems.
+There is not necessarily one right way.
+With virtual memory, we've made a choice as to how memory should work.
+We haven't made that same kind of choice with regard to file systems.
+We have different file systems that are used in different places.
+How you design your file system is going to have some major impacts, though, on what you can do with a file system.
+How big can the files be?
+What will be the performance implications of using the files?
+And, thus, these are very important decisions which will, if you are designing file systems, have a great impact on whether your file system is or is not going to be used.
+In the next couple of classes, we will talk about other issues in file system design which we haven't even touched upon yet.
+Thank you.

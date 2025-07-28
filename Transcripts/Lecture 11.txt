@@ -1,0 +1,1544 @@
+We have finished up the material on synchronization, and we're now going to move into another entire set of issues in operating systems.
+We're going to talk about how you do persistence of data, and in order to talk about that properly, we're going to start by talking about, well, how do we interact with various devices that are on our computer that perform I.O. for us, including I.O. for assistant data, but of many other types of purposes as well, including things like the camera and the microphone that I'm using, the speakers that you're using to listen to me, and so on.
+Today, we'll be talking about devices, device drivers, and I.O.
+So, we'll talk about what we mean by a device and what we mean by a device driver.
+We'll talk about performance issues of I.O., and then we'll talk about how the operating system uses abstractions for the purposes of making device drivers easier to work with, just as it uses abstractions for many other purposes as we've discussed previously in this class.
+Okay, so, you got a computer.
+So, you have your computer.
+There's your computer.
+What's in the computer?
+Well, it's got a memory.
+It's got a bus.
+It's got a CPU or two or multiple cores, whatever it may have.
+But usually, there is actually a whole lot more to your computer than just those things.
+There's a lot of other stuff that is attached to that computer.
+What?
+Well, screen perhaps.
+Keyboard.
+Probably a mouse.
+Maybe a hard disk drive or some other kind of storage device.
+Probably, perhaps, some speakers and a microphone.
+Maybe a camera.
+Probably a couple of network cards.
+Maybe you have a printer attached.
+Maybe you have a scanner attached.
+And who knows what else you might have.
+There are many, many, many types of devices that are attached to a typical computer.
+These are called peripheral devices.
+And there are a lot of them.
+And they lead to all kinds of complications in how we run our system.
+Basically, any computer you buy, such as the laptop you're using, the tablet you may be using, the smartphone, if it turns out that you're using a smartphone, they're all going to have a bunch of devices that are not part of the CPU, not part of the memory, not part of the bus.
+Unless they're something else.
+Nonetheless, they're attached to the computer and they must be under the control of that computer, which usually implies that they are under the control of the operating system.
+That, in turn, implies that there's some code that allows us to interact with those devices, to send commands to the devices, to receive data from the devices.
+Now, these devices are varied in kind.
+They don't do the same kind of thing at all.
+You don't have the same uses of a camera, one possible device, as you do with a flash drive, a different type of device.
+A keyboard is very, very different than a microphone.
+So, there are going to be some very specific things associated with each one of these devices, specific to whatever the device is supposed to do.
+And nonetheless, while this code must interact specifically with that device, the purpose of having the device and having the code to allow you to interact with the device is to let the rest of what's going on in the computer properly work with this device, make use of its capability.
+Now, it may sound like this is sort of a side issue.
+This isn't what operating systems are really about.
+Well, in terms of how much code there is in a typical operating system, it turns out that the code associated with these devices dwarfs in size the rest of the code in the operating system.
+Most of the code in your operating system is about dealing with the devices.
+Okay.
+So, how do peripherals actually fit into the computer in the hardware sense to begin with?
+Well, these devices, your camera, your keyboard, your mouse, whatever it may be, are attached to a bus.
+We've already talked about what buses are.
+Now, there is, of course, a bus that connects up the CPU to the RAM.
+But there are other buses in your computer as well.
+Typically, the purpose of a bus is always to move data from one place to another.
+Here, we're talking about buses that are going to connect up to the peripheral devices.
+And they're going to move data from the peripheral device to somewhere else or from somewhere else to the peripheral device.
+So, that's how we connect them in a hardware sense.
+Every one of these peripheral devices is going to be connected to a bus in one way or another, sometimes permanently within your computer.
+Sometimes, they're plug-ins where you can plug it into the side of the computer or into some port on the computer and unplug it when you don't need to use it anymore.
+Now, the peripheral device is a piece of hardware.
+It is a piece of hardware that is designed to do some very, very specific things.
+It is not a general computing device, as a rule.
+It is something that can do those things that are specific to what kind of peripheral device it is.
+If it's a keyboard, it can figure out what key has been hit.
+If it is a microphone, it can take in sounds and convert them into some digital format.
+If it is a monitor, it can display information in a visual way.
+So, that's what these devices, these peripheral devices do.
+Since this is what they're doing, this is what we have to work with.
+They have specific hardware commands built into these devices that will do certain things.
+And that's what they'll do, and they won't do anything else.
+Now, these commands are things that you can send electric signals to the device and say, do this, and it will do that, assuming that you ask to do one of the things it's capable of doing.
+They're typically not going to do independent computations.
+They will usually respond to a command from some other piece of software, usually the operating system, and do something.
+Once in a while, you're going to have a device that is going to instead say, something happened in the world outside of this computer, such as a user hit a key on the keyboard.
+I, the peripheral device, have to take action on the basis of that.
+Not because the operating system said to do something, but because something happened in the outside world that is going to introduce new information, new requirements into the computer.
+Similarly, on a network card, if a message comes in from the outside world, well, we need to deal with the message.
+For a microphone, if sound is detected, you have to deal with the sound.
+For a camera, if a picture is taken, you need to deal with the image.
+So, that's the kind of thing we're going to do with the peripheral devices.
+In order to make the peripheral devices perform whatever action they're going to do, we typically have our operating system send a signal on the bus that connects the peripheral device to the rest of the computer, telling the peripheral device, do this thing.
+It has to be a signal that is clearly specific to that peripheral device.
+A set of signals that tell a flash drive to do something will be different than the set of signals that tell your speaker to do something.
+Now, this happens asynchronously.
+Synchronous to whatever else is going on in the computer.
+Synchronously in the sense that the command is sent out, typically, from the operating system synchronously.
+But once the command goes to that device, the device starts doing whatever it's going to do at its own speed, typically without further intervention from the operating system or other code in the system.
+So, you have things going on on your CPU, on every core of your CPU.
+And simultaneously, you have other things going on on these peripheral devices.
+Now, the peripheral device, typically, when it gets a signal saying, do something, such as send a message, you send information to a network card saying, send this message across Wi-Fi, typically, it's going to have a bunch of stuff it does in response to that message.
+And sooner or later, it's done with whatever it was supposed to do.
+At that point, it is going to send a signal back to the rest of the computer, typically, to the CPU, saying, I have done what you told me to do.
+That signal goes back across the bus.
+The bus is the connection between the device and the computer.
+It's the connection that is used to send commands to the device.
+It's the connection that is used to send results back to the computer.
+Data flows sometimes from the computer, from the CPU to the device, across the bus.
+Data flows from the device to the CPU or the RAM across the bus.
+It all moves across the bus.
+Okay.
+Now, modern CPU cores are very, very, very fast, incredibly fast.
+RAM is pretty fast.
+The bus that connects up the CPU and the RAM is also pretty fast.
+Other buses are quite as fast as that, but they're still pretty fast.
+Compared to these things, these elements of the computer, these pieces of hardware, practically all peripheral devices are very, very, very slow.
+They work orders of magnitude more slowly.
+So this means that when you send from the CPU a signal to one of these peripheral devices saying, go do something, it's going to be a long time from the CPU's perspective before the peripheral device is finished doing whatever it was supposed to do.
+It just doesn't work at the same speed.
+Now, this leads to challenges because over here you have the CPU core working very, very fast.
+And over there you have the device that is doing things for the CPU core working rather slowly.
+So this means that we have performance challenges.
+So as you should remember from our discussion of synchronization issues, if we have a core that is waiting for something very, very, very slow to happen, we're probably not going to want to just sit in a loop waiting, waiting, waiting, waiting, waiting, waiting, because that will burn a lot of cycles on the core that we could be using for something else.
+So this means that we're going to have some performance challenges.
+We are going to have the devices working slowly, the CPU working quickly.
+We want overall the operations to appear to all be very, very quickly.
+We want the system to appear to be going at the speed of the CPU, not the speed of this very, very slow device.
+Okay, but on the other hand, you have applications, and the applications want to do things.
+And some of those things involve working with the devices.
+And frequently they cannot do things correctly unless they are working properly with the devices, which sometimes means they can't make forward progress until the slow device is finished doing whatever the slow device is going to do.
+Okay, so what are we going to do about that?
+How are we going to make it appear that we're moving very, very, very fast when sometimes one of our applications has to wait for something that's very, very, very slow?
+Well, the system code is going to have to deal with this mismatch and try as best it can to make everything appear to be moving quickly.
+Okay, now you might say, well, why does the operating system have to worry about this?
+Why does it have to worry about the code that actually makes a particular peripheral device do whatever it does, that makes an image appear on the screen, that makes you understand that this mouse movement has caused the mouse to move from this place to that place?
+Why is that the operating system's problem?
+Why don't we put that in user code, up at the user level where you don't have to worry about it?
+Well, occasionally you can do that.
+But there are some issues that make it difficult in most situations.
+First of all, in some cases, we are going to be using these peripheral devices for system purposes.
+So when we talked about memory management several lectures back, we were talking about, oh, we're going to use demand paging to move pages back and forth from some storage device into the RAM, in the other direction from the RAM to the storage device.
+Storage device is one of these devices.
+Proper performance, proper behavior by that storage device is vital to make memory management work correctly.
+If we don't have careful management of what's happening with that device, then pages could disappear.
+They were stored on the device.
+Something overwrote them because user code said, let's go right on that piece of the device.
+So in that case, we probably want trusted code to be working with many of our devices, with most of our devices under most circumstances.
+What is trusted?
+The operating system is trusted.
+So typically, the operating system is going to take control of these devices and is going to run code in its own space with its own privileges to work with the devices.
+This is also important because, in many cases, the devices are being shared by multiple different processes, separate processes, processes that are not really interested in cooperating.
+So, you know, when you are working on a laptop computer and you've got your screen in front of you and you've got seven or eight different windows that you're switching back and forth from, each of those windows is probably controlled by a different process.
+They're all trying to make use of the screen to some extent, and you have to make sure that what is seen by the user is what should be seen at that moment, that one of the processes that wants to display things to the screen can't mess up what some other process is supposed to be displaying to the screen.
+That means somebody has to be in control.
+And typically, the party that is in ultimate control of things like the screen is going to be the operating system.
+This can get to be quite complex in many cases.
+Some of these devices are security sensitive.
+So, for example, when I'm saying I'm going to have demand paging, I'm going to swap some pieces of processes, some pieces of memory from processes, pages, onto the device.
+That means data belonging to a process is sitting on the device, not in RAM.
+We want to make sure that another application, another process, cannot look onto that storage device and say, oh, I'm going to read some other processes data, even though I'm not supposed to be able to read that because, hey, it's sitting out there on the storage device.
+I'll look through the storage device.
+If the code for the storage device, the code that controlled the storage device, was under the control of an application, not the operating system, then we'd have that issue to worry about.
+So, generally speaking, the code that is going to control these devices must be kept in the operating system, must be under operating system control.
+All right.
+So, where does this code, which we'll call a device driver, fit in?
+Well, at one side, you have an application, say, a web browser.
+At the other side, you know, that's way, way up at the top level, the user directly, the human being, is interacting directly with that application.
+He's clicking.
+He's reading.
+He's moving from page to page.
+He is having direct human interactions with that particular application.
+Now, in order to do those interactions on a web browser, you have to send messages across the network.
+You have to receive messages.
+So, way, way down there at the bottom, there's going to be a piece of hardware that sends and receives messages across the network.
+It could be, for example, an Intel Gigabit CT PCI-E network adapter, a very, very particular piece of hardware.
+Something to remember about these devices is that every single one of these devices is a very particular model of hardware.
+It was made by a particular manufacturer.
+That manufacturer very likely had multiple devices of similar kinds, like multiple different network adapters that they built.
+Each one of them is going to be different than all the others.
+So, there is something very, very, very specific in a hardware sense in your computer, perhaps this network card.
+So, at the top, you say, I'm clicking on this and I'm going to go to a website, which implies you're going to send a message somewhere off to the network and messages are going to come back.
+Down at the bottom, those messages are being sent and received by an Intel Gigabit CT PCI-E network adapter.
+Okay.
+That particular piece of equipment connected up to the bus will accept certain signals saying, send this message.
+Here's a message I've received.
+What do you want me to do with it?
+So, somebody has to mediate between I am browsing the web and an incoming message has just arrived.
+What should I do with the message?
+That somebody is going to be that something.
+It's going to be the operating system.
+So, what's going to happen is I click as a user on a link in my web browser and we're going to figure out, oh, that means I need to send one or more messages to the following remote site.
+That means that the operating system is ultimately going to have to tell this Intel Gigabit CT PCI-E network adapter, send this message to the following location.
+So, how do we do that?
+Well, we have to have some code that's specific, that understands.
+If I want to send the message through this Intel card, here is the command I put on the bus.
+Here is where I put the data, so that this is the data contained in the message.
+And I have to tell that hardware device, send the message located in this particular piece of memory.
+Okay.
+The operating system is going to have to invoke the device driver, the particular piece of code specific to this particular kind of Intel card, to tell it to do that.
+And that in turn, that device driver will then say, okay, I've got to put the following signal on the bus in order to make this happen.
+The signal will transmit across the signal.
+The signal will transmit across the bus to this particular hardware device.
+The device will say, oh, I need to send the message.
+Here's where the message is kept.
+I'm going to send the message.
+All right.
+Now, if you think about this a little bit, the code that makes one of these peripheral devices do the things the peripheral device can do is going to be pretty specific to that piece of hardware.
+It's not going to be like code for different pieces of hardware.
+So clearly, the code that deals with your monitor is not going to be nearly the same as the code that deals with your mouse.
+They do very different things.
+And in fact, it turns out that because there are many, many, many different types, different models of hardware that do the same thing, many different types of monitors, many different types of mice, many different types of cameras, many different types of speakers, etc., etc., etc.
+Since there are so many of these, it turns out that every single one of them is going to be pretty much specific.
+There are going to be things about that particular model of that particular type of peripheral device that are unlike other models of the same type of peripheral device.
+So this means that you're going to have code specific to the device you have installed or has been installed for you in your computer that is your network card, that is your speaker, that is your monitor, or whatever it may be.
+This code is called the device driver, and it's called the device driver because it drives the device.
+It makes the device do things.
+Okay.
+And this is going to be very, very specific to the particular device.
+So for every device that you have in a particular computer, like my laptop that I'm using right now, there's going to be a device driver installed in that operating system for that particular device.
+Now, when you get a kernel of distribution, when you get an operating system distribution, and you install it on your computer, typically it comes with a lot of these pieces of code, a lot of different device drivers.
+Because as we discussed in an early class, you want to have one distribution, one version of the operating system that will work on many, many, many different hardware platforms.
+And part of the platform, of course, is, well, okay, what are the peripheral devices you have on this particular computer?
+You don't want to have to have a different distribution for every different type of combination of all the peripheral devices you might happen to have there.
+So what we're going to do instead is say, well, you know, we know we're going to need some device drivers.
+We don't know which ones are going to be on the computer that's going to download this distribution.
+Let's give him a whole lot.
+Let's give him many, many, many different device drivers.
+And if we are lucky, perhaps the devices he happens to have on his computer are among those that we gave him.
+This is how we distribute kernels, typically.
+This is how operating systems get distributed.
+So the Linux 2.6 kernel, quite a bit back, came with 3,200 different device drivers.
+Now, that wasn't because anybody thought that any computer it was ever installed on was going to have 3,200 different peripherals of a particular type.
+They figured you're going to have a few dozen peripherals, maybe.
+And you're going to need a few dozen device drivers.
+Which ones will you need?
+Well, maybe it's one of these popular ones.
+We'll include 3,200 popular ones.
+With luck, we've given you a lot of device drivers you don't need, but all the device drivers you do need.
+If you're not lucky, you're going to need to do something else to get some device drivers.
+Okay, so what is each one of these device drivers like?
+Well, it's specific.
+It's very specific to the particular device that it has been designed for.
+It's only needed by a particular computer if you happen to have that particular model of that particular device installed on that particular computer.
+If you don't, you don't need that device driver.
+Okay.
+Now, this means, of course, that you probably want these device drivers to be very modular, to do specifically the thing they're supposed to do, and to be able to sort of plug into your computer's operating system if you need that device driver, and not plug in if you don't.
+This means that you're going to want these device drivers to interact with the system in very, very limited, well-defined ways.
+You're going to say, okay, if you are building a device driver, it should do the following things.
+It should accept the following commands.
+It should not be mucking around in memory management code, in the scheduling code, and things like that.
+They shouldn't be touching that kind of stuff.
+They should do what's necessary for their device and nothing else.
+On the other hand, of course, they're going to be running within the operating system, as we just discussed.
+And we really don't want the operating system to crash.
+And we really don't want the operating system to make mistakes, to do bad things unintentionally.
+So, this means we want our device drivers to be correct.
+Correct in the sense that they do what they're supposed to do and no more.
+And when we tell them to do something, they do that.
+And they do exactly that.
+They always do what they're supposed to do.
+They never do anything else.
+So, this is, of course, important also for the hardware.
+If the hardware is told by its device driver properly to, you know, perform a particular operation, and the device doesn't do it, well, that's not good either.
+But the device driver code also must be correct.
+Where are we going to get this code from?
+Well, it would be nice if the people who wrote this code had a pretty good understanding of what they were doing.
+The most important part of their understanding of what they're doing relates to the device itself.
+This is that particular Intel gigabit card.
+Who knows exactly the details of how that Intel gigabit card works, exactly what it can do, exactly what will happen if you send it a particular command, exactly what will happen if it's trying to get your attention because something has occurred in its hardware that it needs to bring to the attention of the computer, such as in this case, a message has arrived.
+Who knows that?
+Well, the people who built the device, Intel in this case, and in particular, the hardware designers who work for Intel building that device, they know exactly what that device is going to do because they built it.
+They designed it.
+They built it.
+They tested it.
+They determined here's how it behaves.
+So, probably you're going to want people who are of that group to do things.
+Now, you actually don't want the hardware designers and builders to do it because the device driver is software.
+You're going to want people who are good programmers to do it.
+But they should be good programmers who work very closely with the people who build these devices.
+So, generally speaking, the company, Intel in the example we're talking about, will hire programmers whose job it is to build device drivers for the devices that Intel builds.
+And they will work very closely with the design and implementation team of the hardware for that device.
+And they will be able to ask them questions.
+They will be able to get full information about how this device works in all of its details.
+That's good because that means they'll write code that is specific to that device and they'll do it properly.
+But on the other hand, they're going to be people who are experts on doing that.
+They probably are not going to be people who are experts on building operating systems code in general.
+That would be asking too much.
+You know, why would you have multiple layers of expertise here?
+So, probably they're not going to know exactly how that works.
+Or at least they're going to have a fairly limited understanding of operating system behavior.
+It's included probably to interactions with devices.
+So, the way we're going to make sure that this works properly within the operating system, making sure the operating system is prepared for all of these thousands of device drivers that people are going to build, and that they build them properly, is we're going to say, okay, at the top level, you've got your web browser, you can pretty much assume that, yes, there's a network card down there that can send and receive messages.
+But at the point you build that application, you haven't got a clue on any particular computer that it runs on, what it's got down there at the bottom, what kind of network card.
+You don't know if it's a wired network, you don't know if it's a Wi-Fi network, you don't know if you're using Bluetooth, you don't know if you're using cellular, you don't know what the hell they're doing.
+You just know that you can send and receive messages.
+Okay.
+So, this sort of suggests that, certainly at this top end, we want to have some kind of abstraction.
+Somewhere along the line, we want to say, this is a message, send the message, without worrying about what device you're using to send it.
+And then, clearly, you're going to have to go down through that abstraction into something more specific.
+Something specific to the particular network card, that Intel Gigabit Wi-Fi card that you have.
+So, there'll be an abstraction at the top end.
+Now, it turns out we'll see that there are going to be abstractions at the lower end as well, because that will make it easier for the people who are building the device drivers to plug them in properly to the operating system.
+So, we're going to have multiple abstractions related to devices and device drivers here.
+So, the device drivers are going to expect, they're going to be saying, okay, I've got a METO interface that tells me if I'm a network card, I've got to send messages, I've got to receive messages, I've got to tell the operating system this message has been received, I've got to respond to queries about, you know, what's my queue of messages, or something like that.
+Okay, so, we are going to have abstractions at the top and at the bottom.
+And this is going to make life easier for the people who are building the applications.
+They won't have to worry about, gee, do I have to know what kind of network card is on this computer?
+And we're going to have people at the bottom who are going to have to say, I don't have to worry about how the operating system has built its buffer management, for example, to figure out where it's putting its buffers and allocating its buffers to hold messages.
+All I have to do is say, I accept the message, here's the message, okay, fine.
+So, these abstractions are going to make life easier for everybody who is involved, people at the top, people at the bottom, for that matter, the operating system developers in the middle.
+So, what do these abstractions do?
+Well, they encapsulate knowledge of how to use the device.
+So, for example, you say, I don't have to know the particular code that gets sent out across the bus to make this network card send the message.
+That's not necessary for that top-level application or even for the operating system as a whole.
+What I need to know is, do this, this is sending a message.
+Send the message using the following mechanism.
+And then, of course, I'm going to have to say, at the bottom, I have to have something that plugs this device driver for this particular network card into the operating system.
+And that plug-in is going to have to say, okay, here, I want to send a message.
+I'm going to tell you in some standardized, you, the device driver, in some standardized way, send the following message.
+It then is going to have to say, okay, now I am familiar with a particular card that I've got, this Intel gigabit card, and I am going to now figure out these are the signals I need to put out to the following place on the bus in order to make that message get sent.
+So, this is going to hide a whole lot of very detailed information from the higher levels, certainly from the applications, but even from the internals of much of the operating system itself.
+We just don't have to worry about that.
+The details have been dealt with at the bottom.
+And this also is going to allow us to have simple ways, standard ways, of dealing with outcomes, for example, like I tried to send the message, I couldn't send the message.
+Why not?
+The card isn't working.
+The card is broken.
+Or I tried to send the message for whatever reason, the message didn't get sent.
+Do you want to resend the message?
+We are going to be able to work that out in standardized ways.
+Okay.
+Now, we're also going to have optimizations being done here.
+Now, optimizations turn out to be very important for many of these devices because, as I've said several slides ago, they're slow.
+Much, much slower than other devices.
+So, if we can figure out ways to make them look faster, appear to behave more rapidly than they actually can, or at least squeeze out the best possible performance from the device that we can, it's going to make our system as a whole run faster, better performance overall.
+However, a lot of this is going to be very specific to the particular device.
+So, what we want to do is say, here's a standardized thing we need to do with this device.
+Like, we want to write some data to the storage device.
+Okay.
+Maybe, depending on the specifics of what storage device we're dealing with, there are orders in which different operations should be performed.
+This turned out to be very important for rotating hard disk drives.
+Okay.
+so let's allow the device driver, if we want to put that code there, to order a set of different writes that are being performed on that rotating hard disk drive into the order that's going to be fastest, rather than the order that's going to be slowest.
+That's an optimization.
+Now, we certainly don't care about that optimization up at the point at which the applications are saying, write this, write that, write the other thing.
+Or even in the operating system where we're saying, you know, I want to move this page from this page frame into the swap area of disk.
+That should not be something they have to worry about.
+The optimization should be performed in the device or device driver itself.
+Now, also, we expect in many cases to have errors occur in devices and device drivers.
+Sometimes these are characteristic of simply the nature of the device.
+So for a Wi-Fi network card, for example, Wi-Fi is a shared network medium, which means a whole lot of people are trying to use the same network medium.
+Sometimes two parties, two different machines are trying to use it simultaneously, and they can't because it'll only send one message at a time for one application.
+If two use it, well, then they're not, neither one of them is going to have success.
+Their messages are going to get corrupted.
+They're not going to succeed.
+Okay, well, that's a fault.
+It's a fault that is relatively easier, easy to recover from, provided you have good network protocols for doing so, but it's a fault nonetheless.
+Your network card has to say, this message send failed.
+It did not successfully send.
+Okay, if that's the case, then somebody needs to do something.
+They need to say, well, I should send it again, for example, but perhaps I should wait a little before sending it again so I don't run into the same problem again when the other guy sends it instantly.
+So you want to have all kinds of errors.
+This is just one example of such an error.
+There are many types of errors that can occur.
+And you want to have the device driver be able to deal with the errors in a way that is not visible to the higher level application code or, for that matter, to the higher level operating system code.
+In particular, just because a device failed, like let's say your speakers are broken.
+Now, if your speakers are broken on your computer, that's unfortunate.
+You're not going to be able to play any sound.
+But on the other hand, you can still do many, many, many different things with your computer.
+You just can't use the speakers.
+So in that case, what you would not like to have happen is you would not like to have your operating system crash because the speakers aren't working.
+And as a result, there was a bug in the device driver.
+You'd like the device driver to handle that issue and say, okay, fine.
+Can't use the speakers.
+I will just send a signal to whatever application was trying to use the speakers and say failure.
+That will allow the application to make its own decisions, probably stop trying to use the speakers.
+And it will not cause a crash either in the application necessarily, unless the application can't work without the speakers.
+And it certainly won't cause a crash in the operating system.
+All right.
+So how are we going to fit the device drivers into the modern operating system?
+There used to be fit in by saying, okay, I've got a computer here.
+It's a brand new computer.
+I figure out what the devices are.
+I do a configuration operation that hooks together all of the device drivers I need into the particular kernel that I want to use.
+I build that using a make file or some such thing.
+I install it on the computer and away it goes.
+That isn't a very effective way of doing things.
+It makes it very difficult.
+So what we typically do instead is we say, okay, any computer we're going to install this operating system on is going to have a bunch of devices and a bunch of device drivers.
+Each one of these device drivers is pretty much independent of all the others.
+Device drivers do not tend to directly interact with each other.
+They're about handling their own device, not about working with other devices.
+That's going to be the operating system's problem.
+Also, it's the case nowadays that we have hot plugging.
+You have undoubtedly, at some point, plugged a flash drive into a computer.
+When you plug the flash drive into the computer, it's a flash drive that wasn't on the computer before you plugged it in.
+You may never have plugged that particular flash drive in before.
+It's some particular model of flash drive.
+There are many, many different types of flash drives.
+And it could well be that you did not have installed a device driver for that particular model of that flash drive and yet you plugged it into the port.
+And your user expects to be able to see what's on the flash drive.
+Well, you can't work with that flash drive unless you have a device driver installed.
+So when you plug that in, you're going to have to install a brand new device driver specific to that kind of device.
+Plugable models are very, very typical nowadays for how we add and remove device drivers from an operating system.
+Basically, there's going to be operations built into the operating system that say when I see a device that I've not seen before, I will try to find the necessary device driver for that particular device.
+I'll plug it into the right place in the operating system.
+If I can find the device driver and if all goes well, we can use that device.
+It turns out that it's a device that's removable, like that flash drive.
+When I pull it out, I really don't need the device driver anymore.
+I can unplug the device driver and remove it from the operating system.
+Now, we actually do this at the point at which we start up a computer.
+we will probably for the most times after you've been using a computer for a long time.
+We've already set up these are the devices that are built into that computer.
+But sometimes when you first buy a computer and the first time somebody tries to install, let's say, Windows on that computer, you don't really know at the point at which you downloaded Windows onto the computer or Linux onto the computer what device drivers you need.
+How do you figure it out?
+Well, you look around, you see what devices you happen to have.
+This is part of this installation and booting of the operating system.
+Based on that, you say, okay, I need the following 16 different device drivers.
+Have I got them?
+Yes, I do.
+I will plug in those 16 device drivers and away we go.
+Now, down at the bottom, you are going to be doing things where you say, okay, I have got to send the following signal to this device driver sitting on that bus.
+the bus is itself a piece of hardware and that piece of hardware does certain things.
+It's a bus, so those things involve movement of data.
+So I'm going to have down at the bottom, regardless of what I was trying to do at the top and what the device is actually going to do, I'm probably going to have something where I'm going to move commands or data across the bus.
+That means I have to have interactions with the bus.
+I have to tell the bus, do the following thing.
+Send this data to this particular port on the bus.
+So that's very, very standard.
+It doesn't really depend on what the device is.
+Up at the top, the applications are all fairly generic as well.
+I am sending a message.
+What, am I sending it via wireless?
+Am I sending it with a wired LAN?
+Am I sending it across my Bluetooth interface?
+I don't know.
+I don't care.
+At the top, you don't care.
+So probably, you're going to have very standard stuff up there.
+Generally speaking, in modern operating systems, we typically use a file operation to interact with devices.
+So you say, I'm going to read this file, write this file, but it isn't a real file.
+It's one of these special files, a file that represents a device.
+And your interaction with the device goes through that.
+But in between, somewhere in there, there's going to be some very, very specific stuff.
+So here's what's going on pictorially.
+So up in the user space, you got a bunch of applications.
+Then you have kernel space.
+And then down at the bottom, you have actual hardware.
+So the user space has various applications running.
+Each one is supposed to be largely independent.
+In the kernel space, among other things, we're not showing everything that's happening here, you're going to have the device drivers.
+Other things will happen before you get down to the device drivers, but they're going to be down there in kernel space.
+Now the devices, as I've said, are going to be connected via buses.
+There are different types of buses in a modern computer.
+USB bus, for example, the PCI bus.
+So some of the devices are going to be on the USB bus.
+Some of the devices are going to be on the PCI bus.
+This is something that is built into the device itself.
+It plugs into one of those kinds of buses.
+That's the bus it plugs into, not any other kind of bus.
+The buses have their own specific operations.
+Here's how you send a command on USB.
+Here's how you send a command on PCI.
+They're different.
+So you're going to have what amount to device drivers for the buses.
+They're called bus controllers.
+They're very, very limited and standard because they just are about how you move data.
+Though they're going to do DMA stuff as well, which gets a bit more complicated.
+Down at the bottom, of course, you have the hardware, the actual USB bus, the actual PCI bus.
+These are actual pieces of hardware.
+There is circuitry in your computer that implements the USB bus, that implements the PCI bus.
+You can, if you go to enough trouble, dismantle the computer, find the hardware that implements these things, tap on that hardware, and it's actually a piece of equipment.
+And then attached to the buses are various devices.
+Some are attached more or less permanently.
+You have to take the computer apart to change that.
+Others are plugged in.
+So you make a system call from the application and it goes through various things that it's going to do.
+Sooner or later, it figures out, I've got to interact with the device.
+It figures out what device it's going to have to interact with.
+It then results in a call to the device driver for that particular device.
+That particular device driver then says, okay, in order to do what I've been asked to do by the system call, I need to send a command to my hardware.
+How do I do that?
+Across the bus.
+So you go to the bus controller and make a device call through the bus controller saying, go to the following port, send the following signal to the hardware attached to that port.
+And it goes down to, let's say, the flash drive and it tells you to do the following thing.
+Write the following block of data, for example.
+Now, there's also core operating system code that is not related to any particular device.
+This is what you have in every version of Windows, in every version of Linux and so on.
+It doesn't matter what the devices are on the particular computer.
+That operating system code is there, regardless of what the set of peripherals are.
+Now, you could, of course, put all the device drivers into the core operating system.
+You could have those 3,200 device drivers in the Linux 2.6 kernel be a permanent part of that kernel, even though you only need maybe 15 of them.
+That would be wasteful.
+So we actually try to divide it up.
+and there's a good reason beyond simply the amount of device driver code we need to keep for doing this.
+There's some things that are common functionality.
+A lot of different parties make use of this functionality.
+Caching is one example.
+Caches are more effective, as it turns out, when you share the cache among multiple parties.
+Having individual caches for individual applications, individual devices, et cetera, is less effective than having a shared cache.
+Poor hit ratios, poor performance.
+So let's have one big cache instead when we can.
+File system code.
+So we're going to do a lot of work with file systems.
+It will turn out that you can have multiple storage devices attached to a particular computer.
+You can have some files stored on one device, some files stored on another device.
+They could be different types of devices, not just different models.
+One could be a hard disk drive, another could be a flash drive.
+So you don't really want the applications to worry about what's the underlying technology used to store this file.
+You're going to want them to say, I want to open the file and read 100 bytes, something like that.
+So the code that does that is divorced from the code that involves, how do I actually store something on this hard disk drive, something on this flash drive?
+So a lot of code related to file systems is going to be in the core operating system itself or in a different pluggable part of the operating system.
+Network protocols, it turns out that we have moved network protocols largely into the operating system except when they've been pushed down into the hardware itself or perhaps into the device driver.
+So anything that's very, so for example, if you have both a wired LAN card and a wireless Wi-Fi card and a Bluetooth card, you could be using any one of those three devices to send network messages.
+You may even be using several of them at the same time depending on how you do things.
+So you want to basically say the network protocols may be the same at the high level for all three of those.
+I'm using TCP, I'm using UDP, whatever it may be.
+In which case, you don't want to have separate TCP implementations, separate UDP implementations for the different devices.
+For one, one for the wired LAN, one for the Wi-Fi, one for the Bluetooth, et cetera.
+That would not be very effective.
+On the other hand, when you have specialized functionality that is specific to the particular hardware that you're working with, you need that to be in the device driver.
+Okay.
+Now, how do devices actually work?
+Devices, as I've said, are working at a different speed than the CPU cores, much, much slower.
+So they're going to be told to do something.
+The device will be told by the operating system to do the following thing.
+And there's going to be a fairly long delay before they finish doing that because they're slow.
+All right.
+So what are we going to do when it's finished?
+You could, of course, do something where you're polling, where the operating system is periodically checking to see if the device is done.
+Done yet?
+No.
+Done yet?
+No.
+Done yet?
+No.
+And it could keep doing that.
+That's basically a form of spin weighting that we talked about before in the classes on synchronization.
+When you have something that's very, very slow compared to something that's very, very fast, spin weighting can be really inefficient.
+So we don't want to do that.
+We talked about another approach in the synchronization lectures on dealing with these speed mismatches, saying let's have what amounts to a completion event.
+Okay.
+So we're going to say, okay, device, go off and do the following thing and we're going to have a completion event that will say when it's done, we're going to move on and take action at the higher level based on the fact that we've finished whatever operation you were supposed to perform.
+Which implies that somehow or other, somebody's got to tell the operating system, hey, you know, for that completion event you had, it completed.
+How are we going to do that?
+The way we're going to do that is typically with interrupts.
+We talked about interrupts in previous classes in much detail.
+So what's going to happen here is that sooner or later a device that's been told to do something is going to work and work and work and work at whatever speed it can work at and sooner or later it'll be done.
+When it is done it will generate an interrupt.
+This is a hardware interrupt that's going to be sent across the bus that connects the device to the rest of the computer and delivered ultimately to a CPU core.
+that CPU core is then going to say well this is an interrupt.
+There are many, many kinds of interrupts.
+We talked about traps.
+We talked about various kinds of erroneous interrupts.
+Here's another type.
+This is an interrupt that is related to an operation that we're waiting to complete.
+So the interrupt will cause us to activate the completion event saying it completed.
+Whoever's waiting for that would then be said be told you need no longer block.
+You can go ahead and do whatever it is you want it to do.
+Now it's important to know that device drivers are code but they're not processes.
+There is no process representing a device driver.
+It's a piece of code in the operating system.
+Generally speaking operating system code is not process code.
+It is not scheduled.
+Device drivers aren't scheduled.
+The scheduler isn't scheduled.
+The memory management system isn't scheduled.
+All of these things are done when interrupts occur traps occur something happens that requires the operating system including device drivers to take action.
+So what's going to go on is the device driver the device hardware is going to do its work generate an interrupt.
+The interrupt will go across the bus be delivered to the CPU will cause a trap.
+Well not a trap but an interrupt.
+This is going to invoke the code related to the device driver because that's what the interrupt is all about.
+The device driver is going to say okay I was told I was supposed to do the following thing I remember I was supposed to do that.
+Oh good it's done.
+Now I need to inform the operating system that the thing that you were waiting for for me to do I've done it.
+So it will then call another piece of code in the operating system saying for example you had a completion event it's complete.
+So remember we are connecting everything up to buses.
+The buses actually connect up a whole lot of different things as we saw in that diagram a few slides back.
+Many many different devices on a single bus.
+The buses connect to other buses.
+Ultimately there is that main bus that connects up the CPU and the memory and other buses.
+So generally speaking any communication between the devices and the CPU any of the cores of the CPU is going to be going across one or more typically more than one bus.
+It goes out across the main bus to perhaps the PCI bus to the device in question.
+And this is used this bus this set of bus connections is used to indicate commands do the following thing indicate interrupts the following thing has occurred and to move data.
+Here is the block of data that should be put onto your device.
+Here is the block of data that you asked me to read from the device.
+All those are going to move across the bus.
+Now the interrupts look very much like traps.
+Traps come from the CPU.
+Traps are something happened in the CPU therefore we have to do something that isn't the next instruction next thing on the program counter.
+Interrupts come from outside the CPU.
+They come from the devices for example.
+So they are going to be something where you had no control in the CPU over when it occurs.
+Because of that and because sometimes we don't want the CPU to be interrupted in the middle of something important.
+most commonly in the middle of an important operating system operation.
+You can disable interrupts.
+So sometimes the operating system will temporarily disable interrupts so that even if an interrupt came in while I was in the middle of this very important thing I'm not going to deal with that interrupt right away.
+So what do we do in that case?
+Well if the interrupts have been disabled they don't disappear.
+The bus controller will keep track of the fact that here is an interrupt that should have been delivered but I couldn't deliver it because interrupts were disabled I will keep track of the fact that it should be delivered sooner or later and when interrupts become re-enabled I will deliver the interrupt.
+Such an interrupt is said to be pending.
+Pending interrupts one hopes assuming you haven't screwed up and left interrupts disabled for a long time will sooner or later be delivered just not as quickly as if interrupts had not been disabled.
+okay now devices are slow.
+Devices are important.
+We cannot have our computer doing the things it was supposed to do unless the devices do their work and they're going to work slowly.
+We need to minimize any slowdown that we get in the system due to this mismatch of speeds between the CPU and the device.
+One way of doing that is to say when we have a lot of work to do with a device we would prefer to have that device busy doing work all the time.
+It's going to work slowly no matter what but if we don't even give it some work to do for a significant period of time it's going to be just that much slower because there's that long period of time when it wasn't doing anything.
+So we want to have for important devices good device utilization.
+How do we achieve that?
+Well there are various devices that are quite important for the overall performance of the system.
+In particular storage devices especially the storage device that is going to be used for performing paging.
+Demand paging is going to be very slow depending on whether that storage device is working at high speed or not so high speed.
+Network communication is another example.
+Our network card can send and receive messages at some particular speed.
+If we have a lot of data to send if you're trying to move a big file off of computer or onto your computer across the network.
+If you make effective use of your network card it'll go a lot faster.
+If you make ineffective use of your network card it'll go a lot slower.
+We'd like it's faster.
+But all the devices are slower than the CPU.
+We don't want these devices under these circumstances to be sitting idle doing nothing.
+They should if we really need to get a lot of work done through that device.
+Keep the device as busy as we possibly can.
+And what we're going to then have is long service queues.
+If we have long service queues because the device has got a lot of work to do but it isn't doing any work because it's sitting idle then that's going to slow down the performance of anybody who wanted to use that device.
+Slowing down for example the download of the file onto your computer because you're not making effective use of the network card.
+If it's a real-time data flow that can be quite bad.
+So if this is a Zoom call that you're listening to and you're not getting effective network performance across the network you may have stalls, you may miss words that people are saying because your devices are not being used effectively.
+You may lose data if this happens as well.
+So that would be unfortunate.
+So if we have these key devices that need to be doing a lot of work for us we want to keep them as busy as we possibly can.
+But on the other hand we don't want the CPU sitting around waiting for the devices because however fast the device may possibly work even at its top speed, its most effective, most highly utilized speed, it's vastly slower than the CPU.
+So what we want to have happen on these devices is they have a bunch of things they should be doing.
+They have request n-1, they have request n, they have n-plus-1, n-plus-2, n-plus-3.
+The moment request n has finished on this device we've done whatever we need to do for that one.
+We want to move on as quickly as we possibly can to the next one.
+So here's how we don't want to do it.
+So we have an I.O.
+device.
+It could be idle or it could be busy.
+We have a process.
+The process is going to make use of the I.O.
+device.
+Now maybe the process has to wait to run because it's not scheduled.
+So when it's waiting to run and if nobody else is using the I.O.
+device, well the I.O.
+device is clearly idle.
+Sooner or later the process gets to run and it's going to compute and think about what it wants to do and as part of thinking about what it wants to do it's going to say oh I need to use the I.O.
+device.
+and then it's going to say okay I will make a system call that will allow me to make use of that I.O.
+device.
+Now that's going to require you to trap into the operating system and do some operating system code related to whatever you want to do including figuring out oh it's that device over there you want to use.
+So there's going to be a period when the device is still idle because it has not yet been told by the operating system do something.
+then the device is going to say oh I've been told by the operating system to do something so it's going to go do it and this means the device is switched into a busy mode it's actually doing work that device is active it's doing something.
+Now probably the process is going to block waiting for whatever it has to be done to be done so it's sitting there waiting blocked.
+Sooner or later the device finishes and generates an interrupt this is a completion interrupt now the completion interrupt is going to be going to the operating system and it's going to say hey you remember this device is supposed to do something for you it's done it it's finished.
+The operating system is going to say okay fine now maybe the process is not the next thing that should run maybe it's in the middle of running a time slice for some other process so it may not start the process up right away.
+Meanwhile the device is idle because it hasn't been told to do anything.
+So the process runs again and it said okay I was waiting for something do you have the thing for me and it gets its thing gets the result from the device and then it says oh okay well based on that I'm going to think some more and it does some thinking and it says I'd like to do another device operation so it generates the interrupt and says let's go and do something.
+Now during this entire time when the process got started again when it did its computation when it said I want to interact with this device again that device has been idle it hasn't done anything it hasn't been told to do anything.
+As soon as that second request from the process gets through the operating system and the operating system invokes the device and sends the command out to the device through the device driver the device becomes busy again.
+These in this run in this way of using the device are the only times that that device is busy.
+During the rest of the time the device is sitting around doing nothing making no effective use of the capabilities of the device.
+If we're going to do a lot of work with that device that is not very efficient.
+So what do we do to make it work better?
+The thing we typically do in such circumstances we exploit parallelism.
+We try to do a bunch of things in parallel.
+Now the device is going to operate independently of the CPU.
+So the CPU can be doing work and the device can be doing work at the same time.
+However there is a little issue here which is when the CPU when a core on the CPU is doing work what does that really mean?
+It's running instructions.
+The instructions are kept in RAM.
+In order to run instructions it has to go to RAM to get the instruction.
+Also data is kept in RAM.
+It's going to have to pull stuff out of page frames bring it across the bus into the CPU into registers and do some work send stuff from registers into the RAM page and so forth.
+So it's going to use the RAM.
+Now the thing is of course that in many cases the device also needs to use that RAM.
+It has been told for example you need to send a message.
+Fine.
+The message represents a bunch of bits.
+Where are the bunch of bits?
+The bunch of bits are sitting at a particular place in RAM.
+The device cannot send that message unless it knows what bits it should send and the bits it should send are kept in RAM.
+So it's going to have to go to the RAM bus at some point and get those bits.
+How are we going to handle that?
+Well fortunately CPUs nowadays have been designed to say yeah we're really really fast.
+RAM is fast but we're really really fast.
+We don't want to run at RAM speeds.
+We want to run faster than we can get stuff out of RAM.
+So how do we do that?
+Well the registers of course are a lot faster than RAM so we try to work with registers as much as we can but that wasn't good enough.
+So what else can we do?
+Let's put some caching on the CPU chip.
+let's cache some of the instructions some of the data we've been working with in the past on the CPU chip itself and if we are effective in our caching then the CPU chip is going to hold much of what we need in RAM and we won't have to go to RAM because we got in a cache sitting here on our CPU chip.
+That means that the RAM is not busy during the periods when the CPU is able to use its registers and able to use its cache.
+If we are lucky and this doesn't have to do anything with peripheral devices directly.
+If we are lucky the CPU all of the cores of the CPU are going to spend the vast majority of their time working with registers and working with their cache.
+They are rarely going to go to RAM.
+If that isn't the case we're not going to run at top speed anyway.
+Forget about devices.
+So we try to make sure that we have enough cache and that our programs as built by compilers are designed in such a way that they can make very effective use of the registers rather than having to go to the RAM very often.
+Okay.
+Now if that's the case and that better be the case or we run at slow speeds anyway.
+If that's the case then the RAM bus the bus that connects the RAM to the CPU is frequently not being used by the CPU.
+It's idle.
+Well is there anyone else who would like to use that RAM bus?
+Yes there is frequently.
+The peripheral devices would also like to use the RAM bus.
+They would like to pull a message out of the RAM in order to send it on the network card.
+They would like to take a message that has been received from the network and put it into a place in RAM.
+They would like to take a block of data that they were supposed to store on the flash drive and copy it from the RAM into the flash drive or vice versa.
+Take a block of data that's on the flash drive and put it in a particular place in RAM.
+And that'll be true for many other kinds of peripheral devices in specific ways.
+So if we're not using the RAM bus for the CPU's purposes and there are other people who would like to use the RAM bus, why don't we have them use the RAM bus?
+This is called direct memory access, abbreviated as DMA.
+What this says is that you aren't going to say that the only way that a peripheral device can get data from the RAM is to ask the CPU to copy the data out of the RAM and into the peripheral device.
+Let's avoid going through the CPU if we can.
+Let's instead simply say the device will ask the RAM, please give me the following piece of data using DMA.
+Now, the buses have been set up to allow you to do this.
+This requires sophistication in the design and control of the buses.
+Those bus controllers that we talked about will participate in this operation, in this DMA operation.
+So what's going to happen here is you are going to move data directly to or from the RAM to or from a device.
+So, for example, that message that you want to send is sitting in RAM somewhere.
+We are not going to have the core, say, copy word for word the message from the RAM to the device.
+Instead, we are going to schedule a DMA.
+And when the memory bus is available, the device, that network card, is going to transfer directly across the bus without going through the CPU, without requiring any CPU instructions to be performed.
+It's going to copy the data out of the RAM into the device.
+So the message will go from the RAM directly to the device, not going through the CPU.
+That's going to be a lot quicker.
+So that's going to be very, very good.
+But we do have to keep track of the fact that, you know, the RAM bus can only be used for one thing at a time.
+If a CPU core is using it, we can't use it for DMA.
+If one particular device is using it for DMA, a second device can't use it for DMA.
+So we're going to have to have control over how the buses are used.
+When can a bus do something and when can it not do something?
+So if we can make effective use of DMA, we can move things a lot faster.
+We can get parallelism.
+The CPU is off on each of its cores, doing its own thing without going to memory.
+The memory is being used to transfer data to or from some devices.
+everything goes a lot faster.
+So given that we can do that, how are we going to go about keeping our devices busy when we have a whole lot of work for the device to do?
+Well, what we can do is say, let's put a queue of requests for this device into somewhere where we're going to be able to keep track that it needs to do several different things.
+And let's block the requesters waiting completion.
+We'll transfer the data using DMA.
+So we aren't going to have to have the operating system and the CPU cores involved in transferring the data.
+That will be done with its DMA at the best speed we can from the device.
+And we aren't going to slow down the CPU because it's going to be off doing other things unrelated to this transfer of data.
+Sooner or later, whatever we did on the device finishes.
+Okay.
+Then we're going to generate a completion interrupt to tell the operating system, this thing you want to get done, it's done.
+And the operating system will accept the interrupt.
+It'll call the device handler.
+The interrupt handler will then say, okay, fine.
+The thing you asked for, you want to get a block of data, here's your block of data.
+It'll post the completion to the requester who probably was blocked waiting for that data.
+And then we're going to, meanwhile, while that is going on, schedule on the device, the next thing it's supposed to do.
+So by having things happen in parallel, we can have much more effective use, much more efficient use of these devices.
+So we went through a diagram a few steps back of how we had ineffective, inefficient use of a device.
+How would we do better?
+Okay.
+So we're doing the same kind of thing.
+We have a device.
+Device could be idle.
+The device could be busy.
+Here, we're going to have three different processes, all of which want to use the device.
+So process one does some processing and generates an interrupt saying, I'm going to use the device.
+Now, up until this point, the device wasn't busy.
+We're only going to show busy periods in green on the device here.
+So as soon as that interrupt has occurred, and the, well, the system call has occurred, 1A is a system call, then the device will start taking action on the basis of whatever 1A is supposed to do.
+Now, meanwhile, since process one is blocked because it needs a result from this system call, CPU might run process two instead.
+Process two is going to use the same device.
+So process two starts running and thinking and thinking and thinking and says, I need to do a system call to use the device.
+Okay, so that's 2A, that system call 2A.
+The device is busy at the moment, so you can't start working on that right away.
+But you queue your information, you block process two.
+Since one is not runnable, it's blocked because it's waiting for 1A to be done.
+Two is not runnable because it can't do anything until 2A completes.
+So CPU decides, okay, we'll run process three.
+Process three starts thinking.
+So sooner or later, 1A completes on the device.
+An interrupt is generated.
+And okay, the interrupt is generated and we say, fine, operating system takes over.
+Why was this interrupt generated?
+Because 1A finished on the device.
+Well, gee, let's wake up process one.
+And perhaps process one is a higher priority than process three or for whatever reason should run next.
+So we're going to start running him next.
+But meanwhile, oh yeah, we also had this other request to use this device, 2A.
+Request 2A for process two.
+In addition to waking up process one and scheduling him, why don't we start 2A on the device?
+So we start up 2A on the device in parallel with what's going on.
+Process one gets to run again.
+And process one thinks and thinks and thinks based on having gotten 1A, that information.
+And it says, I need more information.
+It generates another request to the device, 1B.
+Device is busy.
+It's doing 2A.
+So we can't instantly start up 1B.
+We'll block process one.
+So process one is blocked.
+Because it can't do 1B yet.
+Can't get the results of 1B.
+Process two is blocked because 2A is not yet completed.
+So we'll start up process three again.
+And we start up process three and it runs for a while.
+And sooner or later, 2A finishes and an interrupt is generated.
+So then we're going to wake up process two because the interrupt was generated on the basis of something that process two requested, 2A.
+So we wake him up.
+And meanwhile, we can say, okay, do we have anything else for the device to do?
+Yes, we do.
+We have 1B.
+Let's start up on 1B.
+So we send commands to the device saying start 1B.
+Meanwhile, we're going to run process two.
+We can't run process one because it needs the results of 1B.
+We can't run process three.
+We could run process three, but process two is perhaps more important.
+He just got his results from 2A.
+So he thinks for a while he generates another request to the device, 2B.
+Can't run now because the device is busy with something for process one.
+So we queue up his request.
+Process three runs for a while again.
+There's an interrupt because 1B completes.
+The device generates the interrupt.
+The operating system says, okay, 1B completed.
+Well, what should I do?
+Well, one thing I should do is see, is there anything else for this device to do?
+Yeah, there's 2B.
+Let's do 2B.
+And also, we better wake up process one because he wanted 1B to be done.
+1B has been done.
+Let's wake him.
+So process one will run for a while.
+And he'll say, great, I'm running for a while.
+Oh, there's something else I need from the device.
+Press one C.
+We cannot start with one C right away because we're in the middle of 2B.
+So we block process one and things continue.
+And this might continue for quite a while.
+Now, note, during the time that we have these green bars in the device row, that indicates the device is working at its top speed.
+When there are no green bars, that device is idle.
+So we are doing work at a whole lot of times instead of at very, very few times as we saw in the first case.
+Now, another issue that is important for getting good performance is devices can transfer, in some cases, depending on the particular device, a little bit of data or a whole lot of data.
+Should we transfer a little bit of data per time for every time we do something with the device?
+Or should we transfer a whole lot of data?
+The answer is, when we have the choice, transfer a whole lot of data.
+So this is a curve, actually measured, that says, okay, if I'm going to use the PCIe bus, 3.0 version of this, and I'm going to transfer different amounts of data to across this bus, how much throughput can I get?
+So for read, which is the red curve here, you can see that if I'm moving 16 bits at a time, I'm only going to get about 300 megabits per second out of that bus.
+If, on the other hand, I'm moving 8K at a time, I'm going to get 3 times that much.
+I'm going to get 900 megabits per second across that bus.
+Same thing is more or less true for slightly different values for write.
+So clearly, if I have the choice of saying, shall I move 16 bytes at a time or 8K at a time, I should move 8K at a time.
+Why is it better to move a whole lot?
+Well, because every time you say I'm going to transfer something across a bus, you've got to schedule things.
+You may have to schedule DMA.
+There may be particular things the device has to do.
+You've got to run a bunch of code in the device driver.
+There may be things the operating system has to do.
+It has to deal with buffers and things of that nature.
+Further, you have to at least run some instructions that say, send the following command to this device.
+And the device probably is going to take a little while between the time it gets the command and the time it starts transferring data.
+And when it's done, it's going to generate an interrupt.
+That interrupt is going to go to the operating system.
+The operating system is going to deal with interrupt handling code instructions.
+And that's going to take a certain amount of time to even figure out what it should be doing based on this interrupt.
+So if you have fewer of these transfer operations, you have lower overheads, more time spent actually moving data, less time spent doing overhead.
+Okay.
+Now, as I've already alluded to, we're going to be making heavy use of buffers when we deal with I.O.
+Generally speaking, I.O. means data comes into the computer from outside or data goes from the computer to the outside.
+Data moves.
+Sometimes it's a lot of data, 8K.
+Sometimes it's a little data, a few bytes.
+But data is moving.
+And that means that if we're moving data out, we have to have somewhere in memory that stores that data.
+If we're moving data in, we have to have somewhere in memory to put the data, memory here being around.
+Okay.
+These places are called buffers.
+If we put data in a buffer and we say, hey, device, transfer this data, then the data is sitting there and at the speed the device is capable of working at, considering DMA and such things, we can start moving the data.
+So that means we want to have a buffer available whenever we say, I'd like to move some data to this device.
+You want to have somewhere where you can put that data and tell the device, here it is.
+Also, if you're getting data from a device, you need to tell the device when you have that data, here's where to put it.
+You need to reserve space in memory, a buffer in memory to hold that data.
+So what this means is the operating system's tasks are going to include buffer management.
+It's going to have to make a set of buffers available for I.O.
+It's going to have to manage the buffers.
+It's going to have to know which buffers are free, which buffers are not free.
+It's going to have to know that a particular interrupt having occurred indicates that a buffer is no longer necessary.
+Or it's going to have to say, I need to hold on to this buffer for longer because the interrupt hasn't occurred.
+Now, there's some issues related here to what is going on at the I.O. level that is understood by the application and what is happening at the level that is understood by the device and the device driver.
+Generally speaking, we'd like to move lots of data.
+We saw that on the curve a few slides back.
+However, that may not be what the application does.
+So you've probably written some applications in which you wrote files.
+And perhaps you did applications where you said, I'm going to write a few bytes to the file.
+And I'm going to think a bit.
+And once I've thought what I want the next few bytes to be, I'll write a few more bytes to the file.
+And I'll think a bit.
+And then when I've thought a bit, I'll know the next few bytes.
+And I'll write another five bytes to the file.
+If you're writing a few bytes at a time, you're making very, very inefficient uses of the device.
+You are having a lot of overhead for very, very little memory transfer.
+This is unfortunate from the point of view of performance.
+That means that you're not going to have high utilization of that device.
+You're going to have a lot of overhead associated with every time you try to transfer the data, which is not good.
+However, you have to do what your applications say should be done.
+I mean, they really know what has to happen.
+A well-written application is not going to do things inefficiently because it wants to do things inefficiently.
+It's just going to be, this is what I'm supposed to do.
+I have this six bytes of data.
+That's what I got.
+I don't know if there's going to be more data.
+I don't know what that data will be if there is more data.
+I've got these six bytes.
+I need to write these six bytes.
+So it'll ask to write six bytes.
+And that's what the application requires.
+So despite the fact that that's very inefficient, you're going to have to deal with that issue.
+So what do you do?
+Well, typically, one thing we do in the operating system is we say, well, you know, yeah, we've got to get those bytes out to the disk, for example, to the flash drive.
+But is it absolutely necessary to get them out right now?
+This guy seems to be writing six bytes, writing 12 bytes, writing three bytes, etc., all to the same thing.
+Why don't we wait until he's written a whole lot of bytes to the same thing?
+We'll just save them up in the buffer.
+We'll store them in the buffer.
+Tell them, yeah, yeah, yeah, it's okay.
+And he'll write some more and put them in the buffer.
+We won't tell the device at all that it needs to get this data.
+We'll just have it sitting around in the buffer.
+And then once the buffer gets full or we've waited long enough, then we'll schedule the buffer to be written to the device.
+So this is something that we do very, very frequently in operating systems.
+Now, of course, we maintain a cache of the disk blocks that we've read in so we don't have to go and read them again if they're going to be used in the near future.
+But we also do write caching.
+We accumulate a bunch of small writes, and as a block fills up, as a buffer fills up, then we write the buffer, not until we have filled the buffer.
+Generally speaking, we do the same thing on the read side.
+So you may say, I've written an application.
+It's going to start reading a file.
+I would like to see the first hundred bytes of that file.
+Now, as I've said several times in previous lectures, if we're talking about a flash drive, let's say, probably have like a 4K block out on the flash drive.
+You cannot read 100 bytes from a flash drive.
+You can maybe read a 4K block from a flash drive.
+So what are you going to do?
+The guy wants 100 bytes.
+You can't read 100 bytes.
+But you can read 4K that includes that 100 bytes.
+You're going to read the whole 4K.
+And you're going to store that somewhere in RAM in a buffer.
+And you'll give him the 100 bytes.
+Here's your 100 bytes.
+And if it turns out he then says, I want another 100 bytes.
+Well, then you've already got that disk block sitting in memory.
+You'll give him the 100 bytes from the disk block you've already read stored in the buffer.
+So you can also say, you know, maybe I can even figure out that he's reading 100 bytes at a time.
+And he's read 15 blocks, one after another out of this file, 100 bytes at a time.
+Maybe he's going to read the 16th block too.
+Why don't I schedule that, even though he's not yet asked for any of the data that's in the 16th block?
+It's going to be a long delay before that 16th block shows up anyway because the device is slow.
+So why don't we set up a buffer for that, bring the 16th block into that buffer and hope for the best.
+Hope that sooner or later he gets around to reading it.
+And we've already got it in memory so he doesn't take a delay when he starts going from the 15th block and finishes that and moves into the 16th block.
+Okay, now there's another issue here.
+We would like to, of course, use DMA for the reasons we discussed a few pages back.
+So DMA is great.
+It says I get to move data across the bus without slowing down the CPU.
+However, DMA does have a particular characteristic that it has to work on contiguous addresses.
+Contiguous addresses in actual page frames, not pages, but page frames.
+So I am going to have to say if I want to move, let's say, 16K, maybe that's four page frames.
+Gee, if the four page frames that hold the four pages in question aren't right next to each other, contiguous, how am I going to do that?
+Well, there's issues there.
+The virtual memory technology that we are using leads to this problem.
+Remember, pages can be put into any page frame due to virtual memory.
+We are not limited to say they have to be contiguous, even though the virtual addresses are contiguous.
+We can do translation on the page basis.
+Great.
+So what if we say I would like to go and read 20K out of this device, the next 20K from this file, and put them in this buffer that's 20K long?
+Well, we did that in our application.
+The application issued an address saying here's my 20K buffer in my data area.
+Those are virtual addresses.
+Probably that's about five pages.
+And that means five page frames.
+Probably they aren't five contiguous page frames.
+So what we would have to do is say, well, I'm going to have to read into those five different page frames to make it look like he's gotten the five contiguous pages in virtual memory.
+The other way, of course, is gather, where you're going to say, I got multiple page frames, and I'm going to need to write the data that is in those multiple page frames to the device, and I want to use DMA to do it.
+What could I do?
+Well, at the operating system level, I could say, well, you know, I know that DMA is more efficient.
+So if I copy all of the data into physically contiguous pages, page frames, one right after another, then I can do a DMA of the whole thing.
+Doing that will require me to do copying.
+Another thing I can do is I can say, okay, this guy wanted to do 20K.
+That's five page frames.
+They aren't contiguous.
+I know what they are.
+Look at the guy's page table.
+I know what the five page frames are.
+I'll schedule five different DMAs, one for each of the page frames.
+Or maybe, if I'm lucky, the MMU is going to be able to do this for me, and I, the operating system, don't even have to think about it.
+Some MMUs will do that for you.
+So here's a graphical description of what's going on.
+So let's say that we are going to do a write.
+So we got a bunch of data sitting in our memory.
+The application says I'd like to write this data.
+Data is sitting in multiple pages, which means multiple page frames.
+And as you can see here, the data area, the orange area here, is scattered through three page frames in three different places in memory.
+Let's say that the user says here's the data I would like to write.
+The blue area in his data area is what he wants to write to the device.
+Now, as we can see, these are bits and pieces of three different pages, three different page frames.
+In particular, those bits and pieces, the blue ones shown here in the physical memory.
+So what do we do?
+Well, we can do a DMA of that part, that part, and that part.
+DMAs do not have to be entire page frames.
+They can be whatever length we want them to be, as long as they're contiguous.
+So here would be three DMAs.
+What if we were doing things in the other direction?
+So we're scattering.
+We're reading data into this buffer.
+Okay, again, the buffer is scattered, is spread across three different page frames.
+So we're going to read the first piece of DMA in there.
+We'll do a second DMA, put it there, and a third DMA and put it there.
+Now, this is all happening invisibly to the application.
+But we are using DMA for this purpose, and to use DMA for this purpose, somebody has to figure out that this has to be done.
+If your MMU can do this, it'll do this.
+But if it has not got that capability, then it has to be done in the device driver or in the operating system.
+Okay, now, depending on what your device is like, what kind of things it does, DMAs may not be a very good idea.
+So DMAs are good if you're moving a lot of data.
+But there's a scheduling issue with DMA.
+There's overhead associated with every DMA you perform.
+So if what you are doing is you're moving a little tiny bit of data, a few bytes, a word or two, then the scheduling costs of moving it are going to overwhelm the costs of actually moving the data.
+So you wouldn't want to use DMA for that.
+You wouldn't want to schedule DMA.
+What could we do?
+Well, the device in question, let's say it is a video game.
+It's a video game display adapter.
+So it's going to figure out what you should put on your screen for the video game to save properly.
+Okay.
+What that typically means is that piece of hardware has a bunch of its own memory.
+This is not the RAM for the computer.
+This is a memory that is associated with that adapter.
+It may have a gigabyte of its own memory, for example.
+What we can do is we can say, well, why don't we say, why don't we tell the system that that gigabyte of memory represents the following memory addresses on the bus?
+Now, it's not RAM on the bus.
+But, eh, represents those addresses.
+And we just make sure that if we write to that particular address that's in that range of the gigabyte, it gets transferred across the bus into the location on the video adapter that represents that part of the one gigabyte belonging to the device, similarly for reads in the other direction.
+So we can do this for pretty much any device we want to if the system has been set up to do this.
+The nice thing about this is that from this point onward, how is it that an application using this device is going to get to this data?
+It's going to write the data, read the data.
+It's going to do it by simply saying, go to that page address, that address in my address space.
+And that will automatically, without special operations, without special instructions in the CPU, say, OK, you want to read the following memory location.
+Tell the bus to go get that memory location.
+The operating system at this point, without a CPU core at this point, doesn't have to worry about whether this is RAM or special memory sitting off in that device.
+It's just going to get transferred across the bus and brought back.
+So, a bitmap display adapter could say, I've got a one megapixel display controller, and I'll put it on the CPU memory bus.
+It would pretty much have to be on the memory bus for this to work.
+You couldn't put it on the PCI bus or the other buses.
+But if you put it on the memory bus, and you probably would for this kind of device, then what you would basically say is, all right, fine.
+If I want to display a pixel, I will write to this memory location.
+And bang, it goes out to that piece of hardware, to this display adapter, and it goes to the right memory location that represents what should appear in that pixel on the screen, and it just goes there.
+You just use store instructions, the ordinary store instructions.
+You don't have to use special I.O. type instructions on your computer.
+You don't use DMA either.
+So, this means there's very, very low overhead per update.
+And as far as the program, the application is concerned, all it has to say is, oh, I got this one megabyte array.
+Each word in the array represents an appropriate pixel.
+I figure out what pixel I want to illuminate.
+I figure out what value I want for that pixel, what color it should be.
+And I just put that in the word, and away it goes, and suddenly the pixel lights up.
+This is easy to program.
+So, should you rely on DMA when you're interacting with your devices, or should you rely on memory mapping?
+Well, if you have large data transfers, which would typically be the case for, let's say, something like a flash drive, you probably want to use DMA, because this will be more efficient.
+You're going to say, I don't need to run CPU instructions in order to move my data.
+With memory mapping, you need to run CPU instructions.
+And you don't have to wait for the CPU.
+CPU can be doing its own thing, doing other things.
+And meanwhile, the DMA occurs.
+You have overhead, though.
+You're going to have to run a bunch of instructions.
+You don't personally run them, but you ask for them to be run.
+They get run.
+They take time.
+In order to set up the DMA.
+So, unless it's a fairly large DMA, it may be expensive to order that set of operations to occur.
+Okay.
+On the other hand, if you're going to say, I don't want to do something where I run a bunch of instructions every time I want one word of data to be put into this device, then memory mapping may be a better choice.
+However, in order to do memory mapping, you have to have a store instruction.
+That's a CPU instruction.
+If you say, I'm going to move 4K that way, you're going to run 4K's worth of instructions.
+So, it would be more expensive if that's what you're doing.
+If you're moving one word, cheap.
+If you're moving 4K block, expensive.
+So, generally speaking, if you're doing occasional large transfers, as you would be, for example, with file operations, reading, writing, DMA might be better.
+If you're doing a whole lot of small transfers, such as running a game where you're changing what's appearing on the screen on a regular basis, memory mapping probably will be superior.
+But, one thing to remember about memory mapping is it gets kind of hard to share between different applications.
+If one application is using the memory mapped area, fine.
+If more than one is using the memory mapped area, you've got a bit of a problem because they're just reading and writing to locations.
+And those locations have to be in their address space.
+So, if 2 or 3 or 12 different processes all have the same memory locations in their address space, how are they going to make sure that they update the right thing?
+Okay.
+Now, let's talk a little bit more about abstractions for device drivers, and in particular, how we generalize the abstractions for device drivers.
+As we said, at some level, every device and every device driver is unique.
+Not unique in the sense of saying that for that PCMCIA card, the Intel Gigabyte one, for every different Intel Gigabyte PCMCIA card, there is a different device driver.
+Well, I mean, there is one installed on a different computer, but it's the same set of code.
+However, for every different model of a device, there's a different device driver.
+And in fact, as with all other system software, there are updates to device drivers.
+So, there are different versions of the different device drivers.
+Generally speaking, devices are unique in hardware.
+They are different from other devices, even other devices of the same general class.
+They have to have their own unique device driver as a result.
+But there are a lot of things that are similar.
+And in particular, among devices that do the same sort of thing.
+So, flash drives and flash drives and hard disk drives.
+There are differences between those two, but there are similarities as well.
+They're both block-oriented, for example.
+They do reads.
+They do writes.
+All network cards.
+They send messages.
+They receive messages.
+All graphics cards, et cetera.
+They have commonalities.
+So, what we try to do in operating system design is say, let's build some abstractions that capture these commonalities and that allow higher levels of the software to deal with the abstractions rather than the specifics of the particular device you've got.
+Then the abstraction will translate the generality of what you want to do into the specificity of what your particular device must do.
+So, the way we do this is we have the operating system define idealized device classes, idealized flash drivers, idealized display drivers, idealized printer drivers, et cetera, et cetera, et cetera.
+And these classes say, if you have, for example, a printer, what can you do with a printer?
+Well, you can send things to the printer to print.
+You can request the printer to tell you what's in its queue.
+You can ask for the status of a job on the printer.
+You can change the parameters of the printer so it goes from one-sided to two-sided or whatever the printer can do.
+So, we don't really care what model of printer we have at that level.
+We just say, okay, fine.
+It can do these things or it can't do these things.
+And we have an abstraction that says, here are the things it can do.
+And if you want these things done, like going to double-sided, you interact with the abstraction saying, go to double-sided.
+That will ultimately require someone to send a message to that particular printer that is capable of doing double-sided to tell it, start doing double-sided.
+That's going to be specific to that model of printer.
+So, we don't require the people who are working at the high level to understand those issues.
+We say, this is a capable of doing double-sided printer.
+Click the following button and it does it.
+And then at the lower level, we translate from the general abstraction of printer down to the specifics of, here is the command you put out on the bus to make this particular model of printer switch to double-sided.
+So, the class must identify, must define, the expected behaviors for all devices of that class.
+So, that means that the people writing device drivers must be expected to support all those things.
+The device drivers themselves are going to have to say, when I'm told I need to do the following thing, I need to send a message across the network.
+I'm a network card.
+They need to know that that's something they're supposed to do.
+And when they are told by the high level abstraction, send the message across your network card, they have to figure out, what is the command that I send to the device, a particular hardware network card I've got, that causes a message located in this buffer to be sent?
+Okay.
+And this means I don't have to worry too much at the higher levels about particular oddities of the particular hardware I happen to have.
+Those are all hidden in the device driver.
+How do we make sure that this works?
+Interfaces.
+The usual way that we do this kind of thing.
+Associated with devices in a typical operating system, we have actually two interfaces.
+We have first the device driver interface, as you might expect, which is called the DDI.
+So basically, this says for a particular kind of thing, for example, a keyboard, here are the things that we expect your device driver for this keyboard to be able to do.
+So we're going to, for example, say, we expect you to generate interrupts saying, here's the key that was hit.
+And we expect you to tell us, here's the key that was hit.
+Somebody hit the E key.
+Or we expect you to say, my keyboard is broken, in which case you'll send me a message saying the keyboard is broken.
+Or if I'm supposed to be able to remotely, without hitting a key, change to uppercase, I will expect you to say, here's how you send the signal from an application saying change to uppercase.
+Okay.
+So that device interface is going to say, if I'm defining, if I'm building a device driver for my brand new device, for my speakers, let's say, I am going to have to meet the DDI for speakers that is offered by this particular operating system.
+I've got to do the following things.
+The operating system is going to ask me to do things.
+I have to be responsive.
+I have to do the right kind of things in response to what the operating system has told me.
+So that means that if I'm a third-party developer, I am some company that's building speakers that are supposed to work in a computer, I will figure out, okay, for Windows, here's the DDI interface related speakers.
+Fine.
+My device driver must meet that interface.
+When the operating system says, I want to do this with your speakers.
+I want to do that with your speakers.
+I want to do the other thing with your speakers.
+My device driver must be expected to get calls from the operating system saying, do this, do that, do the other thing.
+And it must be properly responsive.
+To the extent it can, it must do the thing that the operating system has asked it to do.
+At worst, it must, in a controlled way, tell the operating system, I can't do that.
+It must not crash.
+It must not fail to do its best job to do whatever it was supposed to do.
+And if my device can't do that, well, I'm not going to be able to work with that operating system.
+So this is effectively a contract.
+People at Microsoft, for example, have said, if you want to build a device of the following kind, you must meet this device driver interface for a device of that kind.
+If you do not, you can't run under Windows, which, of course, would be a bad thing for people building devices.
+So, on the other hand, if you are one of these people who's building devices and you want to work with Windows, and you build a device driver of the appropriate type that meets their interface, then assuming that they have done the testing and said, yes, you do meet the interface, you don't have any bugs in your code, they should be able to say, fine, we can use your device driver.
+You can have your particular hardware installed on people's computers.
+They can run the most recent version of Windows and load the device driver, and it'll work with Windows, which is, of course, from your perspective, what you want to have happen as somebody who builds these devices.
+So, some of these calls in the device driver interface are typically going to be something that comes indirectly from the application.
+It goes through various layers of software in the operating system to get down to this interface.
+But eventually, you get down to this interface because an application asks you to do something.
+So, for your speakers, the application asks to have some particular bit of sound sent out to the speakers and played for whoever is running the computer.
+That's going to be, in many cases, what's going to happen.
+But in some cases, what's going to happen is it's going to be the operating system is going to make a call instead.
+It's not going to be directly that somebody in an application asks for something to happen.
+The operating system is going to itself ask for that thing to happen.
+Sometimes this is as a result of saying, well, you know, we did that business with buffering a bunch of data.
+You were doing a bunch of 10-character writes into a file.
+We didn't want to write a flash drive every time I said write 10 characters.
+We buffered a bunch.
+Sooner or later, the operating system says, we've buffered enough.
+Let's write the whole block now.
+So, that would be an operating system call that came indirectly because of a number of application calls.
+But there may be other situations in which it is the operating system itself that is telling you to do something at the device level.
+Okay.
+Now, the device driver interface, as you might guess based on what we've already said about it, is going to be divided into sub-interfaces.
+First of all, there's the common interface.
+This is basically going to be something that pretty much every device has to be able to do.
+So, generally speaking, devices have to be initialized before they can do anything.
+So, when you boot the computer, probably almost every device is going to have to be initialized.
+It's going to have to be set up so that it can start doing its work.
+And that's probably going to require its device driver to do various commands sent across the bus to the device saying, get ready to do stuff.
+It may be that you're going to be doing things where you say, at the moment, this device is doing one set of things.
+Like, for example, you have a game adapter that is running a particular game.
+You've got a bunch of data sitting in your buffer there.
+And it may be you're finished with that game.
+In which case, you probably want to throw away all that data and perhaps play another game instead.
+You don't want the old data corrupting what's in the new game.
+So, you'll have a cleanup operation.
+You may have open operations.
+It may be that sometimes you are going to hook a particular piece of hardware, a particular device up to a particular application.
+And then perhaps you're going to release it later.
+So, you're going to typically be able to perform that operation if you want to work with this operating system.
+And then, of course, you're going to do I.O. type stuff.
+You're going to do reads.
+You're going to write.
+Most devices either read or write or both.
+You may have seeks where you say, I'm going to look through all of the data in this device to a particular place and see what's there.
+I OCTL means I O control.
+I'm going to change certain parameters of what I'm doing.
+And there are various other types of things that are basic I O.
+On the other hand, there are also parts of the DDI that are specific to particular kinds of devices.
+Discs, for example.
+Well, with discs, you're going to probably do requests that are block size, only block size.
+You're not going to do anything else.
+You're not going to read or write one byte of data.
+You may have to do things where you're going to check to see if a particular block has still got the proper value.
+And you may say, I've got a whole bunch of blocks of data here, and I told you to write them.
+But frequently what will happen on a disc, flash drive, hard disk drive, whichever, is when you send data out to the disc.
+Even if the operating system has said, I am writing this block of data out to the disc, it may be that what's happened is internally the hardware in the disc has saved that data into some RAM because it's not really in a good state to actually write it in the flash or whatever.
+Sometimes you want to be really, really, really sure from the operating system level that data you send to the disc is actually out there on the permanent persistent storage, not in some temporary RAM internal to the device.
+F-Sync calls tend to do that.
+They tell the device, if you have anything that you have temporarily stored in non-persistent memory, get it out there as soon as you possibly can and tell me when that's done.
+On the other hand, there are other types of devices that aren't discs.
+Many of these devices are of a class called serial.
+Serial means basically I do things one at a time.
+So I send a byte out across this.
+I send a bit out across this.
+I send a word out across this.
+Then I do another one.
+Then another one.
+Or a word comes in at a time or things of that nature.
+So then you're going to have particular operations that don't make sense for discs, but do make sense for these serial devices.
+And if you're building a serial device, you'd say, I'm using that part of the DDI and I have to meet that part of the DDI.
+If I'm building a disc device, I wouldn't meet that part of the DDI.
+For a network, it has its own operations.
+For a network, it has its very own operations.
+Networks receive data.
+Data comes in from outside the computer, totally outside the computer, across a network interface.
+So clearly, you're going to be getting data in, and it's going to be in message format.
+So you want to be able to say, well, I want to receive the message, and I want to transmit the message.
+And there are various other things.
+Message access control things are related to certain types of network protocols.
+You may need to set those based on what kind of wireless network you're actually working with today, as opposed to the one you worked with yesterday.
+Okay.
+So the device drivers are going to be interacting with clients in various different ways.
+Typically, they do this through file operations, but sometimes they do it through direct device access and sometimes through networking.
+So direct device access says, okay, I figure out for the particular device that I'm working with what class it is.
+Here are the serial class.
+The serial class may be represented by many, many different types of serial devices attached to my particular computer.
+Each one has its own device driver.
+Each one of those device drivers was written to match the DDI for the serial class.
+So I figure out which serial device I'm working with, and the serial class sends the request in the format necessary to that particular serial driver.
+Okay.
+For display classes, for tape classes, it's going to go through block I.O. for disk and tape classes, because in that case, we want to see if what we're trying to work with is already in our cache, and perhaps not go to the device at all if it is in the cache.
+Okay.
+File operations are going to go through various file systems, which we'll talk about in the next lecture, and they, in turn, also will go through the block I.O., and they'll go to the right kind of device.
+Networking operations are going to go through the network stack, most commonly TCP IP, and that's going to go through a data link provider, something that actually provides the data link, such as, you know, oh, gee, this is going to be a Wi-Fi link, for example.
+And ultimately, of course, down to the device in question.
+So, we want to have some simplifying abstractions for these devices.
+We need to encapsulate knowledge about how we're going to use the device in these abstractions, so we don't have to make every higher-level piece of software aware of how this device works.
+So, there are standard operations, read some data, and we translate those into this is how this device reads the data.
+We map the device states into standard behavior.
+This device is blocked, waiting for the following thing to happen.
+We hide the irrelevant behaviors from users.
+We really want to hide what's happening in the devices from users as much as we possibly can.
+And we try to coordinate the application's behavior with the device's behavior.
+We want to hide the optimizations in the abstractions whenever we can.
+We get the efficiency from having the optimizations, but we don't require applications or other high-level operating system code to understand these particular very, very specific optimizations that only apply to particular devices.
+Devices, as I said, often have fault handling.
+Things go wrong.
+We want to make sure that we can recover from those faults when necessary.
+Now, I said there are two interfaces for device drivers.
+We talked about the DDI.
+There is another interface.
+This is called the DKI.
+Why do we have a second interface?
+Well, because the operating system is all about providing services.
+We normally tend to think about the operating system providing services to applications.
+It allows you to have files.
+It allows you to create threads and whatever it may do.
+But it also has services that are useful to people who are building device drivers.
+Why should they have to write their very own code to provide these services that many, many, many different device drivers need, essentially the same way?
+Well, they don't.
+The operating system has already provided a number of services that are very useful for device drivers.
+Now, obviously, if you're building a device driver and you want to use one of these services, you have to know how to use the service.
+And we do that by saying we have a standard interface, different interface to the DDI interface, that says if you're building a device driver and you would like to have some help from the kernel, you would like to have the kernel provide you with a service.
+This interface specifies which services the kernel will provide for you and how do you invoke them?
+How do you ask for them to be done?
+So here we can see that this is sort of going in the opposite direction.
+Instead of coming down, the operating system is saying, here's something I need this device to do.
+We'll go through the DDI to get to the device driver.
+We're going up.
+The device driver is saying, here's something I would like to have done for me by the operating system.
+I will ask the operating system to do it by going through the DKI.
+What kind of things might we have?
+Buffering is one example.
+Doing a DMA.
+We're going to have to schedule DMAs.
+The operating system can help us with that.
+How do I synchronize with other activities going on on the computer?
+Maybe it'll help with that.
+I need a piece of memory.
+I need to get some memory, some RAM that I can use for my very own.
+The operating system can give it some RAM if the DKI specifies that.
+So, we also have the runtime loader.
+Remember I said it was hot.
+The device drivers were pluggable.
+The way that works is you have buses like the PCI bus and you can plug something into that bus.
+If you plug something into that bus while you were running, well then what's going to happen is the bus controller is going to say, this port on my bus used to not have anything attached to it and suddenly something has shown up.
+Okay, something's shown up.
+I've got to figure out what it is.
+There's a way to figure out what it is automatically.
+Essentially, the bus controller can send a request to whatever got plugged in saying, I don't know what the hell you are.
+Tell me what you are.
+And it's supposed to say, I am the following thing.
+That then allows the controller to say, oh, okay, that's great, but I don't happen to have that device driver actually installed now.
+I need to get it installed.
+It then calls an operating system component called the runtime loader.
+The runtime loader will do its very best to find locally stored the device driver necessary for it just plugged in.
+Assuming it can find it.
+Again, you know, like we said, there are 3,600 device drivers associated with the Linux 2.6 kernel.
+Assuming it's among those, we can just take the code for that and plug it in and say, I'm setting up that device driver for you.
+Okay.
+So the DKI interface specifies what can the operating system do for device drivers, and that allows people who are writing device drivers to make use of those services in a standardized way.
+So both of these interfaces, the DDI and the DKI, are specified by the operating system designers.
+They say, here's what we will do for you.
+Here's what you must do for us.
+DDI is what you must do for us.
+DKI is what I will do for you.
+And this allows the device drivers to know how they can build a piece of code that properly interacts with the operating systems by meeting these interfaces.
+Obviously, the interfaces need to be well designed.
+And for popular operating systems like Windows and Mac OS and Linux, they are very well carefully defined.
+And they have to be stable.
+If they're not stable, if they keep changing them, then whenever a new version of the operating system comes out with changes in its own, and it's DDI or its DKI, suddenly device drivers that work yesterday don't work today.
+And that makes users unhappy.
+You know, you wouldn't be very happy if suddenly you installed a new version of your operating system and you discovered you could no longer access your flash drive.
+If people change the DDI, if people change the DDI, that might happen.
+So, the DDI is not going to work.
+The DKI for Windows is not the same as the DKI for Mac OS, which implies that the device driver for a particular piece of hardware that you wrote for Windows is not going to work exactly the same.
+It's not going to work probably at all if you just move it over to Linux.
+Different DKI, different DDI for that matter.
+So, people who are writing these device drivers have to decide which operating systems am I going to support.
+Typically, of course, they will always support Windows because if you don't support Windows, nobody's going to buy your device effectively.
+They may or may not choose to support Apple.
+This depends on whether they expect that Apple is going to build devices that use their build computers, flash or smartphones or tablets or iPads or whatever that use their device.
+If they're not, if Apple is not going to do that, then you probably can't attach your device unless it's a plugable device into Apple machines.
+So, maybe you don't need a device driver for them.
+Linux, well, if you want to run under Linux, you have to build your device.
+Now, the internals of the device driver are likely to be quite similar for all three of them, but the interfaces are going to be different.
+As always, it is critical that you have stable interfaces here for the reasons that we've discussed.
+Device drivers are not necessarily part of the OS.
+Now, a typical OS distribution will come with a large set of device drivers, which the operating system developers have decided are correct, suitable device drivers for use with their system.
+Probably safe.
+Probably not going to cause crashes.
+Probably not going to cause corruption of various kinds.
+But they may not have drivers for everything.
+There may be devices which are perfectly good devices and have device drivers that would work with their system, but they haven't bundled them in with the distributions.
+In which case, you have to get them from another source.
+That can be kind of difficult sometimes.
+Okay.
+The device drivers clearly have been written to meet particular versions of DDIs for a particular operating system, similarly for DKIs.
+The interfaces must be carefully managed, and if you are writing the device drivers, you must follow those interfaces.
+If you don't follow those interfaces, the chances are very, very poor that Microsoft or the Linux Consortium or Apple are going to be willing to include your device driver with their distributions.
+Okay.
+Now, at the upper level, the level where you interact with applications, we have abstractions of device drivers as well, and we'll talk about those in the context of Linux, which has inherited the same basic concept from Unix systems.
+So, it's class-based, as we might expect.
+There are several super classes, big, big, big classes that each encompass different types of devices.
+Block devices, character devices, and network devices.
+There are divisions within the super classes.
+Why do we have classes?
+Because they provide a good organization of abstraction.
+Everything, every kind of device that works at a block level, a whole block of data at a time, always a whole block of data at a time.
+Flash drives, hard disk drives, tape drives, etc.
+There are all kinds of devices that do similar types of things.
+Other devices have other similarities.
+Network devices, for example, all work with network messages, entire messages.
+You have a full message, you send the message.
+You receive a full message.
+You don't send part of a message, you don't receive part of a message.
+You may think you do, but messages are divided into packets, and you send and receive integral packets, never parts of packets.
+Okay, so the classes allow us to capture these commonalities of many, many, many different devices.
+We have to get down to the specifics, of course, but at the high level, we can work with classes.
+So what classes have we got in the Linux-Unix version of this approach?
+Well, there's the character device.
+These are basically, originally they were things that worked a byte at a time.
+Not too much works a byte at a time anymore, but things still work a word at a time frequently.
+So this may be either stream-oriented, word, word, word, word, or it could be record-oriented.
+I never send anything except 12 words in a row.
+I never send three words and then I stop.
+It's always 12 words in a row.
+But effectively, they are moving things one character, one byte or word at a time.
+Now, it may be sequential, which means that if I'm getting data from you, I've got to just take it in as you give it to me.
+Or it could be random access.
+I could tell you, I want to see the 77th word and I don't want the others.
+And you send back the 77th word.
+I can do direct synchronous reads or writes.
+I request a read.
+I wait till I get a read.
+I request a write.
+I wait till you finish the write.
+Or I can do something asynchronous occasionally.
+Keyboards work this way.
+Monitors work this way.
+Most devices work this way.
+The block device are things that deal with a particular block of data at a time.
+And commonly in these systems, one block size is set for all the devices.
+There get to be some complications if the device in question, the hardware in question, doesn't work with that size.
+Don't worry about that for the moment.
+You choose a block size and that's what you work with.
+So, commonly, 4K is a choice.
+16K might be a choice.
+It's almost always going to be a power of 2.
+Largely, a fairly large power of 2 like 4K.
+Probably you're not going to have something where you chose a 128 character block, even though it is a power of 2.
+Disk drives of various kinds.
+Flash drives, hard disk drives, are examples of this.
+DVDs, DVDs, all are blocks type of devices.
+With a block device, you read a block, the full block, the full 4K, or you write a block, the full 4K.
+You never read a byte.
+You never write a byte.
+You always write a block.
+You always read a block.
+Generally speaking, these devices tend to be random access.
+There's a large number of blocks out there on the device.
+You can say, I want to deal with this block, and you can specify which block you want to deal with.
+You can queue things up, typically, in these devices.
+You can say, I want to read this block, this block, this block, this block, this block.
+And eventually, you get back all of your blocks as they are read.
+They generally are asynchronous.
+We're not expecting to get our blocks back instantly because we know that they will take a while.
+And this is particularly useful because we're going to do a lot of caching related to blocks.
+That's what we're going to use for doing access to a swap area where we're doing demand paging.
+That's what we're going to use for file systems.
+Many of our hardware devices, from the hardware perspective, work this way.
+They have to work this way.
+They only work at the block level.
+They are going to require us to have buffers, as we discussed before.
+You've got to set aside buffers for these purposes.
+We're probably going to have to have some kind of LRU-ish management of that buffer cache.
+We're probably going to want to, under some circumstances, copy data around.
+Maybe we're going to do some scatter-gather, DMA stuff.
+We're probably going to want to schedule I/O, say this one's more important than that one.
+We're expecting asynchronous completions on all these devices, so we are going to have completion events and things set up for that purpose.
+So we're going to put a whole lot of our very important system functionality on top of this whole block I/O concept.
+So we want it to be right, and we want it to be written in one common set of high-quality code.
+We're going to do critical functions for our system using block I/O, so we want to have high performance.
+Then there are the network devices.
+In modern networks, we work in packets. A packet is a particular size. That is the packet size, period. You send a full packet, period.
+Now you can send a shorter packet, but effectively that's as if you sent the full packet.
+You can't send a longer packet. You can't send a part of the packet.
+Every packet has a special header attached to it. It must have the header attached to it. No header, no packet, no delivery.
+So generally speaking, these are kind of different than either of the other classes.
+So nowadays, there's a separate subclass for this purpose in Linux systems.
+Generally speaking, this is only used when you're running network protocols, when you're running IP, when you're running TCP, when you're running UDP, when you're running some of the other networking protocols.
+And this has special characteristics because the protocols often specify some degree of connectivity between different sets of packets.
+This packet follows that packet follows that packet. There is an order to them. There is a necessity that this packet be delivered. There is no necessity that that packet be delivered, etc.
+So typically, these devices are things like Ethernet cards, 802.11 Wi-Fi cards, Bluetooth devices.
+So in the Unix system, we treat all devices as if they were files. We actually put them in the file space, in the namespace of the file system.
+But we have some special characteristics of them that we don't have for other types of files, for the things that are actually storing data for us.
+In particular, associated with every one of these special files that is used to characterize one of the devices in our system, we have a major device number.
+A major device number says, OK, this is the device of the following model. It has the following device driver that is used for it.
+Now, we may have several of those attached. It is not uncommon, for example, for a server computer to have several different disk drives attached to it.
+They may all be of the same model. They frequently would be because that makes it easier to do administration.
+But they're each a separate device, each being handled separately. However, they use the same code.
+So since they use the same code, we want to say that whenever you're interacting with this particular device, here's the piece of code you use.
+The major device number specifies that.
+If you do have several of the same piece of hardware on your system, which you can have in many cases, then you also have a minor device number.
+The minor device number says, well, yes, we have several disk drives of the same model.
+But there's disk drive 0, disk drive 1, disk drive 2, disk drive 3.
+Which one do you want to work with? The minor number specifies that.
+So how would you go about accessing device drivers directly in the Linux system through the file system?
+You do open, close, read, writes of named files.
+They're called special files. That's the formal term for them.
+They're associated with a device instance.
+So every device that you have in your system has a special file associated with that device.
+And we have to say for each of these files, is it a block device, character device, a network device?
+What's its major device number? Which device driver should I use?
+What's its minor device number of all of those devices of that model?
+Which one is it?
+So here's an example.
+I took this off of an actual system that I used to run.
+And as you can see, this looks a little bit different than if you did an ls minus l of just your home directory.
+This is from the slash dev directory of this particular computer.
+And what do I see?
+Well, if you look here at the first line, you see that there's a b there.
+That means it's a block special device.
+You see here that there's this number 14.
+That's the major device number, meaning it's the 14th device driver installed on this computer.
+That's not something that's the same from computer to computer.
+It's set up on a per-computer basis.
+So for a particular kind of disk drive, on my computer it might be 14.
+On yours it might be 7.
+It would all depend on how things were set up.
+But on my computer it's 14.
+Then there's the minor number.
+That's the minor number there.
+Zero means that it's the zeroth of these.
+And then you can see here that we have a name, disk zero, for example.
+Now there's actually a few other little things going on here.
+One thing you can do on Linux systems is you can say, and you can do this on Windows systems and macOS as well, is you can say a particular piece of hardware, especially when we're talking about a block device, can be divided into pieces.
+You can say, I would like this piece of the hardware to be handled in a different way than that piece of the hardware.
+That's very, very common to do with disk drives on these devices.
+And that's what's actually been done here on this computer.
+You can see that we have disk zero, and below that is disk zero S1, and below that is disk zero S2.
+What we've done here is we've said disk zero is an actual hard disk drive.
+Disk zero S1 is part of that hard disk drive.
+Disk zero S2 is a different part of that hard disk drive.
+Now, if I want to deal with the entire hard disk drive, I would open disk zero.
+If I want to deal just with the part of the disk drive that is the first part, I would open disk zero S1.
+If I want to deal just with the part of the disk drive that is the second part of the disk drive, I'd open disk zero S2.
+Disk two, on the other hand, is a totally separate piece of hardware, completely separate.
+But, as it turns out, you can see, since they all have major number 14, they're all the same kind of disk drive.
+Of course, disk zero S1 and disk zero S2 would be the same type as disk zero, because they're just parts of disk zero.
+But disk two is the same type of disk drive as disk zero.
+Okay.
+Now, as you can see here, disk zero is only openable by the root for write, and by the operator, a less powerful system administrator role for read.
+And it's not open, operable for anybody else.
+I, on the other hand, had the read operation available for disk two.
+Not too common that an individual user had that.
+That was a special case for me in this particular case.
+Now, if I opened slash dev slash disk zero, and I had the privilege to do so, I was running as root, for example, then I would be able to write any block of data I wanted to on this disk.
+That's dangerous.
+That's very, very, very dangerous.
+So, that should be done with tremendous caution.
+Typically, even if I am the root system administrator, I would not go around just writing random crap into these particular devices, merely because I had the right to do so.
+Typically, the only time that you make use of this capability is when you're doing system administration type tasks, like fixing a disk that has errors on it.
+Okay.
+That's all we intend to say about disk devices and device drivers and I.O. in general here.
+So, in conclusion, proper handling of devices is very, very important for the operating system.
+I mean, applications are going to make use of them in critical ways all the time.
+If our devices, our screen, our keyboard, our mouse, if they don't work, our computer effectively doesn't work.
+And the operating system has to make sure that they work properly.
+So, that's part of the operating system's job.
+The way that this job is performed is we have a special piece of software that is associated with every individual device that is attached to our particular computer.
+That software is called a device driver.
+The OS has to allow applications to obtain access to devices because that's what they're there for.
+But it has to do it in a fairly controlled way.
+This is done to make it easy for application writers and to make it easy for users by having a layered approach where the higher levels of software, like the applications themselves, work with a very generic version of the devices.
+And gradually, as we go through the operating system, that gets specified more and more until the point we get to a device driver specific to the particular device we have to work with.
+A layered approach allows us to build generality where we need the generality while still having the ability to deal with a specific device we happen to have in our computer.
+It's very important from a performance perspective to have good utilization of devices.
+Devices are slow.
+We don't want them to be any slower than they have to be.
+To avoid having unnecessary slowdowns, when we have a lot of work for a device to do, we want it to keep busy as much of the time as possible.
+We have to work pretty hard to make it possible for that to happen to get the good utilization.
+That's a major performance issue for operating systems.
