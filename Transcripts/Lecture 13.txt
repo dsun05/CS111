@@ -1,0 +1,962 @@
+﻿For today's lecture, we're going to continue to talk about file system issues.
+We're going to talk about issues of allocation, how you decide how to allocate particular pieces of storage, some performance strategies, and also how you achieve that suitable security that was mentioned in the previous lecture.
+So, first we'll talk about the free space.
+As we mentioned in the first lecture, for a particular file system, it's sitting in a particular place on a storage device.
+Some of that storage that has been allocated for the file system as a whole is going to already be used to store particular files and file metadata.
+Some of it will be free. It will not yet be used for any file or for any file metadata.
+When you create files, you're going to need to use some of that free space, so you're going to need to know how to find it, how to choose which particular pieces of free space to use when you're creating a file.
+There's the other side, which is when a file gets deleted, the space it was using becomes free, and you need to maintain the fact that we understand that's free space, we could reuse it.
+We'll talk about various performance improvement strategies, things involving caching, for example, and then we'll talk about security issues for file systems.
+So, we are going to have to, for a file system, whatever our implementation of the file system might be, keep track of what portions of the storage space that have been allocated for the file system's use are free, and what parts are not free.
+Generally speaking, we aren't going to explicitly keep track of this isn't free.
+We're going to say we'll have some kind of structure that lets us know what is free, and the presumption is that all the rest of it is not free.
+It is being used for other purposes.
+So, when the time comes that we are going to create a new file, or we're going to extend the file, we require more storage space to hold the file's contents, we are going to have to find some free blocks of data on the disk.
+In most file systems, we are going to be allocating on a block level.
+An entire block will be allocated if we need even one more byte of space.
+So, we'll be keeping our free space data structure also on the block level.
+We'll keep track of which blocks are free.
+When the time comes to create a new file, or to extend an existing file, we're going to say we need this many more blocks to hold the file, and we're going to have to choose which blocks among the free blocks available we're going to use for that purpose.
+And then, on the other hand, as I've said, when we delete the files, we're going to free up blocks, and they can go back to the list of blocks that are free.
+So, the reason that this is important is because file systems taken as a whole are not usually static.
+Many files are static.
+You create the file, the file sits there, it exists in that form forever.
+Maybe it gets deleted, but until it gets deleted, it doesn't get changed at all.
+This would be the case, for example, with things like executables that haven't been updated.
+But, you do create files, and you do destroy files on a fairly frequent basis.
+Some of them you know you're doing as the human user.
+Some of them are just things that are created by the processes that are running.
+They create a temporary file, they use the temporary file, they destroy the temporary file.
+File contents also changes.
+In some cases, it changes only in the sense of saying, I'm extending the file, I'm adding new data to the file.
+In other cases, it changes by saying, I'm going into the file, there's an existing block of data, I wish to change the content of that block of data.
+Generally speaking, almost all of these operations are going to result in converting a free block into a used block, or a used block into a free block.
+We have to be able to do this quickly, because we're going to be doing it, we expect, quite frequently.
+It's overhead.
+As always, we want to minimize overhead that is being paid for to produce operating system effects, like, in this case, file system access.
+This means that typically we're going to have something that is like a free list of unused disk blocks.
+Now, we talked about free lists when we were talking about dealing with RAM.
+And they were for variable-sized partitions, because you didn't really need a free list when you had fixed-sized partitions, you just need a bitmap.
+Now, here, we aren't really dealing with variable-sized partitions.
+We're going to allocate a full block every time we need to allocate something.
+If we need to allocate multiple blocks, we'll allocate multiple blocks.
+But we are not, on most file systems, going to be allocating a piece of a block.
+By the way, that is a design choice.
+It's a design choice you don't have to make.
+You can design your file system to do it differently.
+There have been file systems that do allocate portions of blocks to a file.
+But it's not the typical way we do things.
+So typically, because we are talking about fixed-sized blocks, all of the blocks on the storage device, remember, are of the same size, perhaps 4K.
+We don't need to keep track of how big the blocks are.
+We know how big they are.
+They're all the same size.
+So typically, we can use something simpler than a free list.
+We can use, perhaps, a bitmap or something of that kind, something that is much more efficient to work with.
+However, there are other issues.
+Now, back in the days when we had the rotating hard disk drives, it turned out that the locality of where you store data for a file mattered a great deal.
+Because if you put a piece of a file in one place on the hard disk drive, and you put a second piece of the file on a very distant place, far away, physically speaking, then reading both pieces of the file would be performance expensive.
+Because you'd have to move heads, physically move heads, wait for rotations, physical rotations, before you could go from that first block that was in one place to read the second block that's in another place.
+So that was very important.
+That's not the case for flash drives.
+For flash drives, any block of data on the flash drive is more or less equally accessible in terms of the speed of getting to that data, either reading or writing it.
+However, there are issues here.
+One of those issues is the erasure issue.
+As we've said a few times, flash drives do not allow you to overwrite a block of data you've already written.
+You can read the block of data as often as you like, but you cannot write it a second time.
+If you want to, you can erase that block of data.
+But in doing so, you're going to erase everything that's around it.
+You're going to erase a large area of the flash drive.
+Now, of course, if those other blocks in that area were blocks that you didn't want to erase, you can't erase this block either.
+If we were not careful about how we dealt with our flash drives, we would get in these situations where there is nothing we could erase without doing extra work because every single sector, collection of blocks that is erasable, would have used blocks that we have to keep and blocks we could erase, but can't erase them because we can't erase the rest of the blocks in the sector.
+So we're going to have to handle that.
+Ideally, what you'd like to be able to say is I've organized how I allocate and deallocate blocks in such a way that an entire sector is likely to be erasable, in which case I can erase everything in it.
+There's also, of course, the issue of load leveling.
+You might say, okay, here's a sector that is filled up with data and we're never going to change it because it's all of those long-lived files that don't change their values.
+Great.
+So we don't need to erase anything in there.
+Therefore, we won't erase it.
+However, each sector of these flash drives can only be erased a certain number of times.
+It's quite a few.
+It's not two or three or something like that.
+But there is a limit.
+What this means is you do not want to always be erasing the same sector over and over and over and over again because if you do that, sooner or later, that sector becomes unusable.
+Then, effectively, you've lost part of your flash drive.
+You'd like to do what's called load leveling, where you say, for every erasable sector on this flash drive, I erase them all about the same number of times.
+Now, if you think about the fact that we do have these very, very long-lived files and we have these very, very transient files, a mixture, this is going to mean that we're going to have to do some work to try to ensure that we get a reasonable degree of load leveling among all of the erasures on that disk.
+So, generally speaking, how we arrange our free list is perhaps going to be affected by these kinds of considerations, depending on exactly what technology we're using.
+Different considerations for hard disk drives versus flash drives.
+And if you have yet another technology, it may, again, be different considerations.
+So, fundamental operation that is going to be related to allocating blocks of data is, of course, creating a new file.
+When you create a new file, you're going to put some data in the new file.
+Right.
+So, you're going to need at least one block to put data in the new file.
+Further, as we've said before, all files have control blocks.
+They have blocks that describe the file.
+So, inodes for Unix, for example.
+So, what are we going to do?
+Well, when we create a file, we're going to have to find a place where we can put its descriptor.
+That's one thing we have to do.
+And then also, we are going to have to create a data block.
+And we're going to have to associate that data block with the index block, the inode or the directory entry in an old VAT file system, so that we know how to find the first piece of the file.
+So, how are we going to do that?
+Well, if you remember what the Unix layout was like, for those old Unix systems, like the one we talked about in the previous lecture, the System 5 file system, and for that matter, for the Fast File system, which is discussed in one of the chapters of the book that we've assigned, you would have a particular area of your device which has been devoted to holding inodes, the on-disk inodes.
+And so, what you would need to do is have a free list of which inodes within that area have been used and which ones are free.
+And when you wanted to create a new file, you would consult this list, find a free one, and say, okay, that is the inode I'm going to use.
+Typically, depending on technology, depending on the design of the file system, you might try to be careful about which inode you chose, or you might just say, well, you know, find the first free one and use that one.
+For DOS, of course, what you're going to be doing is saying, I create a file within a directory, and the file control block for that file is the directory entry.
+So, either the directory I'm creating it in, there's always such a directory, you can't create something in a non-existent directory, that directory either has free space within the block that is currently part of the directory, or it doesn't.
+If it does, well, then fine, we use a piece of that free space to say, fine, this is where we're going to put the new directory entry, which is also the file control block for the new file we've just created.
+If necessary, you can, of course, say, well, okay, I've filled up all of the blocks in this directory.
+This directory has been allocated a certain number of blocks, but they're all filled.
+There's no room for more files there.
+You would then allocate a new data block that you would attach to that directory, and then you would put the entry in there.
+Of course, you're going to have to initialize whatever file control block that you have allocated for this new file, whether it be an inode or a directory entry, putting in whatever information is necessary there, type the file, the security issues like who is allowed to access the file, who is the owner of the file, things of that nature.
+And then, of course, you're going to have to give the file a name.
+Now, in the FAT file system, that's sort of inherent.
+It goes in the directory entry.
+That's the file control block.
+In Unix-style file systems, like the FAST file system or the System 5 file system, we don't have the name in the file control block.
+Instead, there's going to be a directory somewhere.
+We're going to put the name there.
+And that is then also going to have to have a pointer to the file control block for this file.
+Okay, so then if we just created an empty file, we hadn't yet put any data in it.
+We just had create the file and we haven't given it any data.
+Then we don't necessarily have to have any data blocks.
+And depending on your file system design, you might have given it an initial data block anyway, because you figure it's probably going to have some data, or you might not have.
+Let's say you didn't.
+If you didn't, then you're going to say, I would like to write 100 bytes into my new file.
+Fine.
+We'll have to get a block, a data block, from the data block area on the storage device that will hold the 100 bytes.
+And of course, you're going to allocate a full block.
+You're not going to allocate 100 bytes.
+You're going to allocate perhaps a 4K block.
+Fine.
+So this is something where you may actually ask to increase the size of your file, saying I'm increasing it by this much.
+Or it may just be, I wrote 100 bytes, then I write 5 bytes, then I write 73 bytes, and whatever.
+It doesn't matter.
+At any rate, you are going to do something that indicates to the file system, I need more blocks for this file.
+So what do you do?
+Well, you're going to go through the free list, or the free bitmap, or whatever your data structure is, and you're going to look for a suitable block to use for this purpose.
+Now, it could be, depending on what you're doing, that you're going to allocate more than a block.
+You might allocate two blocks.
+You might allocate a larger quantity.
+But you're probably going to allocate something that is a multiple of the block size of the device.
+Then you're going to say, okay, that block isn't available anymore.
+That one's not free anymore.
+We've used it.
+So you're going to have to change the bitmap.
+And it's important not just to change the in-memory, the in-RAM bitmap, but also to change the bitmap that's out there on the storage device.
+We'll go through an example of why that's important later.
+Okay.
+And then we're going to have to say, fine, now we know that this is a block of data that should belong to file foo.
+We're going to have to do whatever is necessary to indicate, for example, this is the first block of data for file foo.
+So in the system 5 file system, that would mean in the inod pointer, the first pointer in that inod, there were 13 pointers for the first one.
+We would say, okay, the first pointer points to this block because this is where the first 4K bytes of this file are located.
+So we would set that and we'd point it to the new free chunk we'd just gotten.
+We generally do not need to update the directory entry.
+Of course, you do for a fat file system for the very first one, because you have to say in the directory entry, here's where the first one is.
+But remember, for the other things in the fat file system, we would not go back to the directory and make any changes.
+We'd just change the fat table.
+And in the Unix system, we would just change the necessary pointer in either the inode itself or a direct indirect block or a doubly indirect block or a triply indirect block and so on and so forth.
+What happens when we delete a file?
+Okay, now typically when we say we're going to delete a file, we are working on the assumption that all of the blocks of data that were associated with that file are going to become free.
+They're going to become available to use for other files.
+So we have to, of course, find all that data.
+We have to find all of those blocks and somehow or other get them onto the free list.
+In a Unix system, fast file system, system file file system, most other Unix-based file systems, this is done at the moment that you delete.
+The moment you delete that file, we are going to go into that descriptor and we're going to follow all the pointers that lead to all of the blocks of data associated with this file.
+And every single one of them is going to get changed.
+Well, the pointer is not good.
+We're going to get rid of the pointers.
+But we are going to also put that block back onto the free list or the free bitmap or whatever the data structure is.
+We don't do that in the fat file system.
+In the fat file system, we use garbage collection instead.
+So in the fat file system, it turns out we do something a lot less, a lot less overhead, a lot less work at the moment of deletion.
+But in either case, we are going to eventually have to get those blocks back, which means eventually the free list will be updated to indicate that all of the blocks associated with the deleted file are now returned to the free list and are available for use for other files.
+Okay.
+Of course, we also have to do something about the file descriptor.
+We have to indicate that, gee, this isn't a file descriptor anymore.
+For a Unix system, we're going to take that inode and we're going to zero it out.
+Typically, we would zero it out.
+We don't absolutely have to, but typically we would.
+And we would then return it to the free list of free inodes so that it could be used if a new file is created as the inode of that file.
+One implication of this, of course, is that a particular inode in a particular Unix file system, let's say inode 1072, could at one point be the inode for file foo.
+And at a later point, if file foo has been deleted, it could become the inode for some other file, inode bar.
+It's still 1072, but it's being used to describe a different file.
+All right.
+So at any rate, that's what we do in the Unix system.
+What do we do in the DOS system?
+Now, of course, we're talking about the FAT file system.
+In the FAT file system, what is the data structure that is used to describe a file?
+Well, it's a directory entry.
+All we do in the FAT file system to delete a file is we change the first byte of that directory entry to null.
+We change it to zero.
+Just change one byte.
+That's all we do.
+Now, that indicates that that directory entry is now free.
+It is no longer in use.
+If we want to create a new directory entry, we can create a new directory entry that way.
+And if it's a Unix system, then what you did was when you said I'm deleting a file, what you really said was I'm at least going to delete one name of this file.
+This particular name, slash temp slash foo.
+Remove slash temp slash foo.
+In addition to getting rid of the file itself, we're going to have to change the directory entry to say there is no longer a slash temp slash foo.
+So we'd zero that out.
+So here's how it would go for something like the Unix system 5 file system.
+So here we have the Unix file with its inode on the left.
+And as we indicated before, there would be 13 pointers to blocks in the inode.
+The first 10 being to direct blocks, 11th, 12th, 13th to various forms of indirect blocks.
+So if we're going to delete this file, what's going to have to happen?
+Let's see.
+First, we would say let's get rid of that block.
+And we free the block.
+It would go to the free list.
+It's no longer part of the file.
+Then the second one.
+We free that block.
+It would go to the free list.
+It's no longer part of the file.
+We'd free all the rest of those, nulling out each one in the inode as we went.
+And then we would eventually free up the 10th one.
+And it would go to the free list.
+Now we get to the 11th one.
+Now the 11th one points to an indirect block.
+So for that one, we're going to have to do a bit more work.
+So we're going to go to the indirect block and we're going to read the first entry and say, okay, that's the 11th block of the file.
+And we get rid of that one.
+So we free that one.
+And we'd have to go through every other block in the indirect block.
+If it turns out there were a lot of them, if they aren't all null pointers, we'd have to free up a whole lot of stuff.
+But once we've gone through the entire set of pointers in the indirect block, we can free the indirect block itself.
+Now we have, in this particular example, all null pointers.
+So we can say, fine, we've freed up all the space associated with this file.
+So obviously, this is going to be more work, more overhead.
+DOS, as I mentioned, does things differently.
+So let's say we have my file.txt here.
+As you can see, it's 2,000 bytes long.
+And the first cluster, the first block here is going to be three, block three.
+So if we remove it, what happens?
+That's all.
+That's it.
+There is no more immediate work done to free this file.
+You perform the remove operation.
+It comes back and says it's done.
+And all it did was it changed one byte.
+But sooner or later, you got to get those blocks back, the ones that were being used, all my file.txt.
+What do you do?
+Garbage collection.
+Now, we talked about garbage collection before when we were discussing handling management of RAM and the difficulties there.
+Here, it's not going to be so difficult.
+Here, it's relatively simple.
+Sooner or later, a DOS system will say, gee, you know, I'm running low on free space in my file system.
+I had better do some garbage collection and see if I can find some free space because it wasn't deallocated when the files got removed.
+I have to do it at garbage collection time.
+So what do I do?
+Well, you go to all your directories starting with the root directory.
+And you start looking for entries in the directory that have a zero, a null in that first byte.
+That one.
+There's one.
+So this is a deleted file.
+Okay, what does that mean?
+Well, it means we can free all of the bytes associated with this file, all of the blocks associated with this file.
+We could look at the 2,000 and say, okay, that's going to be with 512 byte blocks, four blocks.
+We don't necessarily have to do that.
+All we have to do is say, well, okay, where's the first block to free?
+Block three.
+It says so right there.
+Okay, so we say, fine, we're going to free block three.
+We go to block three and say, let's keep track of what the next block is.
+It's eight.
+So we'll zero out three, put a zero in that entry in the fat table, and then we'll go to block eight.
+And we'll say, okay, what's there?
+Okay, it says the next block is six.
+We'll zero that out, and we'll go to block six.
+What's the next block in the file?
+Block 11.
+We'll zero that out, and we go to block 11.
+Block 11 has a minus one in there, which indicates that there are no more blocks in this file.
+So we zero that out.
+So now we have four free blocks.
+We just freed up block three, block six, block eight, block 11.
+If we're going to create another file, we can look through the fat table and use those particular blocks to hold space for the new files.
+Of course, then if we went down through the directory, we'd say, okay, how about this one?
+Is this one we can delete?
+No.
+First byte isn't zero.
+So that one wasn't deleted.
+And then we do the same for that.
+Now, if you're running garbage collection, you're probably doing this as a background activity, either when there's nothing else to do.
+It's not a busy time.
+You're not getting a lot of input from the user, or potentially because you're in deep trouble in terms of free space.
+You really got to find some space.
+So probably you're not going to stop when you found one file to delete.
+You're probably going to run through the whole structure of all of the directories in this system looking for deleted files.
+Okay.
+So we're going to have, who's going to take care of all this free space?
+That is the file system's problem.
+The code that represents the code that represents the FAST file system, or whatever it may be.
+Now, we want this to be as fast as possible when we are allocating blocks or releasing blocks.
+And we, in particular, don't want to say that our allocation or release of blocks is going to be delayed by having to do extra IOs out there on that device.
+Because remember, those are expensive.
+So, it does matter, in this case, unlike with RAM, which block we choose.
+So we can't write fully, a flash block.
+Fully written, it doesn't really matter.
+You can't write half a flash block.
+You write a block or you don't write a block.
+But you can't write a block you've already written.
+If it's flash, you have to do wear leveling.
+You have to keep the data together.
+If it's a hard disk drive, those aren't the issues.
+You can overwrite a block on a hard disk drive, but there are other issues.
+So, how you organize your free list has to address these concerns.
+Got to be fast.
+Got to make sure that you don't cause problems for performance on allocating and using the files when you actually need to use them.
+So, we could do free lists, which are a list of pointers to free elements.
+We could use bitmaps.
+Bitmaps are structures with a single bit, indicating this piece of memory, a block in our case probably, is free or this piece of memory is allocated.
+Free lists require you to follow pointers.
+Bitmaps, on the other hand, you load up a word that's part of the bitmap and you look for zeros or ones, depending on what you're looking for, free or allocated, in that word.
+And if that doesn't have what you want, you go to the next word and you go to the next word.
+You're doing things like shifts and ors and things of that nature.
+These are a lot quicker than following pointers.
+So, that is a very much quicker way to do it.
+So, generally speaking, when we can, our file systems tend to use bitmaps, not actual free lists.
+Okay.
+Let's talk about some performance improvement strategies because, as always, we wish our file systems to run fast.
+And we're dealing with file systems stored on rather slow devices, relatively speaking.
+Therefore, we're going to have to do something to make it run fast.
+Two things we can do relate to transfer size and caching.
+First of all, transfer size.
+Now, we can use DMA to move data from these devices into buffers in memory somewhere.
+That's perfectly reasonable.
+If we do that on a per-operation basis, then we're going to pay a certain amount of overhead.
+So, if you do it every time that somebody says, I would like to read 12 bytes of data out of this block, that would be a fairly expensive operation.
+If, on the other hand, you say, he wants to read 50,000 blocks of data, that would perhaps be something like, I don't know, 1,024 or thereabout blocks.
+If we have them contiguous on the disk.
+If they're all sitting one right after another on the flash drive or on the rotating disk drive, we could do a DMA on the full 1,000 blocks.
+And that would be much, much more efficient.
+We'd only have to schedule one.
+And we would move things as fast as we can move that many set of bytes across the memory bus.
+Okay.
+So, that would be great.
+Now, that will, of course, depend on whether we have allocated our data or blocks on the disk for files in such a way that we can do big DMAs.
+If we haven't, then we're going to have to say, oh, okay, 1,000 DMAs, not one DMA that's very, very big.
+One way of doing this is to say, well, you know, we don't, while we, of course, are going to read and write blocks at the device level, we don't have to allocate at the block level.
+We could allocate at a cluster level, a chunk level.
+Let's say that a chunk might be four blocks, so 16K, or eight blocks, it's 32K.
+Now, in that case, what you would be doing is saying, every time that I allocate something, I don't allocate one block, I allocate four or eight or 16 contiguous blocks on the device, meaning I can do DMA on that entire chunk if I need to do so.
+The problem with this is we're going to get internal fragmentation.
+Because if you build a one-byte file and you say, okay, you're going to have 32 block chunks, you're going to waste practically that entire chunk because you allocate 32 blocks for one byte.
+Not so great.
+You could do it with variable-sized chunks.
+You could say, I'm going to build different-sized chunks.
+I'm going to have a more sophisticated data structure, a true free list, for example.
+And I'm going to keep track of, well, there are three blocks here, and there are seven blocks there.
+There's only one block here, free, and so on.
+And then I could do all the free list stuff, looking through the free list for the right size chunk.
+How many different blocks?
+There'd be a fixed number of blocks, and I'd use that.
+But then you're going to get external fragmentation.
+The external fragmentation you'd get wouldn't be of single bytes.
+It would be at the block level.
+So you'd end up with a whole lot of one block chunks sitting around after time went by in your file system, in your free list.
+And those would be usable, but they would not be as usable as the bigger ones, which you could do big DMAs on.
+So what are you going to do?
+Well, you can say, I will try to have something very, very simple.
+I'll just use the bitmaps.
+I won't worry about this kind of issue.
+I can try to do something more complex.
+I will have faster transfers of data in certain cases.
+But on the other hand, I may have to worry about an external fragmentation issue.
+And I'll have to have a free list, which is more complicated.
+You get your choices.
+Now, in particular, we are working with flash drives in modern computers.
+Still have hard disk drives out there.
+But some years ago, the sales of flash drives overtook the sales of hard disk drives, and it's only gotten more and more and more predominant for flash.
+Flash, of course, has these characteristics that we discussed before.
+Faster than hard disks.
+That's good.
+Slower than RAM.
+Well, not so good, but still better than hard disk.
+Any location on a flash drive is equally fast to access.
+It doesn't really matter which one you try to do.
+But they are write-once devices.
+You can read as many times as you want.
+But you can only write once.
+Unless you erase.
+But you erase sectors, not individual blocks.
+That's going to have some issues in how you build your file system.
+We'll talk about some of those in the next lecture.
+But there's another thing you can do in terms of performance.
+Another way you can try to improve your performance here.
+You can cache.
+This is the thing we always do when we are trying to improve the speed, when we have a mismatch between where the data is stored and where the data is needed.
+There's a big mismatch here.
+So we are going to do two kinds of operations on our file system information from the point of view of the consuming applications.
+We're going to read.
+We're going to write.
+And we can do caching for both.
+We'll talk about each of those.
+Read caching.
+Here is something where you said, I've read a block of data, meaning I brought it into memory.
+I put it somewhere in RAM.
+And I am going to cache that block of data.
+The reason I'm going to do this is because it took me a long time, relatively speaking, to read that block of data and put it in the RAM.
+If the next time somebody wants to see that same block of data, I have to go back to the disk and read it all over again, we will pay that cost, that performance cost, a second time.
+And we'll pay it every time if we keep having to do that.
+So if what we are going to do is say, let's maintain an in-memory cache instead.
+When we've read a block of data out of a file, so we open file slash temp slash foo, and our application said, I would like to read the first 100 bytes of temp foo.
+Well, we don't get 100 bytes at a time.
+We get 4K at a time.
+So you read 4K and you put it somewhere in memory.
+If we keep it in memory, and if we keep track of where it is, then we can say, okay, if the process that said, I want to read file foo has finished with those first 100 bytes and now wants to read another 100 bytes, if we have cached the block that we've read, it contained 4K.
+First time we only gave them 100 bytes.
+Now we can give them another 100 bytes, but out of the same RAM.
+We don't have to go back to the disk.
+We don't have to perform another IO.
+Now this is assuming, of course, this will work well in terms of performance if we get good locality.
+But of course you get good locality with file systems, with file access.
+I mean, what do you do with a file?
+Typically you open the file and you read and you read and you read and you read and you read and you read until you reach the end of the file.
+That's going to have very good locality.
+Even if you don't worry about going from block to block, you'll only have to pay a delay of getting each block once.
+Great.
+Now this means that, of course, you're going to have to make sure you're able to, when some process says I'd like to read slash temp slash foo bytes 500 through 700, you're going to have to determine, do I already have a cache copy of the block containing 500 through 700 or don't I?
+If I don't, I have to schedule an IO.
+If I do, I just have to get the 200 bytes the guy asked for and put them into his buffer.
+So you check the cache before you schedule IOs when you are doing file operations.
+And when I say you, in this case, what I'm meaning is the file system code must do that.
+Remember the block IO cache?
+That's where we're going to put these blocks when we've read them.
+So if you interact, if your file system code interacts with a block IO cache, you will know that's where I need to look to see if there's a cache copy.
+Now, what if it is a very big file and you've been reading and reading and reading?
+Now you've read everything in the first block, then you read everything in the second block, then you read everything in the third block, then you read everything in the first block, and there's a lot more file to go.
+It would be possible for your file system code to say, well, let's see, he read the first block, he read the second block, he read the third block, he read the fourth block, there are a lot more blocks in this file.
+What do I think is going to happen next?
+I think he's going to read the fifth block and then probably the sixth block.
+Now, it is correct to wait for the application to say, and now I want to read data that turns out to be in the fifth block, then schedule the IO for the fifth block, and similarly for the sixth block.
+That is correct.
+That does not result in erroneous behavior.
+But it does result in delays, because you know that when the guy asks to read the first byte of the fifth block, you're going to have to do an IO.
+On the other hand, what you could have done is said, shortly after he asked for the fourth block, having seen that he wanted the first, second, third block, and now he wants the fourth, maybe in addition, I will ask for the fifth and sixth block.
+I will read those, even though I have not yet been instructed by this application or any other application, that we want to see data that's in the fifth and sixth block.
+I will read ahead.
+Okay.
+What this means is that I have scheduled IOs before the data associated with that IO is actually required.
+If the timing works out, what this means is I've read the fifth block, I've read the sixth block of file temp foo, and they are sitting in the block IO cache.
+When the application that's been reading this file says, and now I want to see these bytes, and they're the first few bytes of block five, we go to the block IO cache and say, oh, look, here it is.
+It's already here.
+We don't need to schedule an IO.
+We will have a much, much lower performance penalty for giving the guy the first few bytes of block five than if we had had to wait for the IO because we paid the cost of the IO before, before he even asked for it.
+So this is going to reduce process wait time.
+Note that it does not reduce the time for a system call because how did the guy say, I want to read some bytes that happened to be in block five?
+He did a read call.
+And what happened with the read call?
+Well, it went down through these various levels, the file system call, system call level, the VFS level into, you know, your FFS code or whatever.
+And it said, oh, you want block five of this file.
+Now, until you got to that point, it didn't know what it was going to do.
+Now it does.
+It'll go to the block IO cache.
+Oh, look, here's the block.
+I'm fine.
+But this is going to require you to do a bunch of system call, system code.
+And system call will be made.
+You will do the system code work.
+You'll return from the system call.
+You'll pay all those overheads.
+You will pay those.
+What you won't pay is the cost of performing the IO, which by far is much, much greater than any of these other costs.
+Okay.
+So if you can win with read ahead, you can win very big in terms of performance.
+So when should you do it?
+Well, sometimes in some file systems, there is the ability to indicate at the point at which you open the file, the code performs a system code, a system call can do something that says, I want sequential access here, which implies I'm going to start reading the file and reading the file and reading the file and reading the file, byte after byte, after byte, or record after record, after record, after record.
+And I'm probably going to read to the end of the file.
+I'm certainly going to read a lot of the file.
+That is a hint to the file system that this is sequential access.
+Read ahead is going to make a lot of sense here.
+Now, not all file accesses are like that though.
+Sometimes you open a file and you say, okay, this is a five megabyte file full of records.
+And I happen to know that the record that I want first is in block 2000, 2000 block of the file.
+So that's the one I want.
+I don't want to read all those other blocks.
+After I've read that record, perhaps I need to read record 45.
+And that's in, you know, the second block of the file.
+Well, okay, I'll go to the second block of the file.
+You're not reading sequentially, in which case read ahead would not make sense because you'd be doing a lot of IOs that you have no benefit from.
+So that's one thing you can do.
+You can say the client can either say, yes, this is sequential access to read ahead.
+No, this isn't sequential access.
+Don't the client we are talking about here is almost certainly always going to be the application code, not the user.
+Users don't tend to understand this kind of thing.
+Don't tend to have this degree of control, but there are other options.
+I've already suggested that the file system code itself can deduce.
+Hmm.
+This looks like it is going to be sequential access.
+Fine.
+I will go and do sequential access.
+There may be other ways in which you can figure this out.
+If you are sufficiently smart, you could use AI techniques to say, well, this file has historically always been sequentially accessed.
+One thing you have to be aware of in terms of operating system code, there's sometimes going to be a temptation to say, let's be smart.
+Let's be really, really smart in our operating system code.
+Let's analyze everything that's happened and run through all kinds of algorithms.
+And this is going to give us insight into what is likely to happen.
+And we will then be able to deduce what we should do in the future.
+The next time something happens, that is not necessarily a bad idea, but you have to remember that if you are doing this analysis on in an online basis at the moment that a user is asking for something to happen, he's going to pay a big performance penalty for that online analysis.
+You can, of course, say, well, I'll save some data and I'll put it off to later.
+I'll do the analysis later and then maybe in the future it'll help.
+There is a cost of just saving that data so you can do the analysis later.
+And if it turns out that you were wrong in your deduction, well, then there's going to be a performance cost almost certainly associated with being wrong.
+So you would have to think more carefully about, is injecting these kinds of high cost analyses into operating system activities worthwhile or not worthwhile?
+Historically, the answer has proven to be usually not worthwhile.
+However, we have very fast processors.
+We have more intelligent AI systems capable of doing things.
+Maybe that's going to change in the future.
+Okay, so why don't we just always do read ahead?
+Well, if we always do read ahead, what's going to happen?
+We are going to send a whole lot of requests to the flash drive saying, read this, when no application has actually asked for this, this, and this.
+Now, if it turns out that they do in the near future, ask for this, this, and this, and that's a win.
+If it turns out that they don't, well, then we have spent time on this device trying to read stuff that it turns out that nobody cared about right now.
+Further, this buffer IO cache, the shared IO cache, the block cache, it sits below all the file systems and various other things that work in block sizes.
+There's a limited amount of space there.
+If you use the space for one thing, you can't use the space for another.
+So, if you're filling up your block IO cache with a bunch of speculatively read data, working on the assumption that you're doing read ahead, and you're wrong, that's a very poor use of the space.
+That's going to hurt your hit ratios overall, going to reduce the effectiveness of your cache.
+Okay, now, that's for reading.
+Writing is a bit different.
+So, generally speaking, what we want to do when we write anything to a file system, whether it be data or metadata, is we want to say, well, of course, while we are continuing to run and use this file, we want to see the effects of that write we just did.
+But, when we said write, what we really meant is we want this file to be permanently changed in whatever way is implied by the write.
+Changes to the data, changes to a block that already exists, new blocks added to the end of the file, changes to the metadata, like who is allowed to read this file.
+All those things are supposed to be permanent.
+Now, in order to make them permanent, they have to be written to the storage device.
+Writing to the storage device is expensive.
+So, what do we do?
+We want to limit the number of writes we do to the storage device, and in particular, we do not want to delay applications that have just done a write to a file, by saying, you can't do anything until I've written to the storage device, because, hey, you wanted a permanent change.
+That would delay any application that did much writing quite a bit.
+It would be very, very, very slow.
+So, we don't want to do that.
+In particular, what you may have done is you may have written at some point a application, a piece of code that says, I'm writing file slash temp slash foo.
+Write the first five bytes of temp foo.
+Great.
+Think some more.
+Write the second seven bytes of temp foo.
+Okay, now we're on to byte 13.
+Our thoughts more.
+Write five more bytes.
+Write, write, write.
+Now, of course, if you wrote out to the disk, every time that you wrote five bytes, or seven bytes, or three bytes, you'd be writing to the same block over, and over, and over again, leaving aside the flash drive issue, that you can only write a block once.
+This would have very, very poor performance implications.
+Your application would be slowed down a lot.
+You would queue up a whole lot of writes for this storage device.
+And remember, the storage devices can only do a certain number of writes per second.
+It would generally increase the overhead of the system tremendously.
+Now, of course, as I said, when the application is that I want to write to this particular part of the file, it used to have ABC in these bytes.
+I wanted to have XYZ in these bytes.
+You want, if you go back in your application and read those bytes, you want to see XYZ.
+The way we make sure that happens, of course, is that block containing previously ABC is sitting in the block IO cache.
+We change it so that it now contains XYZ in those locations in the block IO cache in a place in RAM.
+That means that if you go back and say, let's read that over again, you go to the block IO cache and you read XYZ as you should.
+But that does not mean that you have permanently changed the data.
+in that file.
+What's stored out on the disk flash drive is still ABC.
+So if you want to change that, you're going to have to change what's stored permanently on the device.
+And that's an expensive thing to do.
+So typically what we're going to do is we're going to say, when somebody has written some part of a block, not the whole block in a file, but part of the block in a file and the block IO cache, we will keep track of the fact that that block was written.
+And we will, at some point in the future, decide to write that block back.
+Perhaps we'll wait for more writes.
+So perhaps after he writes XYZ, he's going to write WTT and all kinds of other things into that block.
+Maybe once he's filled up the full 4K block with new data, then we'll write it.
+Or maybe we will wait 300 milliseconds, or whatever number we choose is desirable.
+And if nothing new has been written to the block at the end of that time, we'll write it back.
+We'll do something.
+At some point in the future, we will choose to write to the disk, the block that is sitting in the block IO cache that has new data in it.
+Fine.
+Now this has a number of benefits.
+The first benefit clearly is you're doing fewer writes.
+So you're putting less strain on the device, which can only do a certain number of operations per second.
+Second benefit is the applications that are doing the writing to this particular file do not suffer the delays of waiting for the IO to actually complete.
+They are told as soon as the file system code has made the updates in the block IO cache, your write is complete.
+Go ahead.
+Keep working.
+This has further benefits.
+If it turns out that you're doing things where you overwrite the same thing in the same place in the same file over and over and over again, it changed ABC to XYZ.
+Then you change it to LMN.
+Then you change it to FEX or whatever you do.
+And you write the same bytes over and over and over again.
+20 times different values each time.
+You could have done 20 IOs.
+But if you do one IO, you wait till all 20 of these operations have finished.
+And then you write it back.
+You end up with the same thing in the storage device that you would have had as if you'd done the 20.
+But you only did one IO instead of 20 IOs.
+A big win.
+If it turns out that the file gets deleted, it was a temporary file.
+Your application was running.
+It said, create slash temp slash footemp.
+And it wrote a bunch of data in footemp.
+And it kept looking at the data.
+And it kept working with the data.
+But then once the application was about to end, it said, I don't need footemp anymore.
+Remove footemp.
+Get rid of it.
+Well, in that case, footemp didn't exist before the application started.
+Footemp doesn't exist after the application is done.
+You're going to delete it if you did put it out on the disk.
+So why put it out on the disk at all?
+If the file gets deleted, you never need to do any IO for it.
+That would be great.
+So this, generally speaking, is going to allow us, this approach of write-back caching and delayed writes, is going to allow us to get much, much better performance for multiple reasons.
+Okay.
+Now, we have, of course, the general block caching, that block IO cache that I showed you in the diagram in the previous class.
+And this is going to be helpful when you have files that are read frequently.
+If application X has read file slash temp slash foo, and application Y decides I want to read file slash temp slash foo, and they're both allowed to read it, then we do not need to keep two copies of whatever they're reading.
+They can share a single copy in the block IO cache.
+So that means that if it's a popular file, something like a library that is frequently read, because you're going to use it in many, many different applications, then you're only going to have to read it into memory once, as long as multiple applications are all using it.
+They can share the data.
+Now, if you are going to do writes, but then you're going to go back and read, you're going to gain benefits there, because you won't have to do an IO for the write and an IO for the read.
+You can do read ahead.
+Without buffers, you can't really do read ahead.
+So you have to have somewhere you can put the read ahead data.
+And deferred writes.
+I've written 100 bytes in temp foo.
+I don't know if I write another 100 bytes there or not.
+Either I have to write it to the disk instantly to make sure it gets there, or I have to make sure that I keep this particular block in the block IO cache, and I keep an indication somewhere saying, that block has to be written back before you get rid of it.
+Otherwise, the 100 byte write gets lost.
+But we also have special purpose caches.
+Special purpose caches, we talked about this some time ago in the memory management section, about how caches that have special purposes, that are only working for particular things, things like buffer caches, can have much better performance.
+And that can be true for particular things related to file systems as well.
+Directory caches are one example.
+Now, what we do with a directory typically is, we have a lot of different file entries in a particular directory.
+And typically, we're going to search through the directory.
+You may not think you're searching through the directory when you say open slash temp slash foo, but there may be 75 different files in slash temp.
+How do you figure out which one is temp foo?
+Well, you search through all the directory entries.
+So building a special cache that keeps track of these directory entries allows you to run a much more efficient searching algorithm.
+Inode caches are also very, very beneficial, because there are certain files that get reused over and over again.
+And while a file is open, you really kind of want to have that inode lying around in RAM somewhere, because you're going to probably keep using that file's inode in order to find different pieces of the file, in order to create new entries in the file, in order to figure out where to get rid of all the blocks if you remove the file.
+So typically, having an inode cache is also going to be very beneficial.
+So these wouldn't be things where you're caching on the basis of blocks.
+They'd be cached on the basis of data structures of particular types, often of particular sizes, such as inodes.
+These caches are obviously going to be more complex.
+In particular, if you're talking about something like a directory cache where you have variable length entries, that's going to be more complex than a cache of blocks.
+But on the other hand, you can get much, much better speed out of them.
+Now, it's also the case that caches, well, how do you manage cache?
+The expectation in a cache is that it's got data for a bunch of different parties.
+Here, a bunch of different applications, perhaps.
+And you have a limited amount of cache space.
+And sooner or later, you're going to have to say, my cache is full.
+I want to put something else in the cache.
+That means I need to get rid of something that's already in the cache.
+And I'll do something LRU-ish, clock algorithms, or whatever it may be.
+So that's fine.
+But if it turns out that what you choose to get rid of is a block that is supposed to be written, but has not yet been committed to disk, that would be bad.
+So we're going to have to say that whatever is choosing what we kick out of the buffer cache is going to have to be overridden in certain circumstances by other considerations, such as we need to save the data that is in this file.
+Or perhaps we're going to need to say, this is a particularly important piece of data.
+Like we're going to pin inodes, for example, in caches.
+Say if this is an open file, we want that inode in the cache.
+Now, even if the file has been closed, maybe we'll still keep the inode in the cache.
+But then it's suitable for replacement.
+Nobody's got it open.
+Fine, fine.
+Maybe nobody ever will again.
+And we need to find another place in the cache for another inode.
+But if it's an open file, we don't want to get rid of that because we are going to need that inode.
+So in certain cases, we are going to have to pin data in caches.
+And that's going to, of course, reduce the flexibility of what we can do when we need to replace something in the cache.
+All right.
+So those are the primary performance issues that we see in the generality of file systems.
+Not worried about specifically how does this file system versus that file system deal with its data?
+How does it store stuff?
+How does it access stuff?
+That kind of thing.
+There are obviously, for particular implementations of particular file systems, going to be important performance considerations as well.
+And we'll talk a bit more about some of those in the next lecture.
+But one more topic that we have for today is security.
+As we said in the first lecture, one of the desirable file systems, one of the desirable characteristics of a file system is suitable security.
+What do we mean by that?
+Well, the expectation is that, in general, for most operating systems, we want to be able to support different users.
+The different users may be different human users.
+They may be the same person but working in a different way, like I am the system administrator now.
+I am Peter Reier tomorrow.
+And we may want to have either these different users or these different roles have different access permissions, different files that they should be able to see, and different ways in which they should be able to see them.
+He should be able to read it.
+He should be able to read and write it.
+Now, if that's the kind of thing we want, which we almost always do, we're going to have to have a mechanism by which we specify this is what we want.
+These are the files that should be accessible in the following ways.
+And we have to have a mechanism that enforces whatever we've specified.
+So, how are we going to do that?
+That's the security we typically care about most.
+Well, how do you get to a file?
+Assuming you're talking about using the file system, get to the file, you obviously make a system call.
+You do an open.
+You do a read.
+You do a write.
+Something of that nature.
+Okay.
+What this means is that you are going to trap into the operating system.
+You're going to provide information that says, this is the file I want to work with.
+You're going to be doing it from a process.
+The process is going to have an identity associated with it, a user identity associated with it.
+So, now we can use that information to determine, should this file system request, this request to read the following file, be honored or should it be rejected?
+Okay.
+How?
+How do we do it?
+Well, there are a number of possible approaches, quite a few actually.
+But the most common approach that is used in almost all systems that you're likely to work with is there's going to be for every single file in the file system per user access control.
+We will specify there are a certain set of users, each one an individual or a role of a particular individual.
+And each of those individuals is permitted to access certain files in certain ways.
+They aren't permitted to access other files or the same files in other ways.
+Okay.
+So, fine.
+Then, whenever we have a process, it's going to be run on the behalf of some user, one of the users in that set.
+We can then check to see, as the system call is made to perform, let's say, the read, we're going to check to see, should he be allowed to read, should he not be allowed to read for this particular file?
+Okay.
+So, in order to make these kinds of decisions in the file system code, and this is going to be a file system level decision, it's going to be built into the file system.
+Each file system can do this potentially differently than every other file system that is being run on the system.
+It's not something that is going to be common necessarily to all of the different file systems support.
+You remember, the FS layer could have multiple file systems plugged into it.
+We showed four in that little diagram from the previous class.
+Each one of those file systems can have its very own way of deciding who gets to do what with the files that are under its control.
+Each file system, I hope you remember, has a set of files that belong to that file system.
+Those are the only files you can access from that file system.
+You want to access a file in another file system, you have to use that file system's code, and it's going to have its own mechanism of controlling whether you should or should not be able to see it.
+Okay.
+So, for each file system, when some application says, I would like to open this file for read, perhaps, we have to make a decision, and we need to know three things.
+First, who?
+Who is it who is requesting this access?
+Typically, that's on a user basis.
+Second, which?
+Which file are they trying to access?
+Third, what are they trying to do to that file?
+So, user Wrier is trying to open slash temp slash foo for read.
+That is the set of answers to those questions.
+But those are just the answers to those questions.
+Those do not indicate whether I should or should not be able to read that file.
+So, how do we determine who?
+Well, there are a lot of ways you could do this.
+But the common way to do this is to say, well, every process that's running in the system, as you know from previous lectures, has a process descriptor.
+There's various pieces of data in the process descriptor describing the process, describing it.
+That's what a descriptor does.
+One of those pieces of data could be an owning user.
+What user does this process belong to?
+This process belongs to user Wrier.
+Okay, that answers our who question if we do that.
+An open call was performed by the following process.
+The operating system is able to say, okay, file system, you want to know who's doing this?
+Ask the process descriptor.
+He asked the process descriptor.
+It's user Wrier.
+Now he knows who.
+Okay, so now you've answered the who question.
+Which?
+Well, the system call will have associated with it a parameter saying, this is the file.
+Slash temp slash foo.
+User Wrier wants to open slash temp slash foo.
+Now, there are various ways in which we can do that.
+And we'll talk about that in the next lecture a little bit.
+But generally speaking, somehow or other, you've specified when you made the system call, which file you wish to perform your operation on.
+So now we know which.
+We know who.
+We know which.
+Third question is, what?
+What are they trying to do?
+There are two questions here.
+Well, there's two aspects to this question, to the what question.
+First, what are they trying to do?
+Second, what are they allowed to do?
+What are they trying to do is determined by the system call.
+You make one system call if you're going to try to do a read.
+You make a different system call if you're trying to do a write.
+So we look at the system call.
+This is done in the file system code.
+And it says, okay, he wants to do a read.
+That answers our what question.
+He wants to read.
+User Wrier wants to read slash temp slash foo.
+The next question is, well, should he be able to do so?
+How do you do that?
+Well, generally speaking, there is going to be information associated with each file that says, what can you do?
+Typically, where do we keep this information?
+Well, it's kept in the file descriptor that's out there on the disk.
+But of course, we can't use it when it's out on the disk.
+So we brought the file descriptor into the RAM memory.
+We've set up a data structure in the RAM memory that is the in-memory version of the file descriptor.
+One field in that is going to keep track of what are various users allowed to do.
+So let's go through another example.
+Process X is running.
+Process X was created by user Sue.
+Process X says, I want to open file foo for read.
+Right.
+And use the system call for that purpose.
+So there's the fopen system call, file foo for read, performed by process X.
+The operating system call says, OK, fine.
+This is process X's descriptor.
+More precisely, really, the file system code is going to look at this because this file system is the one that cares.
+The operating system doesn't really care.
+It just ensures, expects that the file system will follow the rules on this.
+So the file system code will say, fine, process X.
+And it's read for foo.
+OK, fine.
+Who?
+Who is process X?
+It will then go to the process descriptor, which is available to it.
+It's a structure in the operating system that is available to file system code.
+And it says, OK, it's user Sue.
+Knows the who.
+Then it's going to say, fine, I need to know the what.
+Well, it knows that because that's provided as part of the system call.
+So when it gets down into the file system code, it's got access to that system call information saying, oh, it's foo.
+So we go out.
+The file system code goes out to the storage device and reads the file descriptor for foo, working on the assumption it isn't already cached.
+So it's probably gone to the flash drive to do that.
+Maybe it's in the cache.
+If it's in the cache, we avoid the IO.
+Then you're going to say, OK, this has the file descriptor in there.
+It's got the in-memory version of the file descriptor probably.
+So if it doesn't, you set one up.
+And then you look through that and say, fine, is Sue allowed to perform read on this particular file?
+And the answer is yes or no.
+Well, you might say, well, of course that's what you do.
+What else would you do?
+Well, there are a lot of different approaches you could use here.
+There could be identities other than a particular user.
+It could be that the process descriptor has some other kind of identity associated with it.
+Or there is some way you determine a more fine-grained identity without looking at the process descriptor only.
+It's possible.
+How did you determine what the identity was?
+Well, you looked in the process descriptor.
+You could have said, for this particular file system, for this particular file, you must provide me a user ID and a password.
+Or you must provide me your fingerprint.
+Or you must provide me the retinal scan.
+Or you must get an authorized party to come to your computer and press a button and say, yes, this is okay.
+That's possible.
+You can do that.
+You can build a file system that works that way.
+There are other ways of controlling who can do what with each file.
+It doesn't have to be information that's sitting in the file descriptor.
+It usually is.
+But it doesn't have to be.
+It could be something totally different.
+Also, it could be that you're going to say, why don't I have a file which can be read in...
+Parts of the file can be read by some users.
+Other parts of the file could be read by other users.
+The file can only be written in certain parts by some third party of users.
+You could do that kind of thing.
+You could say ranges of the data could be accessible in certain ways.
+Or you could say, this file can only be read during working hours.
+Monday through Friday, 9 to 5.
+Can't be read by you at other times.
+Maybe other users are allowed to do that.
+There could be all kinds of things you could do.
+And you can write a system that does any of those things.
+All right.
+So let's say we're working with a standard system.
+It's figured out, yes, user Sue is allowed to read data from this file.
+So she's used a call like read to do that.
+Now, she already did the open.
+So she got an open.
+The open was successful.
+She was allowed to read, open the file for read.
+Now she wants to actually read.
+As you probably should remember from the programming you've done, the open call merely prepares that file for you to work with.
+After the open call has succeeded, you can then actually work with the content of the file, such as reading some of the bytes of the file.
+You will use, process X would use a call like read to read, let's say, the first hundred bytes of this file.
+What do we do then?
+Well, one thing we could do then is the same thing we did on open.
+We could go back to the file descriptor and say, okay, you know, this is user Sue.
+She wants to do a read.
+It says she can do a read in the file descriptor.
+Fine, let's let her do a read.
+This isn't actually what we really do in most file systems.
+What do we do instead?
+What we do instead is we set up a data structure at the point at which the open worked that is associated with process X and that says, fine, this particular process has this particular file open for read.
+They will specify when they do a read, this is the file I want to work with, and they won't do it by saying I want to work with temp foo.
+Instead, they will say, I want to read data out of the following per process file descriptor, something that is specific to the process that was just set up by the open call, a return value from the open call most commonly.
+Then we don't have to go through the rest of this procedure.
+We don't have to figure out who the user is.
+We don't have to figure out what the bits say in the on disk file descriptor.
+We don't care if we even have the on disk file descriptor for that purpose.
+We're going to need it for reading the data.
+But we can just say, okay, fine.
+Here's a data structure that said this user, this application, process X, is allowed to read this data.
+It just says so in the structure.
+They want to do a read.
+Fine, let them do the read.
+You don't need to do the other checks.
+Okay.
+Now, something you should be aware of, and you may or may not be aware of this.
+You may never have thought of this.
+You may understand this perfectly.
+So let's say user Sue has read 1,000 bytes of data from file foo.
+It's not her file, but she had the right to read file foo.
+That was set up.
+So that was okay.
+It was legal to do that.
+What did she do with those 1,000 bytes of data?
+Well, she put them into some buffer sitting in her own data area of her process.
+So it's in RAM somewhere, in a piece of RAM that belongs to process X and thus belongs to user Sue.
+Okay.
+Now, at this point in real time, the owner of file foo said, you know, I don't trust Sue after all.
+I don't want her reading my data.
+I am going to change the permissions on that file so that user Sue can't read that data.
+Now, clearly, if at some point in the future, a different process, process Y being run by user Sue, tried to read that data, it wouldn't be able to open it for read because the access permissions had changed.
+However, what about the 1,000 bytes that Sue read?
+Well, those 1,000 bytes are sitting in her memory.
+Sue has those 1,000 bytes.
+She knows what the 1,000 bytes are.
+It's too late for the owner of file foo to take back that data.
+So, essentially, when you do an open call in a typical system, you have a process that opens a file, there is a decision made at that point, at that open point that says you may do this or you may not do this.
+And typically, it doesn't ever get checked again.
+Not for that particular process and that particular file as long as that file is still open.
+So, what this means is that you can read data at a time T1 into your process and you got the data you read.
+It's yours now.
+The owner of the file can't take the data back.
+It's gone.
+You have a copy of it.
+Further, the owner of the file cannot have specified either at the time that you opened the file, at the time the user who owns the file created, at any time, what you get to do with those 1,000 bytes of data you read.
+You can do whatever you want with them.
+In particular, you can give them to another user who isn't allowed to read the file.
+Your data now, you read the 1,000 bytes, they belong to you.
+Okay.
+This means that if there's a secret in a file and you have allowed some user's process to read that secret in that file, it's their secret now.
+They now have control of that secret to the same extent you do and they can do whatever they want with that secret.
+They can tell it to whatever they want.
+They can hold on to that secret forever and you can't do a damn thing about it.
+This is something that you really do need to be aware of if you care a lot about computer security issues.
+Now, another issue of security.
+You may remember when we talked about devices and device drivers and so on that, let's say there's a flash drive that's storing your file system.
+There is a device driver for the flash drive.
+All right.
+And you can get to the device driver through the file system interface, not an actual file, but through that interface using something like slash dev slash flash.
+That's the method you can use to invoke the device driver directly without going through a file.
+So, the file system is built on top of this device and this device driver.
+You don't get any of the benefits of the file system, including the security benefits, unless you go through the file system interface because that's where the code is that implements that security.
+Now, there is code in the operating system that's going to say, you know, even for these special files slash dev slash flash, we will have the ability to say some users can open it, some users can't open it, and so on.
+And that will be honored.
+But if a user is allowed to access that raw device slash dev slash flash, he's allowed to read dev slash flash, that means that user, using suitable techniques, can tell a device driver, read every single block out of dev flash and tell me what's in each of those blocks.
+Okay.
+Now, if your secret is sitting in one of those blocks, your secret has just been read by whoever was capable of doing this.
+And there's nothing you can do about that.
+You could have changed your access permissions on that file as carefully as you wanted to, and you could make sure they've never changed since you set them properly, and you still lose your secret.
+So, the file system code is only providing security at this particular semantic level, at the file system semantic level.
+If the attacker is working below that level, like the device driver level, if that's where they are getting to the device, to the data that is sitting on that device, the file system is not going to help you one little bit.
+So, this, I've already said that essentially.
+So, this does, by the way, indicate that if you are an administrator, a computer, you want to be exceptionally careful about the access permissions on these devices, on the things in slash dev, for example.
+Screw those up, security disappears out the window.
+Okay.
+So, in conclusion for today, we have more to say about file systems in the next lecture.
+But in conclusion for today, we have to be very careful when we are designing our file systems about how we handle memory.
+The memory in particular on the storage device that's keeping the file system for us.
+How do we allocate it?
+How do we figure out where a piece of memory associated with a particular file is?
+How do we make sure that we can free that memory when we need to free that memory and reclaim it for future use?
+Now, we are going to have to be careful about keeping all of this metadata about what's free, what's allocated, in a persistent fashion.
+If we don't keep it in a persistent fashion, then depending on how things happen, such as crashes, we may lose track of the fact that a piece we thought was free is actually being used, or a piece we thought was being used is actually free.
+And we'll talk about some issues of that in the next lecture.
+It's hard to achieve good performance in file systems.
+Generally speaking, the primary tool we have for that purpose is caching.
+So, we're going to work very hard to make sure caching works, and works very quickly.
+In terms of security, generally speaking, for the systems you're likely to work with, there's going to be security that is at the file level.
+An entire file can be read, written, or not read, written, at the user level.
+A user can do these things to the entire file, or can do those things.
+Different users may be able to do different things.
+There are other options, but this is what you typically get.
+There are other options, but this is what you're going to do.

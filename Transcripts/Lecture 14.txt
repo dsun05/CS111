@@ -1,0 +1,1473 @@
+﻿In this lecture, we're going to continue to talk about some important issues in file systems and how they cause us to design file systems in particular ways.
+We'll talk about naming issues, how you name files and how you deal with the names of the files in the underlying file system.
+And we'll talk about reliability. How can we make sure that our file systems properly contain the up-to-date information such that they are never erroneous?
+So, first we're going to talk about the naming issues. And in particular, users, individual people, are going to issue names of files.
+And we expect them to get the files that they want to get and to find the files that they want to find.
+And of course, processes are also going to make use of file names to decide which files they wish to work with.
+Now, the names that we use at the user and process level are not going to be the names that are actually going to be very helpful for the operating system and the file system code.
+So, we're going to make use of those files to find the data, to access the data, to use the data. So, we'll talk about the translations that we perform and how those happen.
+The second topic we're going to talk about, a different topic today, is reliability. And we'll get to that in the second half of the class.
+First, naming. Okay. So, there are a lot of files in a typical machine's file system nowadays. Thousands, tens of thousands, maybe even more.
+So, at any given moment, the person or the application that decides it wants to work with a particular file needs to specify which of those thousands or tens of thousands of files do I want to work with.
+Now, at the low level, when we're talking about deep inside the code of the operating system, where it's all code, it's not people at all, you like to work with numbers.
+Numbers are easy. Numbers are of a particular size. They aren't variable length. They don't have conventions. They can't easily be misspelled. They're a number.
+So, we'd like, when we are dealing with files deep inside the code of the operating system, to specify a file by some kind of number.
+However, of course, people don't like numbers. Programs aren't really good with specifying things by numbers either. We want to use something more meaningful.
+So, it's got to be another, there must be another way of naming files. Though, of course, ultimately, we're going to have to translate down to those numbers that the operating system would like to work with.
+So, we need the method we use to name files to be friendly to users because this is something that actual people are going to interact with.
+We're going to have very large numbers of files and we discovered a very, very long time ago, if you have a large number of these things, you need to have some way of organizing them, of putting them together in a way that allows you to easily find and work with the particular files that you want to find and work with.
+So, we're going to need some organizational principles.
+And, of course, ultimately, we're going to have to build this into the code of these file systems, working with the storage devices with the characteristics they've got, and working with what is easily performable in code and what is more difficult to perform in code.
+So, down at the low level, when we're talking about these individual file systems, the things that plug into the VFS, we are going to have descriptor structures, as we discussed in previous lectures.
+There will be on the disk some kind of descriptor for every file that we store in that file system.
+And, of course, we'll have a core version when we are working with that file, when we are working with it in main memory.
+But, ultimately, these are going to be data structures.
+And the data structure is probably going to have some sort of number or pointer associated with it.
+And that's how, internally, we're going to work with that data structure in the file system itself.
+But this is not going to be helpful for the people who have to work with our computer.
+We're going to have to have some kind of, probably, string-based name for all of the files that human beings will understand.
+They'll be able to look at this file and say, I know what this file is because I understand that string.
+I know what it means.
+And that is great, but that's not how we're going to work with it down at the low level.
+We're going to have those numerical or pointer-type descriptors.
+So, we're going to have to have some way of translating the name that is useful for human beings to work with to the number that the underlying file system code is going to need to work with it.
+So, we're going to have to handle, in our file system code, some way of mapping names to descriptor numbers.
+So, we're going to be creating new files, frequently, as we discussed.
+We're going to have to then say, okay, somehow or other, we're going to have to give that file a name, a human meaningful name, and make sure it's properly associated with the file we've just created.
+When we are looking through our file system as a person or as an application, we need to be able to find the file that we are looking for based primarily on its name.
+Every so often, we'll want to change the name of a file.
+So, we need to be able to do that.
+And we also want to organize groups of files into sets.
+So, for example, for this class, I've got a directory that represents the class.
+Other than that, I've got a directory that represents all of the lectures, the files, the PowerPoint, and the PDFs that represent the lectures.
+That allows me to find a particular lecture for this particular class rather easily.
+We need some way of doing that.
+Now, this has led to a concept in file system design that is called a namespace.
+The namespace means one of two things.
+The most common meaning is to say the namespace of a particular computer, a particular file system on a particular computer, is the set of all of the names representing files in that file system.
+The actual set of files we've got and their names.
+Now, it could.
+The term namespace has a second meaning, which could be, well, whatever mechanism you use to assign names to files, there is a limit, potentially, on all of the names you could name.
+All of the file names you could create.
+Probably a lot more names you could create than names you actually have.
+But the entire set of all the possible names of files could be regarded as being a namespace instead.
+Okay, now, associating files with names with a file, we should have said this before, is referred to as a process of binding.
+We bind the name to a file.
+We do binding primarily at the time at which we create a file.
+When we create a file, we give it a name, we bind it to the descriptor.
+We sometimes rebind by changing the name or using the same name for a different descriptor.
+All right.
+Now, given that we have a namespace in either of the definitions of it, how do we structure the namespace?
+How do we organize it?
+There are a number of ways that have been developed over the years.
+One of those is a flat namespace.
+This is very, very old.
+This is the way things were back in the 1950s, early 1960s.
+Basically, you have a pool.
+And within the pool are all the names.
+And they aren't necessarily organized in any particular way.
+There's just a pool of names.
+So, all names exist at a single level.
+You just go through the pool and look for the one you want.
+The other approach, which has been developed over the years and that is still widely in use, this is what we normally use in Windows systems, in Linux systems, in macOS systems, in most other systems, is a graph-based namespace.
+We basically organize all of the names of all of the files in the system into a graph.
+Every name is in a particular location in the graph.
+It's a node in the graph.
+And that name indicates a particular file.
+Now, sometimes this graph is a strict hierarchical tree.
+In other cases, it is a somewhat more general type of graph.
+As a rule, the graph is directed, meaning that graphs consist of nodes and edges.
+If you have a directed graph, the edges point from one node to another node.
+An undirected graph, they have no direction.
+They just have, they connect up two nodes.
+Okay.
+So, one thing to consider is, well, you know, as we saw in the previous couple of lectures, you can have multiple different file systems living in the same computer.
+on different storage devices, on pieces of the same storage device.
+You can divide up a flash drive into different pieces and put different file systems on each piece.
+Is each of those pieces, each of those sets of names, all part of the same namespace?
+Is there one unified namespace for everything?
+Or is each piece a separate namespace?
+One over here for the flash drive, one over there for the hard disk drive, one over there for the tape.
+So, that's a choice we have.
+We can have multiple independent namespaces, or we can have one unified namespace.
+Now, when we are saying, let's figure out how we want our namespace to work, when we are designing file systems, we have to say, well, this is how the namespace is organized.
+There are some questions that will arise when we are trying to make that decision.
+First, how many files can have the same name?
+How many files can be named foo, for example?
+Well, if you have a flat namespace, that one big pool, you can only have one file named foo, because that one file named foo is sitting in that flat namespace in the pool.
+And if you try to create another file named foo, there's already one in the pool.
+How would you tell the difference between them?
+If, on the other hand, you have a hierarchical namespace, one of these graph-based namespaces, then you can have directories.
+We'll talk about how they fit in here.
+And each directory could have a file named foo.
+So you could have slash foo, slash a slash foo, slash a slash b slash foo, and so on and so forth.
+You could have a lot of foos.
+Within each directory, you only have one, though.
+Okay, that's one issue you have to grapple with.
+Another question is, how many different names can one file have?
+Now, we know, ultimately, there's going to be a file descriptor at the low level, but we're talking at the higher level, the level that makes sense to human beings.
+How many names at this higher level can one of those files that's got a single file descriptor out there on the storage device, how many names can it have?
+One possibility is it has one name, one true name, and that's it.
+Clearly, that would be the case in flat namespaces, but it could be the case in hierarchical namespaces as well.
+Another choice is to say, well, there is one special name.
+This is the real name of the file.
+This is the name that really indicates the file, but we have aliases.
+We have other ways of getting to that same file that aren't the same as the true name.
+Another choice is to say, you can have a lot of different names for the file, and they're all equally good.
+Any one of them is a name for that file.
+This is different than an alias.
+An alias is saying, well, you know, this is the one name, but there's a bunch of other things that kind of translate to that one name.
+If instead you say we have multiple true names, multiple different names for the file, all equally good, then any one of those names leads to the descriptor directly.
+With the alias, typically, the alias leads to the true name, and then the true name is the one thing that actually connects you to the descriptor.
+If you have a true name, whether it's one or one with aliases, then the question arises of, well, what's different about using the true name to get to the file as opposed to using one of the aliases?
+And there are possible answers to those questions.
+If you have more than one name for a file, whether it be by multiple equally good names or aliases plus a true name, if you have these multiple different names that people and applications can issue to get to the same file descriptor, does each of those names have a different characteristic?
+For example, if you delete one of those names, will the others disappear automatically?
+Or will they lie around but no longer lead to the same descriptor?
+To something else?
+To nothing?
+What do they do?
+Or alternately, does deleting one of those names, if there are multiple names, have no effect on the other names?
+The other names still work just fine.
+If we have access control, that security stuff we were talking about in the previous class, who gets to open this file, who does not get to open this file?
+If you use one name, is there one set of access permissions?
+Or if you use another name, is there another set of access permissions?
+Or do all of the names have the same access permissions?
+Now, as I've already alluded to, in modern file systems, we typically have hierarchical namespaces.
+This is a graphical organization where nodes in the graph represent files.
+Edges represent connections between files.
+Now, typically, you have two types of things in this kind of graph.
+One is leaf nodes, where there is nothing below that node.
+The other is non-leaf nodes, where there are nodes that are below this node.
+Below meaning there is an edge from the non-leaf node to other nodes.
+Okay.
+Now, if we have this situation where we have non-leaf nodes, which we would in any situation except that big single pool of names, then some of these files are actually not going to be ordinary files at all, typically.
+They would instead be what we call directories.
+What we mean by a directory in this context of file systems is a file that contains a bunch of translations between names and descriptors of other files.
+So, effectively, these non-leaf nodes point to a bunch of other nodes, some of which may themselves be non-leaf.
+We have nested directories.
+Some of which may be leaf nodes pointing to files that are not directories.
+Okay.
+Now, this would allow us, in this graph structure, to specify a file by specifying what's called a fully qualified name.
+We start at some point, the root, the top directory, top node in such a graph would be a directory, and we follow it down through all the directories until we reach a node that represents the file we were looking for.
+We'll go through examples of this.
+You're all pretty much familiar with this because you've worked with it, but I want to be clear about what's going on here.
+If we're going to use this kind of structure, something that is proven convenient for processes is to say, at any given moment, each process will be working in the context of one particular directory.
+We will call that the current working directory or current directory.
+When we wish to issue a name from the process, we will say, let's try to issue that name in the context of the working directory, which means when we are looking up that name foo, if our current directory is slash a slash b, we will look in slash a slash b slash foo.
+We will not look in slash a slash foo or slash foo or slash a slash b slash c slash foo.
+We'll look in slash a slash b slash foo because b is our current working directory.
+Okay.
+Now, if we have things set up properly with our naming hierarchy, we can then navigate through this set of connected directories and edge nodes, ordinary files, to get to the place we want to change our current working directory, for example, to work in a different place.
+So, effectively, if we do things in the simplest possible way, the nested directories slash slash a slash a slash b slash a slash b slash c, etc., they form a tree.
+Every node is either a directory node, in which case it's got children, or a non-directory node, in which case, typically, it does not have children.
+Well, it wouldn't have children.
+Directory nodes don't actually have to have children.
+They can have an empty directory if you want to.
+This mechanism of organizing the names would allow us to name a file by saying, well, for any file among the tens of thousands that we might have in our file system, there will be a path from the root, from the top-level directory, down to, through this tree, to wherever the file lives.
+And if we specify that path, we will be able to uniquely specify the file we are trying to get to using that name.
+And that will be a human, meaningful name.
+There may not be one that makes a lot of sense, but it's human, meaningful.
+It's going to be a bunch of strings.
+Now, we can either start at the root directory, the very top, that directory that is the very, very top directory, and specify the file name we want from there.
+This is called a fully qualified name.
+Or, we can start from our current working directory and specify from that point.
+So, if our current working directory is slash A slash B, and we want to get to slash A slash B slash C slash Foo, that's the file we want to get to.
+We could say, okay, we're in slash B.
+If I name C slash Foo, I would get to that file.
+I'd get to slash A slash B slash C slash Foo.
+Okay.
+Now, it may be that we have a tree here, but it may also be that we don't have a tree here.
+Why wouldn't we have a tree?
+If you make the choice of saying there's some mechanism by which a file can have more than one name, that implies that it's going to have, there's going to be more than one path through this graph that leads to that file.
+If there is more than one path leading to that graph, to that file, then that graph no longer has the properties of a tree.
+Trees always have the property that there is only one path to get to any particular node.
+Here, there would be multiple paths.
+Therefore, it's not a tree.
+So, this is what a directory tree would look like, a simplified version.
+Very common form of diagram we use to specify the layout of a file system.
+So, at the top, we typically have a directory that is called the root of the tree.
+Normally, within a given operating system, there will be a canonical name of the root.
+In Linux systems, macOS systems, that name is slash, the slash character.
+In Windows systems, it's the backslash character.
+In either case, it's the root of the tree.
+Everything in the file system, possibly everything in the set of file systems that belong on that computer, connects up to the root.
+Start at the root, you can get anywhere.
+Okay, now in this particular directory tree, we see that the root directory has three entries, three files listed there.
+Each of the entries in the directory is going to point to, pretty much, a file descriptor.
+So, here we have three names, user1, user2, user3.
+So, there are going to be three files, three file descriptors out there in the file system, one of which is the file descriptor that is matching the name user1, one matches the name user2, one matches the name user3.
+Now, in this particular example, it turns out that all three of those files in the root directory are themselves directories.
+User1 is a directory containing two files, fileA, directoryA.
+DirectoryA, of course, is a directory.
+This is merely canonical.
+I named it directoryA, but I could have called it anything I wanted.
+The fact that it is a directory is not caused by its name.
+It's caused by a designation saying, I want this file to be a directory when we created it.
+At any rate, user1 contains two files, fileA, directoryA.
+User2 contains one file, fileB.
+User3 contains two files, fileC and directoryA.
+Note that we have a directoryA, a fileName directoryA in two different places in this file hierarchy, one under user1, one under user3.
+The directoryA under user1 contains fileA.
+Note that there are now two fileAs in the system.
+There's a fileA that's directly under user1 and a fileA that's under directoryA under user1.
+Okay, no problem with this.
+We can name these files by using the blue fully qualified names and we will get to the right thing.
+The fully qualified names start at the root.
+This is a Unix, Linux style file system, so the root is slash.
+So we're going to start at slash and if we want to get to the fileA that is right there, then we specify slash user1 slash deerA slash fileA.
+It leads us to two different files, totally different files, even though the string that represents their name is ultimately fileA.
+Okay, how do we do that?
+Well, user1 is a directory.
+Directories contain entries.
+The entry in a directory will be a name, such as fileA, and a pointer of some kind to the file descriptor, or to a piece of the file, or some way to get to the file at any rate.
+So in a Linux system, using something like the fast file system or the system5 file system, user1 would contain a directory entry file underscoreA, that character string, and then associated with that in the directory entry would be an inode number, which would be the file descriptor for that particular file A.
+Directory A, under user1, would contain a entry in that directory, in directory A, that was named fileA, same name as the other file A, but not leading to the same thing.
+It would lead, in turn, instead, to a different inode number.
+So there would be fileA as an entry, part of an entry in directory A, and a different inode number.
+Perhaps inode number 33 would be the inode for the one, the file A that's under user1, and inode number 752 would be the one that's under dirA.
+Different files, because they lead to different descriptors.
+Okay.
+It's important to realize that directories are themselves files in this structure.
+They're a special type of file, however.
+Because basically, if you think about this, the directories are used to glue together the entire namespace.
+That's how you get to things.
+That's how you are able to navigate through the namespace and find the particular file that you want to get to when you name a file.
+The way you're going to do that is you're going to open the directory, and you're going to use that directory to look things up.
+You look things up by saying, well, this is a directory file.
+Therefore, it has in its contents only things that are directory entries.
+That's all you're going to keep in directory files, typically.
+So that would imply that we better not have arbitrary data sitting around in a directory.
+Directory should only contain directory entries and nothing else.
+What a directory entry consists of can differ from file system to file system.
+The file system has different directory formats than the Linux file system.
+But whatever it is, directories only contain directory entries.
+This implies that applications, user code, is not allowed to arbitrarily write a directory.
+Because if it could, they could accidentally or intentionally mess up the content of the directory, overwrite directory entries, put garbage in their place, and so on and so forth.
+So typically, we have to indicate that this file is a special type of file.
+It isn't a regular file that you can read, right, if you have the permissions to do so.
+It's a directory file.
+And associated with that will be special file system operations that say, if you want to do something you should be able to do to a directory file, such as create a new file within the directory, delete a file that's already in the directory, then we're going to have a special operation that does precisely that.
+We're not going to say, oh, you go in and find yourself a directory entry and write whatever you want in there.
+With luck, you'll write the right kind of thing.
+No, we're not going to do that.
+We're not going to allow applications to have the ability to screw up the file system structure, because they probably would.
+Instead, you have to do things like create, which says, okay, you're working in a directory.
+This is the directory you're working in.
+You specify that or it's your current working directory.
+And we're going to put a new directory entry in there based on what you said you wanted to create.
+Or delete.
+We're going to remove a directory entry based on what you said you wanted to remove.
+Now, typically, directories can contain multiple entries.
+In many cases, the basic definition of the directory in a particular file system will not specify how big that directory can be.
+It could contain an arbitrary number of directory entries, as many as you want.
+Which, if you think about it, remember, these are files.
+These have to be stored persistently.
+If we're storing things persistently, the persistent data we're storing must be kept in blocks.
+So a directory will consist of at least one block of data in addition to the file descriptor.
+That block of data will be filled up with directory entries.
+If you've already filled it up with directory entries, one block of data completely full of directory entries, and you want to create more files, you want more directory entries, we're going to have to give you another block.
+And we'll keep doing that.
+Now, of course, when you delete a directory entry, when you say, I'm going to remove this directory entry, either immediately or ultimately, depending on whether you do garbage collection or you're more aggressive about things, there becomes a directory entry that you can fill in again because now it's blank.
+It used to contain foo.
+You remove foo.
+That name isn't there anymore.
+There's a blank directory entry.
+Perhaps you can put a different file name in there, like bar.
+Okay.
+Each directory entry describes one file and its name.
+Applications are allowed to read directories, but again, they typically read directories only in controlled ways.
+Now, the read is not as critical as the write because the read will not cause changes in the directory.
+But typically, users don't really want to look at the bits that are kept in a directory.
+What they want to do is they want to look at the entries.
+Same thing for applications.
+So, typically, we will access directories for read purposes, again, using special system calls that look things up in directories.
+Generally speaking, only the file system itself, part of the operating system, is allowed to write to a directory.
+And this is important because if we allow anybody to write to a directory, then they may screw things up.
+Now, remembering that, for example, we have this slash dev slash flash stuff that would allow us to get directly to the flash drive.
+If we got directly to the flash drive, found ourselves a block that happened to contain a directory, if we had write permission by going through slash dev slash flash, we could set whatever set of bits we want in that directory, and suddenly our file system would be totally corrupted.
+That wouldn't be good.
+Okay.
+How do we move through the directory tree?
+Well, you can say I can always start at the top and move down.
+So, that's fine because some of the entries and directories are going to point to other directories.
+So, in our example, a couple slides back, the root directory contained three entries.
+One of them was user1.
+That itself was a directory.
+So, by specifying slash user1, we know we're talking about files that are in the user1 directory.
+That is where the translation is located.
+So, that's great.
+This is very simple.
+We have to, of course, indicate when we are specifying this character string as the fully qualified name.
+We have to specify, oh, this is the name of the directory, the end of the name of the directory we're working with.
+So, for example, how do we know when we say slash root slash user1 that we are talking about user1 and not user1.3?
+Well, we'd specify 1.3.
+But we also have to specify when are we going into another directory?
+When are we switching to something lower?
+So, slash root slash user1 slash dirA would say, okay, now we're going to dirA.
+Slash root slash user1 slash fileA means we're going within the directory user1 into fileA.
+Okay.
+Now, it turns out that sometimes, for convenience purposes, it's not absolutely necessary, but it's very convenient.
+It's nice to be able to go in the other direction.
+We are in a directory.
+We have a current directory that's somewhere in the middle of this tree structure, tree-like structure, and we decide we want to move up one level.
+How do we do that?
+Well, it turns out that in most file systems, we maintain some special directory entries that point to the parent.
+So, every directory is likely to have a entry, a special purpose entry that points to its parent.
+So, for example, that special purpose entry in slash root slash user1 would point to the root.
+The special purpose entry in slash root slash user1 slash dirA would point to user1.
+So on.
+Most commonly, canonically, this is just the way things were chosen many, many years ago, that special entry is called dot dot, period, period.
+Okay.
+Now, in some namespace choices, ways of designing your namespace, files have true names, which means there's only one possible name for a file, or alternately, while there may be aliases, there's one that is special, that is important.
+That one is the right name.
+The other names are mere aliases.
+Okay.
+Now, if this is the case, somewhere, you're going to have a representation of this is the full name and this is the file descriptor.
+Now, in DOS, the FAT file system that we discussed a couple of lectures ago, files had one true name.
+There just was one name.
+And it was described by a directory entry.
+So whatever the local component of that name was, it would be in the directory entry.
+And effectively, the name of that, the true name of that file was the fully qualified name.
+You could abbreviate the fully qualified name if you were in the current working directory in which that file lived by not specifying everything above it.
+And you could, in fact, use the dot dot convention and the slash convention to move up and down and so on.
+But effectively, to get to a particular file, you would name that one name.
+You would specify a path that leads to the one name you're trying to get to.
+Okay.
+But that's a real name in the file.
+It's that name.
+If we wanted to, we could have a file descriptor that contained that one name because that would be the name of the file.
+It had one true name.
+What if we didn't have an intrinsic name for a file?
+What if the way that you named a file was simply naming the path and that was it?
+There was no other name for that file.
+Unix directories and Linux and macOS are both descendants of Unix.
+Worked this way.
+So a file system can allow multiple names for the same file, different names that get to the same file.
+Okay.
+In this case, there is no one single name that gets to the file.
+The actual representation of the file, the thing that uniquely specifies this file, is the inode, the on-disk inode.
+So if each of the names that we wish to give to this file leads to the same inode number, has the same inode number, it's the same file.
+Okay.
+Now, if we have this capability, each of the names that we have that leads to the same file is called a hard link to that file.
+There could be multiple.
+There could be one.
+But there could be many.
+An arbitrarily large number, really.
+Okay.
+Now, what this means is that if we have more than one hard link to a file, there are two paths through the directory hierarchy that ultimately point to the same inode number.
+And we can get to that inode number by going down either path.
+If there are three, then there are three paths, and we can go down any one of the three.
+Okay.
+Now, this leads to a very simple directory structure for Unix and Linux systems and file systems.
+Typically, they contain two things.
+A name, which is relative to whatever directory they happen to be living in, and a pointer to the inode, usually the inode number.
+So this is kind of what they look like.
+Here is a copy, a simple example of a root directory that's related to the diagram we saw a few slides back, which showed a tree structure here.
+The root directory is always inode number one in Unix and Linux file systems.
+That's how we can find the root directory.
+We say it's always inode number one.
+That's just built into the code.
+Okay.
+So what is in that directory?
+Remember, directories are files.
+So the root directory is a file.
+What's in the file?
+Only directory entries, nothing else.
+What directory entries?
+Well, here's an example for the particular case, the diagram that we showed a few slides back.
+There are two entries at the front, the dot entry and the dot dot entry.
+Don't worry about the dot entry for the moment.
+The dot dot entry, you remember, is supposed to point to the parent.
+What's the parent of the root?
+The root has no parent.
+So canonically, we set the dot dot entry for the root to be itself.
+It points back to itself.
+So if you're in the slash directory and you say, I want to look at dot dot, you're going to end up looking at the slash directory itself.
+But in the example we saw in that tree we saw a few slides back, there were three entries in the root directory.
+Three children of the root directory.
+User one, user two, user three.
+And here we see that we have a file name user one, file name user two, file name user three in three of the directory entries of this directory.
+And they each have their very own inode number.
+OK.
+So let's expand this a little.
+What's user three?
+What's there?
+We would go out to inode 14.
+And there would be a marker, a bit, in that inode saying, I'm a directory.
+I'm a special type of file.
+I'm a directory.
+I'm not a regular file.
+OK.
+That's true.
+Because if you remember, we went back to the diagram.
+User three was indeed a directory.
+What's in user three?
+Based on that diagram, here's what's in user three.
+There are four directory entries in user three.
+Remember, directory, only directory entries, nothing else.
+What's in the directory entries?
+Well, there's that dot.
+We'll get back to that again later.
+And the dot dot.
+You may be able to guess, actually, what the dot is at this point.
+The dot dot directory is always a parent.
+What's the parent of slash user three?
+Slash.
+So it points back to one, as we can see right here.
+The dot dot entry points back to one.
+And then there were two files within that directory user three.
+Deer A and file C.
+So there they are.
+Deer A, file C.
+They each have their own inode number.
+Okay, so this, the dot dot entry, points to the parent directory.
+What's this?
+It's a pointer to the directory itself.
+Every directory will have a dot entry that points to itself.
+This turns out to be useful if we start doing all kinds of operations where we are trying to navigate in complex ways through the file system and we're building up path names by concatenating strings and things like that.
+In some cases, it proves useful.
+So there it is.
+Okay.
+So now we said, based on the structure, that we can have multiple names for the same file.
+Now, we have these hard links.
+That's effectively what something like slash user three, this directory entry is.
+It's a hard link to inode 114 right here.
+The links here, though, are really just names.
+That's all they really are.
+Name to inode translations.
+All of the other metadata associated with the file, like all of those pointers, the block pointers we talked about a couple of times ago, that bit that indicates whether you're a directory or some other kind of file, things like the ownership and the permissions, who gets to read, write, who gets to execute, none of those are in the directory entry.
+They are all in the inode.
+So this should imply to you an answer to one of the questions we saw before.
+If you use this structure, then at some level at least, every one of multiple names that you can have for a particular file is going to have the same characteristics.
+Because other than the path that you use to get to that file, with the different names, different paths, otherwise, you're getting to the inode, and that's where all of the other information about the file is.
+So it's going to be the same, assuming you can get to it.
+We'll talk about that in a moment.
+So all links are effectively going to provide the same access to a file that they link to.
+If there are five links to a file, all five of them will have the same read, write, execute permissions.
+All five of them will lead to the same set of blocks on disk, etc., etc.
+And who can create these links?
+Well, if you have read access to a file, you're allowed to create the link.
+You'll see why in a moment you need some form of access to the file to create the link.
+But you have to put the link somewhere.
+Where are you going to put it?
+You're going to put it in a directory.
+To put it in a directory, to put a link of any kind in a directory, whether it's for a brand new file you've just created, or you're creating a second hard link to a file that already exists, you're going to have to create a directory entry.
+You can only create a directory entry in a directory if you have write permission on the directory.
+So that means that you are going to be able to create links to files that you can otherwise get to, provided you have access to the directory you want to put the link in, write access.
+Now, all links are equal.
+All links are just as good as all of the other links to the same file.
+Five links to the file, they're all equally good.
+The fifth link has no less power, no less influence, no less importance than the first link.
+So just because the first link was the one you created the file with, doesn't mean anything special about that link.
+Now, every so often we want to remove a file.
+When you say in a Unix, Linux file system, remove the file, what you're really saying is get rid of a link.
+I have a file slash temp slash foo.
+Remove slash temp slash foo.
+What that really means is remove the directory entry in slash temp named foo.
+Get rid of it.
+Okay, now, if that's the only link to that file, the file that is kept with an iNode associated with slash temp slash foo, well then fine, we can get rid of that file.
+There's no other name.
+There's no other way to get to that file.
+What if there is a second link, though?
+If there's a second link, and if because we remove slash temp slash foo, what would happen when somebody issued the second link?
+If we allocated all the blocks of data and the iNode associated with that file?
+That would be tricky.
+It would also be tricky in the sense that, remember, what's in the link?
+What's in the link is a name and a number.
+Okay, so slash temp slash foo links to iNode 553.
+Fine.
+You have a second link, slash temp slash bar, which is a link to the same file, so it also links to 553, iNode 553.
+That's what's in slash temp slash bar.
+If I remove slash temp slash foo, and I get rid of all the data blocks associated with temp foo, and as discussed in the previous lecture, I free the iNode associated with temp slash foo, 553.
+That iNode goes back to the free list.
+Fine.
+It's sitting on the free list.
+What happens when somebody wants to create a new file?
+They need to find a free iNode.
+What iNode is free?
+Well, among others, 553 is free because we just freed it.
+So then we would create another file that pointed to 553.
+Now slash temp slash bar points to a totally different file.
+This is probably not what you want.
+What you probably want instead is to say, well, you know, as long as we have one of these hard links to a particular file lying around, we don't want to free up its data blocks.
+We don't want to free up its iNode.
+We want to preserve that file as long as it is around.
+Okay.
+So the solution for dealing with the deallocation issue in Unix and Linux style systems is to say, if there is any name left for this file, any hard links left at all to a particular file, you may not deallocate the file.
+You can't take away its data blocks.
+You can't deallocate its iNode.
+Okay.
+That, of course, implies that you have to know, is there another name or not?
+I remove slash temp slash foo.
+Have I removed the last name or have I not removed the last name?
+So somewhere we have to keep track of how many names we've got.
+How many names?
+Where are we going to keep that?
+We keep that in the iNode.
+iNode 553 would contain a link count.
+If we just created slash temp slash foo and we didn't create any more links to that file, the link count would be one.
+If we removed slash temp slash foo, we decrease the link count because that link's gone.
+And we say, oh, it's gone to zero.
+That means that the file can be deallocated.
+If, on the other hand, we'd created temp foo, then we'd set up a second hard link slash temp bar to the same file, to iNode 553.
+Now, iNode 553 would contain a count of two.
+And if we removed temp foo, we would decrease the count from two to one, not zero.
+We can't deallocate.
+So, this is an example, another example, in which we say, okay, now we've set up a hard link here.
+So, what's going on here?
+Well, we have the root file system, and we have two directories in the root file system, user1, user3.
+It's somewhat simpler than the previous diagram we saw.
+User1 contains only one thing, file a, a pointer to file a.
+User3 contains two things, a pointer to file c, and a pointer to directory a.
+Directory a is a directory, and it, in turn, contains one thing, a pointer named file b, which, as it happens, is going to point to exactly the same file as slash user1 slash file a.
+Two hard links to the same file.
+Okay.
+How would this look out there on the disk when we're looking in detail at the file's storage that we are using to keep track of this directory structure and inodes and figure out what can we free, what can we not free?
+Well, we'd see something like this.
+We have the root directory, and it contains a few entries.
+User1 and user3 are the ones we care about here.
+User1 points to a directory itself.
+Inode number 9, special file, it's a directory.
+A bit in inode number 9 would say that.
+And in inode number 9, being a directory, there are directory entries.
+What do we have there?
+We have dear a, we have file a, they point to two inodes.
+The other thing we have in the root directory that we care about for this example is user3.
+User3 is inode 114.
+We look at inode 114.
+The bit is set indicating it's a directory in the inode.
+Therefore, we consider it as a directory.
+We look and say what entries have we got.
+We've got the dot and the dot dot.
+And in addition, we have dear a and file c.
+Okay.
+So, you should notice something here.
+Well, of course, slash user1 slash file a has inode 29.
+User1, file a, inode 29.
+So, somewhere out there, there's an inode number 29, which is a normal file.
+Over here, in user3, file c, we have inode 29.
+Same file.
+Points to the same inode.
+Same file.
+Two hard links.
+These are two separate hard links.
+So, the link count in that inode would be two.
+Okay.
+So, that's what hard links are about.
+And that's originally what old, old Unix file systems had to have multiple names for a file.
+But it proved useful to have a different type of mechanism for providing multiple names for a file.
+This was called a symbolic link, sometimes called a soft link.
+This, again, allows us to have multiple names for a file.
+But now, the multiple names are going to be aliases.
+Remember, from a few slides back, we talked about what if we have a true name for a file and we have aliases for the file.
+Symbolic links are aliases.
+So, they themselves are actually files.
+A symbolic link is a file.
+But it's a special type of file.
+Directories are a special type of file.
+Symbolic links are a different special type of file.
+So, what they are, effectively, is a file that contains a path name.
+It contains a path name that points to some file.
+Okay.
+So, when you're trying to interpret something that leads to a symbolic link, when you get down to some entry in the directory, it's a symbolic link.
+Special file.
+You go into the special file in the file system code.
+Don't have to do this in the application or the user level.
+That code then says, oh, look, this is a symbolic link.
+I'll look at the content of the symbolic link.
+It is a file name.
+I will take that file name and I will start interpreting that file name.
+So, then it'll follow the file name just as if that was what you had originally said.
+Okay.
+Now, this means that you can get to the file by different path names, even though you do not have hard links.
+When you set up symbolic link, you do not change the link count.
+It remains exactly the same as it was before.
+And you set up symbolic link that ultimately leads to that file.
+the link count is still 1, which implies if you remove that file by the original name, then you've removed a hard link. The link count goes to 0. The file gets deleted.
+Inodes freed. Data blocks are freed. Nothing happens to the symbolic link. It's still floating around out there. You can delete the symbolic link. If you delete the symbolic link, bang, it's gone. It doesn't alter the link count. It doesn't alter the original name of the file or any of the other hard links. You can have a file with multiple hard links and multiple symbolic links if you want to. It just results in the removal of the symbolic link itself. So the symbolic link is effectively an alternate path name to get to a file, but it is a non-guaranteed alternate path name.
+Maybe the file's there. Maybe it isn't. Now, you may or may not have played with symbolic links in file systems that make use of them, but the chances are pretty good that you have used something very, very similar, assuming you've done any work at all with the World Wide Web. You've done any browsing. Probably, if you've done browsing on the World Wide Web, sooner or later, you have issued by clicking or by typing a URL that leads to a page that says 404 and is an error page. Well, what that means is that that link that you typed into the browser is effectively a symbolic link to the web page.
+However, whoever maintained that web page got rid of it. They didn't get rid of the symbolic link. They may not have even known the symbolic link existed, that URL. They just got rid of the web page itself. So when you try to follow it, there's nothing there.
+So here's what a symbolic link would look like. In a similar example to when we did the same kind of thing with a hard link. So we have the root directory, so two subdirectories, user one, user three. And here is going to be a symbolic link. The symbolic link is a special type of file. The only thing in that special type of file is a path name, a alphanumeric path name using the conventions for how you specify path names in the system.
+So in this particular case, the path name in this particular symbolic link is slash user one slash file a.
+So that means that we have not changed the link count for the underlying file, which is down here. But by saying, I would like to open slash user three slash year a slash file a file b, I think it is. You get to there. Why? Because you go back up here.
+Slash is the start of this. You go through the root, say, what's next? User one. What's next? File a. Bang. You get down there.
+This is what it would look like in the layout that we had before. So it's similar to what we had before, but now we're going to use a symbolic link instead of a hard link.
+So here, down here, is the symbolic link, file c. And it points to inode 46. When we go to inode 46, we see there's a bit set in the inode saying, I'm a symbolic link.
+So that means that when you try to follow the path name and open up this file, the file system understands because you've just opened up a symbolic link, I should go to the symbolic link's code data.
+I should read the path name in there, and I should start all over again, interpreting whatever path name I've got in there to get to the file you want to get to.
+In this case, what's in that symbolic link? Slash user one, slash file a. So to get to there, you go back up here to slash user one, go to there, you'd say, okay, there's file a, and you get to that inode.
+However, the link count of that inode is still one. If you delete slash user one, slash file a, the link count would go to zero, the file would be deallocated, nothing would happen to the symbolic link.
+What would happen if you then say, I would like to open slash user three, slash file C. It would try to follow that path name, and it would say, not there anymore. It's gone. And you would get a no such file type of error.
+Okay, there are other things we can talk about in terms of file system naming, but that's what we have time for today.
+We're going to now move to the other topic for the day, reliability. Now, reliability, basically, in a file system context, is about making sure that the file system has exactly what it should have in there. You said you wanted to lay out your file system so there were a certain set of files. Each file contained a certain set of bits.
+You wanted to say there was a directory structure that represented how you organized your files. That should be exactly what's out there.
+You wanted to make sure that if there were free space in your file system, space that has not been allocated to any file, you have that in your free list, saying it's in the free list. If you have inodes, and you have a set of free inodes, you want to say, if this inode isn't being used by anybody, it should be in the free inode list.
+If it isn't a free inode list, you want to make sure that yes, it really is free. It's not actually being used by any other file. Similarly, for the data blocks. If there's a data block in the free list of data blocks saying this block isn't in use, it better not be in use by any existing file.
+So, why is that hard? Why is it hard to maintain that? Well, it's going to be hard to maintain that because it turns out that we are trying to do multiple things in order to perform what seem like very simple operations at the higher level.
+And not everything could go according to plan. So, in particular, what could go wrong?
+If we're doing something that requires us to update multiple structures out there on the disk, such as a directory and a file and the free list, what happens if we've updated one of those things, we've actually written that to the flash drive, and then we crash?
+And we haven't done the other two things. What's going to happen then?
+Well, we're going to get some inconsistencies, and that's good.
+Well, that's bad, rather. It's not good at all.
+But we also could have this happen for other reasons. The hardware could fail.
+We could have a software error. There's a bug in our file system code, or a bug in our device driver, or something else.
+And we could have file system corruption. Everything was written properly, but for whatever reason, cosmic rays hitting our device, a bit got flipped.
+We may lose free space. We may have references to files that no longer exist.
+We may have a corrupted free list, which could result in the same data block being allocated to two different files. That would be bad.
+We could have all kinds of other things going wrong.
+So the core problem here is that a high-level operation, such as creating a file, deleting a file, writing a file, is going to involve multiple operations, which in turn, each of which change some data on the storage device.
+And this happens because, typically, the way file systems are set up, doing these operations does not require us to write a single block on the disk.
+Remember, when you're talking about these disk devices, flash drives, hard disk drives, etc., you can write a full block at a time.
+And if the block is written, every bit of the block is written.
+If the block isn't written, none of the bits of the block are written.
+That's the guarantee you get, pretty much, from the hardware.
+But what you don't get is a guarantee that says if you write three blocks, one, two, three, all three of them will be written, or none of them will be written.
+You don't get any guarantee about that at all.
+Okay, so what happens if one of them is written and the other two aren't written?
+Perhaps not something too good from terms of consistency.
+Okay, so if we want a write, we're going to write a new block of data to a file.
+It turns out we need new space in the file.
+There wasn't enough blocks allocated to the file for a write.
+We're going to allocate a new block.
+What's that mean?
+Well, of course, we're going to have to write the new block.
+If we're using something like the FAST file system or the SYSTEM5 file system, we're also going to have to write a pointer, either in the inode or perhaps in an indirect block, one of the two.
+It could get a little more complicated, but let's say it's one of those.
+And then also, of course, where did we get this block that we're putting the new data into?
+We got it from the free list.
+Once we've used this block that used to be on the free list to write our new data, it better not be on the free list anymore.
+The free list is another metadata structure that we're keeping out there on the disk.
+So we better write to the portion of the metadata data structure that represents the free list, saying this block isn't free anymore.
+It's been allocated.
+Okay, that's three writes.
+Each write is guaranteed to either occur or not occur.
+Three writes in a row are not guaranteed to either occur or not occur.
+So what's going to happen?
+Well, here's a bad scenario.
+Let's say that we're going to say, do exactly what I talked about.
+File A is going to be extended.
+It's going to have new data put in file A.
+So an application said, write file A.
+And it turned out the file system code looked at that and said, okay, I need to allocate a new data block to file A to put the new data into.
+So what do I do?
+The file system goes to the file A.
+The file system goes to the in-core version of the free list, the one that's in main memory, and it looks through there and it chooses a block.
+Let's say block X to hold the new data.
+Then I'm going to have to tell file A's in-note.
+I'll have to write into file A's in-note.
+That now, let's say your 10th pointer should point to X.
+So I'll put X in there.
+And then, of course, also I'm going to have to write to the free list and say X isn't free anymore.
+Now, we discussed in the previous class how we're going to get good performance out of writing in file systems.
+We're going to defer rights.
+Some or all of these rights may get deferred.
+And they may get deferred in ways that we aren't in control of in the file system itself.
+At least we aren't keeping track of what should be done.
+We're keeping track of what should be written.
+We know that.
+But we don't necessarily know about the connections between things, and we aren't necessarily enforcing those connections, even if we do know.
+We don't necessarily, in some cases, even have the ability to enforce that.
+We have this queue of rights that we've sent out to the device saying, write this, write this, write this, write this.
+And we may have sent them out faster than the device can actually write things.
+So then what the device is going to do is actually what it should do.
+It's going to maintain a queue in the hardware of the device saying, I need to write one, two, three, four, five things.
+And as it is able to do so, the speed it can work at, it writes one of them, then it writes another one, then it writes another one, then another one, another one.
+And depending on hardware issues, if we send out writes one, two, three, four, five, maybe it'll write first one, then two, then three, then four, then five.
+But it might also say, well, you know, some of these are going to be real slow, like I have to do an erase cycle for one of them.
+So let's do five, three, two, four, one in that order.
+And that'll be a lot faster overall.
+Well, it can do that.
+And it won't necessarily tell you it's going to do that.
+It will tell you when each of the writes occurred.
+But it won't necessarily do the writes in the order you specified.
+OK, so what could happen here?
+Let's say that what happened here in this particular scenario where we had to do the three writes.
+We had to write into block X.
+We had to update the inode to indicate the block X as part of the file.
+And we had to update the free list.
+We did the first two.
+We didn't update the free list.
+So two things have happened.
+The new block's data is sitting out there on the disk.
+That's good.
+The inode points to that new block of data that's sitting out there on disk.
+Also good.
+The free list, however, indicates that that block is still free because we crashed before we got that third write performed.
+All right, so we reboot.
+What's going to happen?
+If we don't do anything, if we just reboot, then whatever is going to be out there on that flash drive is what's out there on the flash drive.
+That's the state of our file system.
+We've rebooted.
+We've started running things.
+The process is running.
+And it says, this is totally unrelated to that other process.
+It says, OK, I need to write a file.
+I'm going to write to file B, not related to file A at all.
+No links, nothing like that.
+It's a totally different file.
+Totally different type of data.
+Belonging to a different user, perhaps.
+Great.
+He wants to write file B.
+He's allowed to write file B.
+Why shouldn't he write file B?
+It turns out that this write to file B requires that he get a new block of data, a new block to store the data that he wants to write into file B.
+What's he do?
+Goes to the free list and says, let me find a free block.
+What block shall I choose?
+What happens if he chooses X?
+Now, he can choose X because, remember, at the point at which the crash had occurred, the on-disk version of the free list had not been updated to indicate block X was in use.
+When we reboot, we're going to read the free list or part of the free list into memory.
+And we're going to then say, OK, fine.
+Let's say the part of the free list we read into memory includes X's entry in the free list, saying it's free.
+So now we have a problem because now block X belongs to file A, but it also belongs to file B.
+What we mean by that is that the inode for file A says, OK, this is part of my file.
+X is part of my file.
+The inode for file B says X is part of my file.
+In related files, they aren't links to each other, not even the same kind of file necessarily.
+But now they're both trying to share the same data block.
+This will not work out well because you can only store one set of data in a data block, either restoring file A's or restoring file B's.
+And it could go back and forth.
+So who knows what the hell is going to happen here?
+We have two different files that are sharing the same block.
+At least one of the files will get corrupted, maybe both of them.
+So this is not what an application expects.
+The application basically says, write this data.
+So you say, I'm going to write 700 bytes.
+You don't even know that that's going to require you to write into a new block.
+You don't know that.
+You don't keep track of that.
+You don't care.
+So sooner or later, the system call is going to return and say, you wrote your 700 bytes.
+Now, because we are trying to get good performance by using this caching mechanism where we defer rights, we probably are going to tell the application your 700 bytes have been written before we've done all three of those writes.
+Maybe we haven't actually finished any of those writes.
+Remember, each one is going to be slow.
+So you were told your data was written.
+And in fact, if there are no crashes, sooner or later, your data will be written.
+Everything will be fine.
+But what if there's a crash?
+If there's a crash, then maybe some of those updates didn't get written, like the free list was not updated.
+All right.
+So what could we do?
+Well, of course, we could say we can't afford to be doing this kind of deferred write.
+We need to get these writes done aggressively.
+We need to get them done as quickly as possible.
+And we need to block the application that requested the write until the write has actually gotten out in all its implications, all three of the blocks written onto the flash drive.
+Before we tell the guy who asked for the write, your 700 bytes have been written.
+This is going to slow applications down quite a bit because now they have to wait for a write.
+But not just one write.
+They have to wait for three writes.
+And it's not necessarily going to be the case that those happen as quickly as the disk could do them.
+The disk may have other things to do.
+So you could have a very, very long delay on every single write that your applications do.
+What are you gaining by that long delay?
+If the applications, if the process, if the system does not crash, you gain nothing.
+No gain whatsoever.
+If the system does crash, well, at least you get consistency.
+But you are paying a big cost, a big delay cost here for that.
+Now crashes, we hope, are rare.
+We really don't like our operating system to crash.
+We don't like our hardware to crash either.
+So typically, you're going to do probably millions of writes before you hit a single crash.
+You're going to delay every one of those millions of writes in order to avoid the situation of a few bad things happening when there's one crash.
+If there's a crash at all.
+I've run laptop computers for years without the laptop computer ever crashing.
+Okay.
+So are we going to have to accept a really, really big performance penalty in order to get safety?
+So what we do, of course, what we really do is the deferred writes we talked about before.
+We buffer the writes.
+We keep the write data, those 700 bytes you wanted to write, in a block in the block I.O. cache.
+It's in the RAM.
+And we have indications that this particular block of data that's sitting in this particular buffer in the buffer cache must be written to disk eventually.
+And here's where you need to write it.
+So we keep track of that.
+And at some point later, we write to the persistent memory.
+Now, we may try to do that as fast as the device could manage to do it.
+But if the device has other things to do, or if we have other things to do at the operating system level, that may be deferred.
+We may, for example, say, well, you just put 700 bytes into a 4K block.
+You might put another 500 bytes in there.
+You might keep filling up this block.
+We want to minimize the number of writes to the disk.
+Therefore, let's defer the write, even though, in principle, we could do it.
+So it could be deferred for quite a while.
+So this is going to give you benefits, many performance benefits.
+But on the other hand, it is going to put you at risk.
+There's a risk that because you told a lie, the write was not complete.
+You told the application it was, whereas you didn't write all, and perhaps you didn't write any of the bytes that you needed to write.
+Since you've lied to the application, it thinks that its data is out there safely on the disk, but it isn't.
+So this is not good.
+It's not good if there's a crash.
+Now, if you write your operating system and file systems correctly, without the crash, if there's no crash, there will be no problem.
+You'll know that if I want to look at this particular piece of this file, and it's in the buffer I.O. cache, that's where I look.
+I don't ask to read it off of the disk again.
+I look in the buffer I.O. cache.
+What's in the buffer I.O. cache?
+The 700 bytes you said you wanted to write.
+So you see the 700 bytes you wrote.
+That's fine.
+Only when there is a crash is there a problem.
+Now, if one user-level write requires multiple disk writes, as it did in that example we saw before, you're going to have to write the free list.
+You're going to have to write the data.
+You're going to have to write the I node.
+Then, the chances of things going wrong get larger.
+What can we do about that?
+Well, one thing we can do is improve robustness by saying, if we have these multiple writes, like the case with the three writes I've talked about, maybe there's an order, some order of doing them that's better than another order of doing them.
+If we order them carefully, then we can reduce the damage.
+So, typically, this says, if you're going to write data and write a pointer to the data, like you're going to write into the data block and you're going to write to the I node saying, here's the pointer to the data block.
+Write the data block first.
+Once that's finished, write the pointer to the I node.
+The advantage that you get here is that if it turns out that there's a crash after you did the first of these two writes, what happened?
+Well, you wrote a bunch of data into a data block that isn't connected to anything because you didn't write the I nodes.
+You didn't connect it up.
+It was a wasted write.
+Not a big deal, though.
+On the other hand, if you did it in the other order, if you did it in the other order and you wrote the I node first and you wrote the data block second, well, the data block has something in it at the moment.
+If it's a hard disk drive, it may be whatever was in it the last time it was used by a file.
+If it's a flash drive, it's probably zeros.
+In either case, if you wrote the I node first, then you told the guy your write is complete, but actually the data that's out there associated with that file isn't the right data at all.
+That's not good.
+Another thing, another ordering issue that turns out to be beneficial is if you're going to do something that involves both deallocations and allocations, deallocate first, allocate second.
+So this means, for example, if you are removing a file and you're going to free up its data blocks, then you get rid of those as quickly as you can.
+And then you are going to write the free list to say those data blocks have been gotten rid of.
+So you'll change the I node pointer to say we no longer point to that data block.
+Then later, when you have time, when you get around to it, you update the free list to say, oh, yeah, that data block is now free.
+So if we're talking about data block X in a particular file, if we're going to remove the file, then we would change the I, first thing we do is we write the I node to say you no longer have X.
+That, you don't point to that, you have a null pointer there.
+Now, at this point, X is free, but we have not updated the free list on disk to indicate that it's free.
+Later, we will then go back and update the free list to say it's free.
+Now, if all those writes occur, great, everything's fine.
+What happens if the second write, the ones of the free list, doesn't occur?
+We have a free block, but we do not know that we have a free block.
+So this, in principle, could be solved by garbage collection.
+We could run around through all of our I nodes and say, let's find all of the blocks that are allocated to anybody.
+And let's take a look at what we have in the free list, saying what's allocated and what isn't allocated.
+If there's something on the free list that says it's allocated, but we can't find any I node that actually has that block allocated, we can just put the block onto the free list.
+So, this is going to be beneficial because we did in the other direction.
+If first we wrote the free list and then we wrote the I node, block X is sitting in the I node.
+We're going to get rid of block X in the I node.
+Maybe we're not getting rid of the whole file.
+We're just getting rid of block X.
+If we first write the free list and say block X is free, at the moment we wrote it, that isn't quite true because the file still contains the pointer to block X.
+So if we get a crash, what's going to happen?
+Well, the file still thinks it has block X.
+It's still in the I node pointer saying this is one of your blocks.
+The free list says this is free.
+The free list will do what we saw in the previous example.
+Sooner or later, somebody will need a block of data.
+They'll get X.
+Now we have two files pointing to X.
+That's bad.
+Okay.
+So that's a possibility.
+That's one thing we can do to improve reliability of our file systems.
+Is it practical?
+Well, generally speaking, it's going to reduce I.O. performance in many cases.
+So if we're doing this thing where you wrote 12 bytes into a block and then you write another 50 bytes into the block and you write another 700 bytes into the block, you may not be able to defer all of those writes.
+You may say, I'm going to have to do them one by one by one, which will mean more writes, more delays for your application.
+It may not always be possible because devices have gotten quite clever in many cases.
+There's hardware built into the device that tries to optimize its performance.
+So when you send it that list of updates, one, two, three, four, five, the device may say, I know better.
+Five, four, three, two, one is the order they'll happen in.
+And if there's a crash in the middle, maybe five and four occurred and three and two didn't.
+So the order you thought you were getting isn't the order you actually get.
+Further, there are still problems here.
+Even if you order things in the way that we've talked about, there are still unfortunate things that have happened.
+Free blocks have disappeared from the system.
+You've had inconsistencies, not fatal inconsistencies, but inconsistencies.
+You basically have said, I'll get rid of the major problems, but I'm stuck with the minor ones.
+Okay, so given that you've done this, one of the minor problems that you had was you had these file blocks that were free, but the free list doesn't show them free.
+Similar thing can happen with the inodes.
+The inode is free, but the free inode list does not show that they're free.
+And there are other things that can happen with directory entries, for example.
+Okay, so what do we do?
+Well, the old solution, this is the solution that we used when I was a grad student back in the 1980s, a long time ago, is we said, okay, if there's a crash, crash is a little more common then.
+If there's a crash, when you reboot, one of the things you've got to do is check the consistency of your file system.
+We've ordered the rights as best we can to try to minimize the consistency problems, but we can run into these consistency issues because the crash occurred before some of the rights to the device happened.
+Okay, what do we do?
+Well, let's go to the device and let's start looking through the device and try to find the inconsistencies.
+I referred to one of the approaches we could use before, where you basically said, okay, I'm freeing up block X from this file.
+That requires two rights.
+One, I have to change the inode of the file to indicate it's not block X anymore.
+Two, I have to update the free list to say, hey, you've got block X.
+And we said the right order to do that for safety purposes is first update the file's pointer, the inode pointer, so you no longer know about block X.
+I don't have block X as part of my file anymore.
+And second, when you get around to it, update the free list.
+Crash between the first and the second.
+So block X is no longer part of the file, but on the other hand, block X isn't on the free list.
+As I indicated at that point, you could go to every single inode in the system.
+You could look at all the inodes, follow all the pointers, the direct pointers, the indirect pointers, doubly, triply, indirect pointers, follow all of them, and build a list of every single block that is allocated to every single file.
+Go to the free list, compare what the free list says to what you say in this list of what's allocated.
+If there is an inconsistency where there's something where the free list says, oh, that's been allocated to somebody, but you don't have any files that have actually allocated that.
+Okay, fine.
+One of these problems occurred where you had a crash and something didn't get written.
+Put it on the free list.
+Safe, because there's no other file that says it's got it.
+You can do the same thing with various other kinds of inconsistencies.
+And we used to do that all the time.
+Now, when we did that, I was developing operating systems at the time as part of my PhD dissertation.
+And when you're developing operating systems, occasionally things crash.
+More than occasionally, frequently things crash.
+So, every time that something crashed, we'd reboot.
+And when we rebooted, we ran a process called FSCK, file system check, was what it stood for in Unix type systems.
+And we'd wait.
+And we'd wait, and we'd wait, and we'd wait, and we'd wait, while the code in file system check did these consistency checks and fixed up all of the problems based on the crash.
+It worked.
+However, there was a long delay back then in the 1980s for FSCK to run, and we couldn't safely do operations on our system until FSCK had run.
+Okay.
+Could we do the same thing today?
+Well, let's say we have a 2-terabyte disk drive.
+We could have a 2-terabyte disk drive.
+You can go out and buy those things.
+How fast do they work?
+They can transfer data to and from the disk drive fairly quickly, 100 megabits per second.
+How long does it take to read the entire 2-terabyte disk drive if you can read 100 megabytes per second?
+Five and a half hours.
+That's just the time to read it.
+That doesn't say anything about fixing problems, which would require some writes.
+It doesn't say anything about the analysis process.
+How much time would you spend doing computation, building up your data structures, comparing your data structures, finding your problems?
+Nobody wants to wait five and a half hours or longer in order to have their system reboot.
+So we don't do that anymore.
+We need a better solution.
+And people over the years have developed a better solution.
+One they developed quite a while ago was called journaling.
+Journaling was based on how databases solve these problems.
+Databases had the same problem.
+And they had it a lot earlier.
+And they had it a lot stronger because they had all sorts of consistency issues between different elements that they were storing on disk.
+And in particular, they were very, very worried about having transactions, sets of operations being performed on different records that interfered with each other.
+So the way they solved that problem was they said, what we're going to do effectively is say, let's build up a journal.
+Let's say this transaction wants to do A, B, and C.
+That transaction wants to do C, D, and F.
+Now, because there's an overlap between those two transactions, let's keep track of this one should do A, B, C.
+That one should do C, D, F.
+And do one of them first, all of it.
+And then we'll do the other one.
+That way, we can be sure that we don't have inconsistencies between what we're doing.
+We're not mixing up things in the middle.
+And this works as well when you're trying to avoid the problems that we've seen due to crashes.
+So the way we would make it work in a file system is we'd say, all right, when you want to do any kind of update that possibly requires writes of one or more blocks of data on the device, before you do it, first, write those into a special area on the device that's called a journal.
+Put a start record in.
+Say, here are things I need to do.
+Write all of those things you need to do into the journal.
+Put an end record in.
+Okay.
+Now, we can do this into contiguous memory.
+We can just put it in one place in the disk, a small place, relatively speaking, just a fraction of the disk.
+And we can just put it in there.
+Now, if we have a device that's suitable for this purpose, we could even say we build into that device a little bit of NV RAM.
+NV is non-volatile RAM.
+As long as you have non-volatile RAM, loss of power will not cause you to lose the data.
+So it'll be sitting there in this journal in the non-volatile RAM.
+You might ask, well, why don't you have a full device made of non-volatile RAM?
+You don't have a full device made of non-volatile RAM because this stuff is expensive.
+But anyway, maybe you have a little bit.
+Just for this purpose, you just keep the journal in there.
+If you don't keep the journal in there, then fine.
+Keep it on the device itself.
+So anytime that you do any write to the file system, before you write to the actual file system, you say, here's what I intend to do.
+And you write that in the journal.
+Then you do what you're actually intending to do.
+Once you finish doing everything you intended to do, you get rid of the journal entry.
+What's going to happen if there's a crash?
+Well, if there's a crash before you finish writing the journal entry, nothing happened.
+No changes have been made to the file system itself.
+And moreover, even in the journal, you can say, here's a start.
+Here are two things you should do, but there's no end.
+That means we didn't get all the information about this update.
+Forget about it.
+That update didn't occur.
+On the other hand, what happens if you wrote to the journal, I'm starting an operation.
+I need to do operations one, two, and three.
+I need to write blocks one, two, and three.
+And you put the end entry in there.
+But before blocks one, two, and three actually got written, you had a crash.
+Well, when you come back up, part of coming back up consults the journal.
+This is a little bit like doing the FSCK.
+But now we're not looking at the whole disk.
+We're just looking at the journal, tiny fraction of the disk.
+You look at the journal and say, oh, here's the start of something we're supposed to do.
+We were supposed to do one.
+We were supposed to do two.
+We were supposed to do three.
+Here's an endpoint.
+So those are the only three things that are related to each other.
+Let's go and check to see if one, two, and three happened.
+Go into the device.
+See, yes, one happened.
+Two happened.
+Oh, three didn't happen.
+Fine.
+We have an entry in the journal saying, here's what three is.
+Make three happen.
+Once we've done that, one, two, and three happened.
+So now we're OK.
+All right.
+And we can schedule this during the reboot process any way we want.
+So as long as the journal isn't very big, then this is fine.
+But won't the journal keep getting bigger and bigger and bigger?
+Well, what you're going to be doing under normal operation, when there are no crashes, is you're going to write the entry to the journal.
+Start operation.
+You're going to put in there what you need to do.
+One, two, three.
+You're going to put in there end.
+When you have time, you're going to start doing the things in the journal.
+You don't have to do them even in order necessarily.
+You just have to say, OK, I'll do two.
+I'll do one.
+I'll do three.
+That was the right order.
+That's the fastest thing to do.
+Fine.
+And then, having done those three things, you'll note, oh, I've done all three things that are part of this journal entry.
+Delete the journal entry.
+Get rid of it.
+We don't need it anymore.
+We've already done what we need to do.
+And if there's crash, well, that's fine.
+Worst that happens is you didn't get rid of the journal entry, but you've done all the work.
+No problem.
+On reboot, you look at the journal entry.
+One, two, three.
+Look out on the disk.
+Oh, look.
+Here's one.
+Here's two.
+Here's three.
+Everything happened.
+Get rid of the journal entry.
+So the journal will never get very, very large under normal operation.
+So let's take a look at that in a bit more detail.
+So let's say here's the storage device.
+And we'll set aside some part of the storage device for our journal space.
+And the rest of it is data blocks, just blocks of data out there on the storage device.
+And we're going to write to slash a slash foo.
+An existing file that is already out there.
+Let's say it's two pages of data.
+Okay.
+So there's these two pages of data.
+Those are the two new data values we want to put into particular places in slash a slash foo.
+Let's say we're overwriting.
+We're not creating.
+We're not extending the file.
+We're overwriting an existing file.
+We're overwriting two pages worth of data.
+So there's an old version of those pages out there.
+Those are where the old versions are living.
+What do we do?
+First, we put a start record in the journal.
+So out on that storage device, we write the start record.
+And then we put metadata that says, here's where the other two blocks should go.
+Here's where the blue block should go.
+Then we write two pages to the journal.
+So we put the two pages into the journal.
+And then we put an end record in the journal.
+And we say, here's the head of the journal.
+So for the next write, if you want to write something next, put it here.
+This is going to be a circular journal.
+So we're going to, when we fill up to the end of the journal, we'll go back to the beginning.
+Okay.
+And then at the point at which we have finished putting things into the journal, we just tell whatever process that wanted to do this write, finished.
+Now, we can do these things as a sequential write.
+So we can use DMA for this purpose, for example.
+Which means it'll be faster than if we did three or four individual writes.
+Sooner or later, the operating system is not busy.
+And it says, oh, I can do some things.
+Let's clean up the journal.
+So then it would get rid of the old version of the data pages and write the new version in.
+Now, if this is a hard, rotating hard disk drive, it could just write them in place.
+And then it gets rid of the log entry because it's done.
+Now, this means that any operation we want to perform is safe as soon as the journal has persisted.
+Meaning we've written the journal, not necessarily the final result, but the journal out to the storage device.
+So we'll block the caller, whoever it was who wanted to do the write, until this happens.
+Small writes are very inefficient if we do this.
+You know, if you're writing 50,000 bytes, then, you know, one big 50,000 write several blocks, perhaps, you know, 12 blocks or something like that.
+It's not that bad in terms of your delay.
+But if you're writing five bytes at a time and you do this every single time, it gets to be inefficient.
+So one thing we can do is we can say, let's accumulate these writes in a buffer in RAM and just keep accumulating and accumulating and accumulating five bytes at a time, five more bytes, five more bytes, five more bytes.
+And sooner or later, we filled up a block.
+Then we do the journal entry and we say, write the journal entry.
+And if it turns out that we never fill it up, we close the file or it's just a big long time, minutes since we did the last write, maybe at that point we say, it's not full, but write it out to the journal anyway.
+And we write it out to the journal.
+This code basically does that kind of thing.
+Okay.
+That would then say, okay, we can, after you wrote five bytes, tell your process, go ahead.
+Now, we haven't actually persisted that five bytes.
+We won't have persistence until we've written the journal entry.
+But we're going to get better performance.
+We're not going to run into the inconsistency problems that we might see if we did partial writes.
+Okay.
+Now, what happens if there's a crash?
+Well, a journal is a circular buffer and it is not anywhere near as big as the device, quite small.
+So what we're going to do is after you've finished persisting a journal entry, assuming there's been no crash, you can reuse that space.
+It's a circular buffer.
+You use it over and over and over again.
+You have to, of course, know which ones are fresh and which ones aren't.
+So you have timestamps for that purpose and you save a little bit of extra data in the journal to know this is when things are fresh.
+Okay.
+But having done that, what do we do if there's a crash?
+Well, if there's a crash, we don't know when we reboot what happened, we, the operating system, the file system.
+We don't know what happened before the crash, except that we have a journal that said, here are things that should have happened.
+So we go to the journal and we review the whole journal.
+And it isn't very big.
+So we're not going to run into that problem of taking five and a half hours that we did when we were doing the FSCK process.
+So we figure out which ops have completed.
+Say, fine, they've completed.
+And then we perform any rights that have not completed.
+If we're not sure, just go ahead and do the right anyway.
+It won't hurt to do it again.
+Now, this is perfectly fine because these rights have a property that is known as idempotency.
+They are idempotent rights.
+What is idempotency?
+A term you may not have heard before.
+Idempotency refers to an operation.
+An operation is idempotent if you can perform the operation once, twice, three times, five times, five million times, and the result is always the same.
+X equal five is idempotent.
+Set X to five once, it's five.
+Set X to five a second time, it's five.
+Set X to five a third time, still five.
+Set X to five five million times, and it's still five.
+This means you don't have to be very careful about being absolutely sure whether you did that operation or not.
+Worst comes to worst, you do it again.
+Not all operations are idempotent.
+X equal X plus one is not idempotent.
+If X started at zero and you said X equal X plus one once, X becomes one.
+If you say it a second time, X becomes two.
+If you say it a third time, X becomes three, and so on.
+So it matters how often you do that.
+We will see other cases when we start talking about distributed systems where idempotency becomes a very important property.
+The beneficial thing about idempotent operations is you don't have to care quite so much about whether you did or did not do this operation already.
+If there's any doubt whatsoever, do it again.
+The result will be the same because it's an idempotent operation.
+Okay.
+So after you've run through the whole journal and performed any writes that you either know you have to perform or aren't sure about, you can clear out the whole journal and get started.
+Why does this work out?
+Well, generally speaking, writing to the journal is going to be faster than writing to arbitrary places on the device.
+This is particularly true, of course, for rotating hard disk drives because the journal can be kept in a physical location on the disk.
+So you're writing the same physical location, not moving the heads.
+But it is true for flashes as well.
+So this means that you're going to be able to use DMA, for example, to move the data.
+That's probably going to speed things up for you.
+All writes to the journal are always sequential.
+Now, the other writes aren't.
+When you say I'm taking something that's in the journal and putting it in its final place, that's not sequential.
+But the writes to the journal are sequential.
+And you can do those other writes when it's convenient, when you need to.
+You've already ensured that your process that asks for the write doesn't have to block.
+Once you put it in the journal, it can go ahead and work and know that it is safe.
+The journal is write-only in ordinary operation.
+You typically don't bother reading the journal because unless you've crashed, you don't care what's in the journal.
+You are going to keep track of what you need to do for the other device writes to write what's in the journal to its final place.
+But you can keep that information in RAM.
+You don't have to go back to the journal to see what you should do.
+Okay.
+So scanning, the only time you're going to look at the journal for read is when you have rebooted.
+Then you're going to check to see that the relatively few things that are in the journal will be completed.
+Either they were completed before you crashed or they're going to be completed by you now after you're rebooting.
+You can read it sequentially.
+You can read the whole journal into memory.
+It's not that big.
+And you can then say, fine, that was one big DMA.
+And now I can start working with what's in memory.
+Okay.
+Now, all of this is going to be done with DMA, of course.
+Now, one thing you can do that is a little bit different.
+People thought about this after they'd done the journaling for a bit.
+And they said, well, maybe under some circumstances, I don't have to put everything in the journal.
+Maybe I only have to put metadata in the journal.
+Now, metadata is small stuff.
+It's, you know, an inode or it's a piece of a free list, something like that.
+It's not very big.
+On the other hand, it's likely to be kind of random.
+So on free list, you know, you pull something from here and something from there and something from there as you do different operations to allocate and deallocate blocks.
+So that's a bit on the random side, which isn't so good for sequential purposes, except if you just write it into the journal, that's a sequential write.
+On the other hand, also, metadata is really kind of important for integrity.
+The problems that we've seen are less problems about, gee, did I write the data in this file and more problems about, did I get the metadata correct or have I screwed up something by having the metadata updates not occurring?
+Okay, so kind of important to journal metadata.
+Why not journal the data too?
+Well, the data can be very large.
+You said, I'm going to write 50,000 bytes.
+Fairly large amount of data.
+That's going to take up a lot of space in the journal.
+It's also less order sensitive.
+If you write the data before you write the metadata, so before you put things in the journal, then it's okay.
+Because the worst that happens is you wrote some data that you don't need out in places where you're not going to use it.
+So basically, you're going to allocate new space for the data and you're going to put that in the metadata journal and then you're going to journal the metadata updates.
+So here's how it would work.
+So again, we have the journal here.
+We have the data pages sharing storage device.
+And we're going to write the AFU.
+And that's two pages of data.
+And it's going to replace two existing pages right there.
+We put a start record in the journal.
+Right there at the head of the journal.
+We write the two pages to the new location.
+We're going to put them in a new location.
+We're not going to put them in the same location that they were in before.
+The reason for that is because we want to make sure that there's always a consistent version of that file out there.
+Either the old, the red one, or the new, the blue one.
+We don't want half red, half blue.
+We don't want purple anywhere.
+So we're going to make sure that either we have metadata indicating the red is the version of this file or we have metadata indicating the blue is the version of this file.
+How are we going to be sure of that?
+The metadata will be kept in the journal.
+The data is sitting out there on the disk.
+Not temporarily.
+It's in two parts.
+Put an end record in the journal.
+And then we tell the writing process, your writes have been done.
+When we have spare time, we're going to then update the file's metadata that shows here's where the pages really are.
+What if something happens in the meantime?
+Well, no crashes, let's say.
+Somebody says, I want to look at the data of this file.
+Well, they're going to use the memory inode, not going out to the disk.
+So they are going to get the blue stuff.
+What happens if there's a crash?
+If there's a crash and the crash occurs after these things have happened, the journal has been written.
+Then when we reboot, we'll go through the journal and say, oh, this file got written.
+And the new metadata indicates that the blue pages are the right pages for this file, not the red pages.
+Okay.
+And sooner or later, we can update the free lists and we can reuse the red blocks and so on.
+So it would end up looking like that.
+Okay.
+Now, after doing this for a while, some brilliant computer scientists had the idea of saying, why do we want to have data pages that are separate from the journal?
+Why don't we use the whole device to be the journal?
+Why don't we say the file system is the journal?
+We're going to use the whole device to store things in a kind of journaling way.
+This was called the log structured file system.
+So what this said is we're going to do something a bit more complicated.
+It turns out to be quite a bit more complicated.
+But this will mean that we can avoid many, many problems related to reliability.
+So what this means is every time that we update an inode, every time we update data, every time we update a free list, any of that stuff, it always gets written into an area of the disk called the log.
+What area of the disk?
+The whole thing, pretty much.
+Whenever we do an update to a data page or an update to an inode or an update to a free list, it's going to be using redirect on write.
+Redirect on write says, don't overwrite the old data.
+Write it somewhere else and change the metadata, perhaps the inode, to point to the new location instead of the old location.
+We'll have in-memory caches that will keep track of where the inodes are.
+I'm not going to move around now, which didn't happen in the old system.
+Mine always lived in one place in the old system.
+And it's going to be, as I said, a bit more complicated.
+But on the other hand, it's becoming essentially a dominant architecture.
+This is something that is really being used very heavily in file systems nowadays.
+One reason is that it works real well with flash drives.
+Now, you might say, why does it work real well with flash drives?
+You remember, with flash drives, we can't overwrite data.
+So if we have an old version of a data page somewhere on the flash drive, we cannot overwrite the old page.
+Maybe erase it.
+But we can't overwrite it directly.
+But if we have a completely blank area of previously erased blocks, we can write the new version of the data in that blank area.
+We'll have to do some other magic, as we will see in a moment.
+We have to do that.
+It turns out to be good for things called key value stores as well, which are important for certain applications.
+Now, there are issues here if we're going to do this.
+One issue is that when we get a crash, we're going to have to recover.
+We're going to have to figure out where everything is because it could be anywhere.
+It's scattered all through the log.
+The other issue is that it's scattered all through the log.
+And in particular, when we do redirect on write, we have the red pages over here.
+We redirected it so the blue pages are here.
+But the red pages are still sitting over there unused.
+We're going to have to recognize that, oh, those red pages are no longer live.
+They are no longer in use.
+We're going to have to reclaim them.
+We have to remember or figure out that they are free.
+And we're going to have to reuse them.
+And if this is a flash drive, this could be complicated, as we will see.
+So we'll have to do some garbage collection.
+How's it going to work?
+Well, inodes, indicating this is where bits of a file are, will point to the most current version of the data segments, the blocks of a file.
+If you did a sequential write, you wrote two megabytes of data, starting at one place and ending at the other in the file.
+You wrote a whole two megabyte sequentially.
+You said, write two megabytes.
+Here's my buffer.
+Then probably your entire two megabytes is going to be sitting contiguously in the log.
+If, on the other hand, you wrote five bytes, and then later you wrote another five bytes, and then later you wrote another five bytes, those could be scattered throughout the log.
+So files, in some circumstances, are all going to be in the same place in the log.
+In other cases, bits and pieces of them are going to be scattered all over throughout the log.
+What about the inodes?
+Well, if you're doing redirect on write, that means that the inode used to point to the red pages, now it has to point to the blue pages.
+That means you're going to have to overwrite the inode.
+But the way we do overwriting, we don't do overwriting.
+We do redirect on write.
+So we redirect the inode on write by saying we write a new inode, an inode that instead of pointing to the red pages, points to the blue pages.
+They're going to be in the log as well.
+Now, that then leads to the question of saying, okay, the way we used to find inodes is we said this file, foo, points to inode 73.
+Inode 73 lives in one place on that storage device all the time.
+We can still say it's inode 73, but now inode 73 could be anywhere.
+It's somewhere in the log.
+Where is it?
+Where is the most recent version of inode 73?
+If we keep updating data in the file, we're certainly going to keep updating the inode, which means we have multiple versions of the inode throughout the log for inode 73.
+Which one's right?
+We're going to have to have a way of doing that, figuring that out.
+We'll have an index.
+We'll have an index that says this is the pointer of the inode 73.
+Well, the index used to point to say inode 73 is at this red place in the log.
+Now we've changed it to blue.
+Now inode 73 is in the blue place in the log.
+Okay, that means the index is going to have to change.
+How are we going to save the index?
+Well, we'll put it in the log.
+We put everything in the log.
+Okay, so we're going to put the index into the log.
+This gets somewhat complicated and there are some bootstrapping issues.
+How do you start things off and how do you end things up?
+But effectively, now the recovery is fairly simple.
+You find the latest index saying here's where the inodes are.
+That tells you where all your inodes are.
+Then you replay all log updates that came after the index.
+Now redirect on write is, as it turns out, necessary for flash drives anyway.
+You got to do it.
+Sometimes we do this by doing remapping in the hardware of the flash drive.
+So the flash drive claims that it's got, you know, bytes, blocks zero through 24 million or whatever it is.
+But actually it's shuffling around which pieces of the flash drives store each of those.
+That can be done.
+That's discussed in the book.
+Effectively, when you write something to a flash drive until you do the erase, it's not changing.
+It's never going to change.
+So that works out pretty well for what we're talking about here.
+We're not overwriting anything anyway.
+So that's going to work out pretty well.
+Now, another thing that is nice about this approach is we can now sort of go back in time.
+Because if we have not done garbage collection yet, we have the blue inode representing the most recent version with the blue blocks of the file.
+But if we haven't yet overwritten the red inode or the red blocks of the file, then if we want to say, well, what was it before we did those blue updates?
+We just have to find the red one, follow its pointers, and there are the red versions of the file, the red blocks of data in the file.
+So this means we can do snapshots if we want to.
+And, of course, that has to be interacting with the garbage collection and so forth.
+Now, the price we're paying here is serious management costs and garbage collection costs.
+Garbage collection is something that's going to have to happen when we aren't busy.
+Fortunately, on most computers, there are significant periods of time when we aren't busy.
+Now, you might say, well, that may be true on your laptop.
+You know, you're asleep at certain times.
+You're probably not doing much of anything on your laptop while you're asleep.
+But what about those server machines that are, you know, chunking away 24-7?
+What we regard as 24-7 operations for a server computer can often be practically idling.
+That computer can be, from its perspective, doing practically nothing.
+I mean, it can do a billion operations per second.
+There's a lot of time to do anything it needs to do.
+And there may be periods of multiple seconds where it's doing nothing.
+What's it going to do with its billion operations during those multiple seconds?
+Sit around in a loop doing nothing?
+Why doesn't it do garbage collection or something useful instead?
+So, with modern speeds of computers, this isn't necessarily an unreasonable thing to do.
+Okay, so let's take a look at how it would work.
+Now, here we have our device over on the right.
+You remember on the log struct, on the journaling file system, we had the journal and we had the data blocks.
+The journal is no longer here anymore.
+Everything is a log.
+They're all data blocks.
+All data blocks are part of the log.
+At any given moment, there is a head of the log.
+This is the next place we're going to write anything we need to write.
+So, let's say we want to write to AFU.
+As before, there are two pages of data that we're going to write to AFU.
+They're going to overwrite two old pages of data.
+New pages are blue.
+Old pages are red.
+So, there are the old pages sitting somewhere in the log.
+Everything's in the log, so the old pages are in the log.
+So, we write the new pages and we write them to the head of the log.
+Great.
+Then we move the log pointer and say, here's the next thing to write.
+Now, the question, of course, is somebody says, I'm going to open and read AFU.
+How do we find the blocks of data that represent the current version of AFU?
+Well, if it's in memory, if we haven't had a crash, we probably have the inode for AFU in memory, and it may know that these are where the locations are.
+What if we shut the machine down?
+It wasn't necessarily a crash.
+We just shut the machine down.
+We started it up again.
+How are we going to find AFU?
+Well, the old inode points to the old version of the pages.
+So, here's the old inode.
+The old inode points to the old version of the pages.
+Where's the inode?
+It's somewhere in the log.
+Everything's somewhere in the log.
+So, what do we do?
+We create a new inode.
+So, we put the new inode where?
+Well, the new inode, of course, will point to the new pages.
+Where do we put it?
+We put it in the log.
+So, bang, it goes in the log right there, pointing to the new pages.
+And we move the head of the pointer of the log.
+Okay.
+Great.
+How do we find that inode?
+We used to find the inode in the old location that pointed to the red pages.
+Now, we have an inode, a new version of the inode.
+It points to the blue pages.
+How do we find it?
+We want to open AFU.
+How do we find that?
+Well, slash a, if we did nothing, is going to point to the old inode, which we don't want to do.
+Now, traditionally, this would say slash a slash foo is inode 83, or whatever it is.
+And inode 83 would live in one particular place on the storage device.
+And that's how we would find the inode.
+Here, we're not going to say that we're changing the inode number here.
+It would be, in this case, 83 before we did the writes to the blue, 83 after.
+But, the inode might be anywhere on the disk.
+So, we're going to have to have something that says, where's inode 83?
+Now, again, we can have in-memory data structures that keep track of, well, inode 83 is in this new location near the head of the log.
+But, how are we going to figure that out if we've shut the machine down and started up again?
+We'll have to find all the inodes.
+So, we're going to have an inode map.
+The inode map would be something like this.
+And it would say, where's each inode?
+For 83, it would say, okay, inode 83, it's there.
+Before we did the write, that's where inode 83 was.
+Now, inode 83 is here.
+So, the map would be changed.
+Now, of course, the map would be kept in RAM when we're working.
+So, you just consult RAM.
+You figure out where the inode is.
+If, for whatever reason, it's not in RAM, perhaps because you've just rebooted, well, what do we do?
+We're going to have to be able to find a copy of the location of the inodes.
+Well, how would we do that?
+We know where the head of the log is.
+We'll keep that in some special place where we can always figure that out.
+But how do we figure out where the inodes are?
+Well, got to persist the inode map because this is kind of important.
+There are inodes scattered all over the place.
+Where are we going to persist it?
+It's got to be kept on a persistent storage device like the flash drive.
+Where on the flash drive?
+How about in the log?
+Let's put it in the log.
+So, maybe we won't put the whole thing in the log.
+Because, after all, we've got many, many, many inodes.
+We only changed one of them here.
+So, we're going to put a piece of it.
+Maybe just the one, but more likely a block worth of the inode map will get put into the log in the appropriate place.
+What's the appropriate place?
+It's right next to the inode.
+Okay.
+Now, that's fine.
+But now we have this big inode map.
+There could be tens of thousands of inodes in this file system.
+And each of them is going to be pointed to by some piece of the inode map.
+But we've divided up the inode map into bits and pieces scattered throughout the log.
+How are we going to find the inode map pieces?
+Well, I could go through this, but it's better probably if you were to read the book, which in the LFS chapter describes how this happens.
+You should be able to think this out and say, okay, well, here's how I could do it.
+And if you can't, you can read the book and figure it out.
+And if that still doesn't make sense, then you can come and talk to me in office hours.
+Okay.
+Now, this is pretty much all I have to say about file systems and approaches to persistent data storage until we start talking about distributed systems at the end of the class.
+So, in conclusion, we've got to manage the free space that we have on these storage devices, flash drives, rotating hard disk drives, whatever it may be.
+And we also have to have some way for users, people, applications, to name the files they wish to work with.
+And then, of course, we have to translate those names that make sense to people to locations on the storage device that make sense to the file system code, the operating system.
+Performance and reliability are always going to be critical to file systems.
+And how we work under the covers, what we do hidden from the users, will matter a lot for these properties.
+Now, one thing I want you to remember is that the interface that is used to get to Unix system 5 file systems, fast file systems, journaling file systems, log structured file systems, same interface.
+The code you wrote for one of them is probably going to work just fine for any of them.
+Everything about these details of what's going on under the covers is hidden.
+Hidden below these interfaces.
+Hidden by the abstractions that are being created.
+The complexities, the cleverness is all in the code that is working at a lower level.
+Invisible to the user, invisible even to the applications.
+We simply read our files, write our files, open our files, close our files, create our files, delete our files.
+Code ensures that the proper magic happens.
+Thank you.
