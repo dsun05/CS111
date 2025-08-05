@@ -57,8 +57,6 @@ struct hash_table_v2 *hash_table_v2_create()
 					exit(ret);
 				}
 			}
-			struct list_head *list_head = &entry->list_head;
-			struct list_entry *list_entry = NULL;
 		}
 		free(hash_table);
 		exit(ret);
