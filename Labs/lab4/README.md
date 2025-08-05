@@ -26,6 +26,7 @@ I added a global lock to the `hash_table` struct which is initialized when the h
 
 ### Performance
 ```shell
+./hash-table -tester -t 8 -s 50000
 Generation: 27,273 usec
 
 Hash table base: 254,603 usec
@@ -45,7 +46,7 @@ Version 1 is slower than the base version due to multiple sources of overhead. F
 Additionally, this implementation uses a single global lock. This mutex forces threads to wait on one another even when modifying different parts of the table, eliminating any potential for parallelism by serializing all write operations. This high contention, combined with the synchronization overhead from the lock calls themselves, makes the program's performance worse than a single-threaded equivalent that has neither thread management nor locking costs.
 
 ## Second Implementation
-In the `hash_table_v2_add_entry` function, I TODO
+In the `hash_table_v2_add_entry` function, I added a lock for each hash_table_entry (for each bucket). Each write operation will at most access one bucket, and race conditions can only occur when two write conditions interfere with each other. So, the real cause of race conditions would be when 2 threads try to access and write to the same bucket. By adding a lock to each one, we prevent this from happening on a per-bucket level, while allowing other threads not writing to the same bucket to continue their work. This is both correct and highly performant. 
 
 ### Performance
 ```shell
