@@ -17,7 +17,7 @@ SLIST_HEAD(list_head, list_entry);
 
 struct hash_table_entry {
 	struct list_head list_head;
-	pthread_mutex_t lock;
+	pthread_mutex_t *lock;
 };
 
 struct hash_table_v2 {
@@ -36,7 +36,15 @@ struct hash_table_v2 *hash_table_v2_create()
 	for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) 
 	{
 		struct hash_table_entry *entry = &hash_table->entries[i];
-		if ((ret = pthread_mutex_init(&entry->lock, NULL)) != 0) 
+		entry->lock = malloc(sizeof(pthread_mutex_t));
+		
+		if(entry->lock == NULL)
+		{
+			counter = i;
+			break;
+		}
+
+		if ((ret = pthread_mutex_init(entry->lock, NULL)) != 0) 
 		{
 			counter = i;
 			break;
@@ -52,10 +60,15 @@ struct hash_table_v2 *hash_table_v2_create()
 			struct hash_table_entry *entry = &hash_table->entries[i];
 			if(i<counter)
 			{
-				if ((ret = pthread_mutex_destroy(&entry->lock)) != 0) 
+				if ((ret = pthread_mutex_destroy(entry->lock)) != 0) 
 				{
 					exit(ret);
 				}
+				free(entry->lock);
+			}
+			else if(i == counter)
+			{
+				free(entry->lock);
 			}
 		}
 		free(hash_table);
@@ -105,7 +118,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table,
 	struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
 
 	int ret;
-    if ((ret = pthread_mutex_lock(&hash_table_entry->lock)) != 0) {
+    if ((ret = pthread_mutex_lock(hash_table_entry->lock)) != 0) {
         exit(ret);
     }
 	struct list_head *list_head = &hash_table_entry->list_head;
@@ -114,7 +127,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table,
 	/* Update the value if it already exists */
 	if (list_entry != NULL) {
 		list_entry->value = value;
-		if ((ret = pthread_mutex_unlock(&hash_table_entry->lock)) != 0) {
+		if ((ret = pthread_mutex_unlock(hash_table_entry->lock)) != 0) {
             exit(ret);
         }
 		return;
@@ -125,7 +138,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table,
 	list_entry->value = value;
 	SLIST_INSERT_HEAD(list_head, list_entry, pointers);
 
-	if ((ret = pthread_mutex_unlock(&hash_table_entry->lock)) != 0) {
+	if ((ret = pthread_mutex_unlock(hash_table_entry->lock)) != 0) {
 		exit(ret);
 	}
 }
@@ -146,10 +159,11 @@ void hash_table_v2_destroy(struct hash_table_v2 *hash_table)
 		struct hash_table_entry *entry = &hash_table->entries[i];
 
 		int ret;
-		if ((ret = pthread_mutex_destroy(&entry->lock)) != 0) 
+		if ((ret = pthread_mutex_destroy(entry->lock)) != 0) 
 		{
 			exit(ret);
-		}	
+		}
+		free(entry->lock);
 
 		struct list_head *list_head = &entry->list_head;
 		struct list_entry *list_entry = NULL;
