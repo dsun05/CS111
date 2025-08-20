@@ -1,0 +1,805 @@
+﻿Today, we're going to move on to discuss the issue of synchronization in distributed systems, and in particular, the issue of consensus, which is something you didn't really worry about in our earlier discussions of synchronization when we were talking about processes and threads on a single machine. It becomes important when we were talking about distributed systems.
+So, first we'll talk about why are we having more lectures on synchronization. We talked about synchronization in a great deal of detail in earlier classes when we were still discussing single machine operating systems. Why are we going back to that topic? What makes it different? What makes it hard? And then we'll talk about, well, what do we do about it? Well, in order to think about why we are concerned about synchronization and distributed systems in a different way than we were before on a single computer, what can go wrong? And in particular, what can go wrong that really couldn't go wrong in the same way on a single computer? Okay, so here's a simple case. This is very simple in a distributed environment. We've got a server somewhere, server X. It's got some resource or a file, a database, a program that you can request service from, whatever it may be. And you have a couple of clients. Client A at one machine in one place, client B at a different machine in a different place. And of course, they are all in different places. The server, the client, and both the clients are in totally different machines. So, how do they communicate? They communicate via the internet. Every one of them has their very own connection to the internet, which means, of course, that any of them can send messages to each other. So, client B decides that she wants to use resource R. And it's a resource that requires exclusive access. So, she says, give me exclusive access to resource R. Now, she doesn't control resource R herself. Server X does. So, that probably means that she will send a message to server X making this request for exclusive access to R.
+Okay. Now, server X will say, fine, nobody else is using R. You can have exclusive access to R.
+I will lock it for you. Puts a lock on resource R, keeping track of the fact that this lock belongs to client B, who's off on a remote machine. And sends back a response saying, okay, you got your exclusive access. Client A would then say, okay, I would like to get exclusive access to resource R. Server X would say, well, you can't because I've already given it to client B. So, it would deny the access. All right.
+Now, that's fairly ordinary. That's not a problem yet. Nothing wrong with that. It's just like locking a resource in a single computer. A couple of different processes, a couple of different threads in a process are trying to get access to the resource. One of them locks it. The other one can't get it.
+That's fairly normal. But here's something that happens too often in distributed systems that is really not quite the same as in a single computer system. So, client B goes away. With luck, she's not blown up. But she is no longer available. Her machine crashes, power goes out at her facility, something like that. So, she is not running anymore. X is going to have a little issue here.
+X does not know whether client B is gone or not gone. Gone permanently or only temporarily.
+Has client B remembered that client B has the lock on resource R or has client B not remembered that?
+At any rate, the lock is still there. And until that lock is released, nobody else, including client A, will be able to use resource R because it's locked. So, if client B actually did go away, particularly permanently, then definitely we should unlock that resource because they're not coming back. And if we don't unlock the resource, we'll never be able to use the resource again. So, we should unlock it if that's the case. But if it's just the case that temporarily, you know, somebody pulled the networking plug on client B's machine and everything's fine over there. As soon as you plug it back in, it'll all be great again. Well, then what? And it may be the case, regardless of which situation we were working in, whether client B is totally gone forever or only momentarily unavailable, it may be the case that client B was doing a bunch of updates to resource R. Wanted to have all those updates occur atomically. So, kept the lock on resource R while doing the updates. Some of them may have occurred and they may in particular have propagated to server X and server X knows their updates. And some of them may not have. What then? So, if that's the case, we got a partially updated resource here. What are we going to do about that? Well, one possible answer is that, well, if B disappears for whatever reason, B is not answering, not sending any more messages, and X can't get in touch with B, fine, we release the lock. But what if this is the case? Server X goes away. Now, client B believes that client B has a lock on resource R, but resource R is hosted at server X. So, resource R is no longer there at all.
+But client B thinks she has a lock. Now, how can she know for a fact that that resource actually has gone away? The same thing that could have happened to her in the previous example could have happened to server X in this example. Server X may have temporarily gone down and will be back up again. Server X may just be slow and may not be getting around to answering client B at the speed client B thinks she should get an answer. And what if she has done part of her updates, but not all of the updates, not all of them. What if they aren't finished? What about the state of R? Does she even know the state of R? Did she send all of those updates to X? Did they all, all of the ones she sent, get performed at X? Or maybe some of them didn't get performed because X didn't get around to it before X crashed. Who knows?
+So one possible answer, of course, is if X disappears and B can't contact X, then you can assume, or B could assume, the lock has been released.
+I will assume the lock has been released. I'm not going to worry about it anymore. I don't have a lock on that.
+Maybe at some point later I'll try to get the lock, but hey, I can't communicate to X to get R anyway.
+So what do I need the lock for? Let's release the lock.
+And if it turns out that A could get to server X, then A could lock the resource.
+But what if this is what's happened? B is fine. X is fine. The resource is in perfectly good shape, though locked.
+B holds a lock on the resource, but B has lost network connectivity, maybe to anything, maybe just to server X.
+Both of those things can happen in the Internet. What then?
+Well, what if B does have connectivity to the Internet?
+I've talked to many, many, many people, but not to X.
+X does not have Internet connectivity. What then?
+What if everybody has some degree of networking connectivity, but a lot of the Internet isn't working at all?
+It isn't delivering packets where it should, or at least for these parties, it's not delivering packets.
+What then? And what happens if X is just happily sitting there saying, yes, yes, yes, I got a lock on this resource?
+Gee, I haven't heard from the person holding that lock, client B, in a long time.
+Well, that's life. I'm not going to worry about that.
+After all, why should X do that? X is not in charge of what happens to that resource, except ensuring correct synchronization of the resource.
+And X has done that, put a lock on it, won't let anybody else fiddle with that resource.
+So what if X just doesn't notice that there is no networking here?
+Now, in that case, client B may say, I need to hold on to this lock, or client B may release the lock.
+What's X going to do?
+Is X supposed to periodically look to see if client B is responding?
+And what if client B doesn't respond when you ask?
+And then what if the failed network comes back when you've done half of what you were going to do?
+Partially, you've released the lock, you've done some of the updates, whatever.
+Now, this is the simple case.
+So far, we've only been dealing with fairly simple problems that can occur.
+Many, many more complicated problems can occur and do.
+So what would we like to get from a synchronization point of view out of our distributed system?
+We'd like to have a globally coherent view, which means that everybody who is participating in the distributed system, in our example, perhaps client A, client B, and server X, all of them always agree on what the status of everything is.
+In particular, for a lock, if there is a lockable resource like resource R, then everybody agrees that B holds the lock, or everybody agrees that B doesn't hold the lock.
+There's nobody who thinks that B holds the lock when B doesn't hold the lock.
+Okay.
+And, of course, there are other issues.
+X's fail.
+Now, if A and B agree that X's fail, that's one thing.
+But if A thinks X is still up and B doesn't, that's a different situation.
+What if the network is flaky?
+You know, you've got, for example, a wireless network that's part of what's going on here.
+One of the users is connected via wireless to the internet.
+And let's say the wireless is not behaving well today, as sometimes happens.
+Well, then what are you going to do?
+Maybe some messages have gotten through, and some parties in the communication and the distributed system think the network's just fine.
+And other parties think the network is totally gone and not usable at all.
+Then you've got kind of a different situation.
+You don't agree on what's happening.
+It would be nice if some message, such as, I would like to lock this resource, I would like to unlock this resource.
+If that message gets delivered, it would be nice that everybody sees the result of delivering that message.
+That everybody can observe that, yes, the action has been taken based on that message being delivered.
+Now, if you were running on a single machine, even if you had multiple processes with multiple threads and they were doing all kinds of synchronization and communication among themselves, you could achieve all these effects reasonably well.
+In a distributed system, it's a little bit different.
+It is very hard to achieve globally consistent views in distributed systems.
+And why does that happen?
+Well, there are failures.
+Things crash.
+And also, while, you know, it's nice to say, well, it'll recover from the crash, that actually can lead to further complexities in trying to get a globally consistent view.
+Also, there are delays.
+Sometimes the network is slow.
+Sometimes a machine is overloaded and can't do things at the speed that you expect it to do things.
+And what looked like a failure, some component of the system not working, actually is just slowness.
+And if you wait a little while, it'll all work itself out.
+But on the other hand, maybe it is a failure.
+And if you wait a little while, it won't get any better.
+So these get to be difficult issues for globally consistent views.
+How do we achieve a globally consistent view?
+Well, one thing you can do is you can say, there's just one copy of a thing.
+There's only one copy of it.
+It lives at one place.
+And that's the only place that really knows anything about that.
+And thus, if you can communicate to that place, well, you know, then you can see what's there.
+If you can't, you can't.
+Now, this, of course, does limit the benefits of a distributed system.
+And it exaggerates cost.
+Because everybody who wants to work with whatever it is, then you're going to have to go to that place.
+Everybody, for example, would have to run on the same computer if they wanted to get a globally consistent view of what they're all doing.
+So that wouldn't be so great.
+Another thing you can do is you can say, well, let's put multiple copies out there of things.
+That's complex and that's expensive.
+That's going to require consensus protocols, which we will be talking about in this class.
+These choices aren't great.
+So, in more detail, what makes distributed synchronization hard?
+There are two, well, three really factors.
+First, spatial separation.
+When we were working with a single computer, everything was running on the single computer.
+Even if it was multi-core, there was shared elements, like the RAM, on that single computer that everybody could view.
+And everybody could view in an atomic fashion.
+If an update had occurred to a RAM cell, for example, everybody would either see the update or not yet see the update, one or the other.
+All of the cores, you know, 16 cores running 16 processes.
+If all 16 of them look to see if the value there is 0 or 1, provided it doesn't change between each time each one asks, it's going to be 0 or 1.
+Because there's no spatial separation on a single computer.
+On multiple computers, there are spatial separations.
+Different processes run on different machines.
+Those machines cannot physically share anything.
+They can send messages, but they can't physically share anything.
+And in particular, for locking purposes, there are no atomic instructions that you can run on multiple computers.
+Atomic instructions run on one computer.
+So, if you have a lock on one computer, you can't have a copy of the lock on another computer.
+You can tell the other computer, I changed the value of this lock.
+But that's going to run into another issue here.
+It's also the case that we have spatial separation issues because now nobody's in charge.
+No individual entity, such as an operating system, controls everything about the computer.
+Even when we had virtual machines, multiple virtual machines on the same computer, we still had an entity, the VMM, the hypervisor, that was in control of everything.
+And that could provide global coherence.
+Here, we don't have anything like that.
+There's also an issue of temporal separation.
+Now, we have things happening truly on separate machines.
+And they're happening more or less at the same time.
+Everybody's running their instructions.
+They're all running instructions more or less simultaneously.
+Unlike on a single machine, there's no clock that is running and saying, this is the clock that everybody on the machine is following.
+Tick, tick, tick, tick.
+There are, instead, different things happening at different places.
+And this has been thought through fairly thoroughly in theoretical terms.
+And the result is that, well, you know, when you come right down to it, there's not necessarily a before or after relationship between two events in a distributed system on different machines.
+You may not be able to say whether they happened simultaneously or one happened definitely before the other.
+One happened definitely after the other.
+That makes things a bit difficult.
+And it's also the case that when you had a single computer, you usually could say, well, if the computer failed, well, everything in the computation, all the processes, all the threads, they all failed.
+They went with the computer.
+This one goes down, then everything's dead.
+You could say, well, a process fails.
+But then the computer, which is still running, knows for a fact that the process failed.
+So you can make decisions on that basis.
+In a distributed system, you can't do that.
+Somebody can fail.
+The entire node can fail.
+All the processes that are working with you on that node can fail.
+And the other nodes are all working just fine.
+There is no problem with them except their partner has failed.
+And because of delay issues and uncertainty of how networking is going, you can't always be sure that that other computer has failed.
+There may be other possibilities of what's happened.
+Which have different implications than failure.
+Now, in particular, of course, a major tool we used for synchronization in a single computer system was the lock.
+So can we use locks here?
+Can we use locks to control synchronization in a distributed system?
+So the situation is like those diagrams I showed you a few slides back.
+You got one machine which wishes to obtain a lock on resource X.
+But the resource in question is on another machine.
+Okay.
+So, generally speaking, probably it'll be best if you keep the lock in the same place that you keep the resource if you're going to use locks.
+Why?
+Well, if you don't keep the lock in the same place as you use the resource, then there is no single place at which you can know for a fact that this is locked and this is unlocked and I should or should not allow somebody to work with this resource.
+If you have it in one place on one computer, the resource is here, the lock is also here, then at the very least you can say if some remote party wants to work with this resource, they can either say, yes, the lock is in place and I can't get it.
+Somebody else holds the lock.
+Or they can say, no, the lock isn't in place and they know that's true because the lock is in the same place as the resource and I can get the lock or I can work without the lock, whichever I need to do.
+If you have separate machines, what are you going to do?
+Well, you go to one machine to ask about the lock and you go to a different machine to use the resource.
+How does that other machine know for a fact that you have the lock?
+And for that matter, how do they know that things haven't changed since you checked what the lock was?
+Maybe the lock was released.
+Maybe the lock was granted to somebody else while you were thinking it was fine.
+So, if we're going to lock, we're going to keep the lock with the resource.
+Fine.
+Now, of course, somebody who holds the lock needs to know they hold the lock.
+So, they will have a record that they hold the lock.
+But they don't have the ability to independently release that lock.
+They're going to have to ask the machine that holds the actual lock, which is typically, as I said, the machine that holds the resource as well, release this lock.
+Okay.
+So, what's the problem?
+We've kind of seen the problem already.
+A has obtained a lock for X.
+Machine A has obtained a lock for resource X from machine B.
+A could fail.
+If A fails, A is not going to release the lock because he's not going to run any code saying release the lock.
+On the other hand, what if A is running just fine?
+A says, let's release the lock.
+But the message, and it's got to be a message because lock's on another machine.
+It's on B.
+If you want to release that lock, you're going to have to send the message from A to B saying release the lock.
+What if that message is lost?
+The message does not get delivered to B.
+In which case, B doesn't know the lock should be released and perhaps A thinks it has been released.
+What, on the other hand, if B fails?
+So, A is holding the lock.
+He thinks everything's fine, but B has failed.
+Now, with lock, he'll recover.
+And, of course, resource X is not available until he recovers because it's on the failed machine here.
+But when he recovers, will he remember that B had the lock or will he not remember that B had the lock?
+And if he does remember if B had the lock, what would happen if he failed and A said, I'm releasing the lock?
+He sent the message saying, I'm releasing the lock.
+B's failed.
+He can't see the message.
+Message just disappears.
+Now, A thought he had released the lock, so he probably isn't remembering he held the lock.
+When machine B comes back up after its failure, it gets rebooted.
+It looks through its records and says, oh, A holds this lock.
+Well, A's forgotten all about the lock.
+So, who's going to ever release that lock?
+This is just a few of the potential problems that we see.
+So, one thing we do to deal with these problems is instead of using locks in the same way that we used them before, is we use a cousin of locks called Elise.
+As with a lock, you assume there's a resource somewhere that you can get a lease on instead of a lock.
+And then that resource has a resource manager, which is probably going to be on the same machine as the resource.
+So, if you want to get the lease on the resource, you go to that machine that holds both the resource and the resource manager.
+And the resource manager says, yes, I will give you a lease, or no, I won't give you a lease.
+If it says yes, then what is it going to do?
+It is going to say you have exclusive access to this resource for some period of time.
+Not forever.
+For a fixed period of time, I'll even tell you what the period is.
+And I'll probably, usually it's implemented this way, send along with my indication that, yes, you have the lease, a cookie that says, and here's the expiration time for the lease.
+So, whenever whoever the site that holds the lease wants to use that resource, it would send back the request saying, I want to use the resource.
+I want to perform an update, for example.
+And here's my cookie showing that I'm the leaseholder and showing when my lease is going to expire.
+Then, at the receiving side, where the resource manager and the resource live, the cookie would be checked.
+And you would say, oh, okay, either this is a good cookie indicating you hold the lease, or it isn't a good cookie indicating you hold the lease.
+Even if it was a good cookie that I gave you, how about the time?
+Has the lease expired?
+One thing to be aware of in multi-computer systems is everybody has a clock.
+And the clock is not just the clock that says, you know, this is the next instruction, this is the next instruction.
+They have a real-time clock.
+A clock that says it is 12.45 p.m. on Friday, for example.
+And you can always check that clock.
+Unfortunately, clocks are not always synchronized.
+If you're running a distributed system and you have five nodes in the distributed system, they will have five clocks, and each of those clocks could have a different time.
+And under some circumstances, those times could be really different.
+What this implies is that you want to make sure that when you, as a resource manager, hand out a lease to somebody and this cookie comes back saying, my lease is good till 2 p.m., that the time in question is the same 2 p.m. that you thought it was when you gave out that cookie, when you gave out the lease.
+So the comparison will be made against your clock, not against the clock of the guy holding the lease.
+That implies that the guy holding the lease could look at the cookie if he's able to do so, and say, oh, this is good till 2 p.m.
+My clock says it's 1.45.
+It's still good.
+But if the clocks aren't properly synchronized, when the message goes to the server that is holding the resource, the resource manager would say, my time clock says it's 2.15, and your lease was up at 2 p.m.
+Tough luck.
+Leases are valid for a limited period of time.
+After that time, the cookie is no longer useful for obtaining access to the resource.
+You can, of course, potentially ask for another cookie saying, I'd like to extend my lease, and perhaps you'll get it.
+Now, leases are better for our purposes in distributed systems than locks, because many of those problems that we saw earlier have an answer, a well-defined answer if you're using leases instead of locks.
+So if the process that is holding the lease fails, maybe its entire machine hasn't failed, but that process has.
+Well, okay.
+Sooner or late, it held a lease until 3 p.m.
+After 3 p.m., that lease is no good.
+We can go ahead and use the resource, give leases to other people.
+If the entire client node fails, same thing.
+What if the server node fails?
+Well, if the server node fails, then, of course, you have lost track of whatever you were doing, but the client may remember, I have a lease on this.
+When the server comes back, one of two things is the case.
+It recovered within time for the lease, and you say, okay, here's your cookie.
+Your lease is still good.
+Or it took longer to recover than the lease was good for, in which case you try to use your lease, and it's too late.
+Network problems like slow links in networks, messages disappearing.
+Similarly, we don't run into quite the same issues.
+So here's how it works.
+So here we have our server, and we have resource X, and we have a client.
+The client says, I want a lease on X.
+The server checks and says, nobody else holds a lease on X at the moment, so that's okay.
+So it then sends back, first it checks its local clock.
+This is the clock on the server.
+And it sends back a cookie to the user saying, I have granted you the lease on X at time T sub X.
+And it'll tell you what the duration of the lease is, too.
+Then the client will say, okay, I'd like to use resource X.
+And here's my cookie.
+I will include that with my request to use the resource X.
+Now, when that request arrives at the server, the server will say, okay, well, let's see.
+Lease said T plus X.
+What time is it?
+It's T X plus delta, a small amount of time.
+Great.
+The lease is still valid.
+You get access to the resource.
+On the other hand, what happens if the lease is expired?
+You request access to X.
+Same cookie gets sent.
+Same request.
+But now when you check the clock at the server, you say, ah, T X plus a lot of deltas, too many deltas.
+The lease has expired.
+In which case you say, no, no, no.
+You cannot access that resource anymore.
+You reject the request.
+Okay.
+Now it's real easy to make sure that somebody who holds the lease no longer holds exclusive access.
+You just wait for the lease to expire.
+And if you need to make sure that's done in a fairly timely way, you give leases with a short time span.
+So if it's a stale cookie that comes back to you, it's come back too late.
+It's been too long.
+It's past the lease limit.
+Well, you just reject the request.
+And once you have got the lease, the lease has expired, you can grant a new lease to the same party, to a different party, whatever you want to do.
+Now the issue here, of course, is that presumably because somebody got a lease on a resource, they wanted to do something that required exclusive access.
+Maybe it was exclusive read access, but maybe it was exclusive write access, in which case they have done one or more writes to that object.
+If it was one write and you got the write, fine.
+If it was one write and you didn't get the write, well, that's not so bad either.
+It's as if they never had that.
+It's not so great for the guy who did the write.
+But the resource is in a consistent state.
+But what happens if you had to do three writes, three updates to different pieces of data associated with this resource, and writes one and writes two occurred, when you tried to do write three, your lease had expired.
+You tried to get another lease so you could do write three.
+You couldn't get the lease.
+Somebody else perhaps held it.
+Now, we have an object, the resource in question, that had two of three related writes that occurred, but the third one did not.
+Depending on what these writes were, that could mean that we have left this object in an inconsistent state, a state it never should have been in.
+So what are we going to do then?
+Well, one thing we could do is we could say we will restore the object to a good state.
+We have to be careful about that.
+Because what if I wanted to do three writes?
+I've got the lease.
+I do write one, two, three.
+I do all of them in time for the lease.
+That's all the writes I want to do.
+I don't bother to tell the resource manager I'm done with the lease.
+I just say, OK, I'm fine.
+I'm done.
+Well, how does the resource manager know that it was three writes, not four?
+How does it know when the lease expires that I've done everything I intended to do and I have left the object in a consistent state?
+How does it know?
+Well, assuming it can know.
+For example, you can say, hey, you know, if you're doing updates with multiple different writes in it, you must send a close object thing or release lease before the end of the lease's time span or whatever to indicate that, yes, I've left it in a consistent state.
+If you can know that and the guy did not tell you that he was finished, that it was in a consistent state, in principle, you could perhaps roll back the state of the object to what it was before this particular user who held the lease but didn't finish his work before he had done anything.
+Return it to its original state.
+Now, that kind of means you're going to have to implement all or nothing kind of transactions.
+You'll have to save information about what was the state of this object while somebody is in the middle of updating the object.
+Now, this can get complex.
+Okay, so here's an example of a complexity.
+Machine B has the lease on a resource on machine A. Fine.
+Machine B does some work on the resource.
+Now, you remember when we were talking about writing to files, you said, well, we'll cache stuff.
+Chances are pretty good that if you're also working with remote resources, you're going to cache as well.
+The reason we cache with local files is because the delay to write to a flash drive was fairly long.
+Well, the delay to send a write across the network and get confirmation that the write was performed at the flash drive on the other side, that's a lot longer.
+So we don't want to do that if we're writing byte, byte, byte, byte, byte.
+We don't want to do it every byte.
+We're probably going to cache on the site that holds the lease and is doing the updates and periodically send updates whenever we feel it is the right time to do so.
+So what if machine B in this scenario holding the lease has done some of the writes and cached the others and has not yet finished?
+And in addition to this, machine B is doing other stuff and it's doing other stuff that's related to this resource.
+That's why it wanted to use the resource.
+And based on that, it said, OK, let's see.
+I just wrote the following 17 different things into this resource, some of them cache.
+And now I want to write to some other local resource.
+OK, I'm going to write to a file on my machine and I'm going to write on the basis of assuming my 17 things were happened.
+Now, before I get around to clearing my cache, maybe my lease is expired.
+Too bad.
+What's going to happen now?
+Well, perhaps the resource manager on the remote machine is going to, machine A, is going to be able to roll back that resource to the state before machine B did any of those writes.
+Perhaps you could do that.
+But what about the writes that were performed on the local resource on machine B based on the fact that it thought all this stuff happened on machine A?
+What about those?
+Well, you've got to worry about that.
+So if A has saved the state of the resource, it can restore it.
+That's fine.
+What about B?
+Well, B could keep track of the fact that, you know, these updates I'm making to this local file, they're based on assuming I finish the updates to that resource.
+So I'll roll back too.
+If I don't get confirmation that I've done all the updates on that remote resource, in addition to knowing that the remote resource will be rolled back and any partial updates I've done will be discarded, I'm going to have to roll back my own updates to this file foo that I've been updating.
+And I'll do that.
+Okay.
+So then you get into a consistent state with file foo locally and the resource remotely.
+Great.
+But what if B also communicated to C saying, hey, I've made some updates to this resource.
+C, you want to know about these updates to these resource.
+Very important for you.
+And C says, oh, yeah, great.
+I need to know about that.
+I'm going to make some local changes to my own local resources based on what B told me about the changes to this resource.
+Well, we could undo that.
+B would have to remember, yeah, I did tell C about some of the changes to this resource and it looks like maybe they didn't happen.
+It's going to get rolled back.
+I better tell him that he'd better roll back anything he did based on that.
+Assuming, of course, C kept the state necessary to do the rollback.
+And what happens if C interacted with D and told him about the changes in his own local C resources or he's just passing along the information that B has updated this resource?
+What then?
+Can we ever, in the general case, roll back everything?
+If it turns out that we didn't complete something before our lease expired, can we roll back all of the consequences of having done partial work at any of the set of machines that did partial work?
+In some very special circumstances, it turns out you can.
+You can provably do that.
+But in order to provably do that, you're saving a tremendous amount of state, which, unless you're trying to do precisely this, you wouldn't bother saving.
+You're saving state about local updates.
+You're saving state about interactions with remote machines.
+And you may end up rolling back stuff that didn't actually need to be rolled back.
+There's all kinds of issues related to this.
+And while you can get it right, if you have a few not common characteristics of your computation, at best, it's going to have a high performance cost.
+So very few systems even try to do this.
+So what do they do?
+At most, they say, OK, well, if we have this lease and some updates occur to this lease and the resource manager didn't hear from the leaseholder that I'm finished, and this is something we're going to try to roll back, it rolls it back and doesn't worry about what happened anywhere else, which could lead to some interesting results.
+Now, ideally, of course, what we'd like to do is when we have something that's very important for a bunch of different nodes to agree upon, all agreeing that the inventory of the company that is in various warehouses scattered across the country has 5,003 widgets.
+We all agree there are a total of 5,003 widgets.
+All 17 of our stores agree upon that and the three distribution sites.
+How would we do that?
+Achieving that kind of agreement is called consensus.
+And when you're talking about multiple computers, it's distributed consensus.
+So we have to have everybody simultaneously and unanimously agree on something.
+And that has to happen despite all of these little difficulties that we've already been discussing about distributed systems.
+Node failures, node recoveries, network failures, slowness of various kinds.
+Now, people who have thought deeply about consensus algorithms, theoreticians primarily, have said, well, there are four, whatever important characteristics you want of one of these algorithms.
+Agreement, termination, validity, integrity.
+We'll talk about what those mean in a moment.
+It would be nice if you could also guarantee that it will take no more than this amount of time.
+After this amount of time, you've achieved a consensus.
+That would be nice.
+Now, unfortunately, the theoreticians who've thought about this said, oh, that's impossible.
+We can prove it's impossible.
+So what do we actually do?
+We're trying to do something that is provably impossible.
+It's provably impossible in the totally general case.
+If you make certain limiting assumptions, such as this is the maximum amount of time it takes for a message to be delivered, if it will ever be delivered, it turns out you can, in some cases, achieve consensus.
+Or you can achieve consensus with a very high probability.
+So we try to do that.
+Now, if you are thinking a little bit about what we've already talked about, you say, gee, I guess these algorithms must be kind of complicated, mustn't they?
+Yes, they are.
+Consensus algorithms tend to be complex.
+Further, especially if you have undesirable things like failures going on, they tend to take a long time to come to convergence, to reach the point where they terminate.
+As a result of this, when we are working with a distributed system, building a distributed system, we don't like to try to achieve consensus very often.
+We try to achieve a consensus as infrequently as we possibly can.
+One way we try to do that is we say, okay, we've got 73 nodes that are working together.
+And every so often, they're going to have to decide on something.
+Well, one thing we could do is we could say one of those nodes, node 12, will be the leader.
+Every time there's going to be a decision, we're not going to run a distributed consensus algorithm.
+We're going to say, hey, node 12, make your decision about what this is and tell everyone what the decision is.
+And everyone else says, yes, sir.
+In that case, of course, we still have something we have to reach agreement on.
+Who is the leader?
+So you run a consensus algorithm in many of these systems to choose a leader.
+Why don't you say, well, node 12 is always the leader?
+What happens if node 12 is down?
+You got 72 nodes.
+They could do the work.
+They're only missing one node.
+But the leader is down and you don't run a consensus algorithm.
+So how does anybody agree on anything?
+How does anyone know what the result is?
+They can't ask the leader.
+He's down.
+You probably should elect another leader, in which case you're going to need a leader election algorithm.
+Okay.
+So when we're talking about consensus algorithms, there are participants in the consensus algorithms, most commonly nodes or perhaps processes running on nodes or perhaps people, if we're talking about a group of people who are trying to reach consensus.
+Same thing can happen when you have just a group of people in various rooms trying to agree on something.
+So they're all, whatever the parties are here, they are going to participate in the consensus algorithm.
+Now, some of these parties we expect will behave correctly, which means they will follow the rules of whatever our consensus algorithm is completely.
+Whatever the rule says they should do, they will do.
+Exactly that.
+They will never break the rules.
+However, in realistic cases, and we want realism in consensus algorithms, you have to assume that there may be some parties, some participants who do not follow the rules.
+Now, maybe they don't follow the rules because they're trying to cause problems.
+Maybe they don't follow the rules because they don't understand the rules.
+Maybe they just made some mistakes and they didn't follow the rules.
+But at any rate, some of them aren't following the rules.
+As a rule, we try in our consensus algorithms to say, well, we got a set of people who are behaving correctly and a set of people who are behaving incorrectly.
+We're not going to worry about what the people who behaved incorrectly think.
+We're not going to worry about them being part of our consensus.
+We're going to worry about the correct thinkers being correct, agreeing, reaching consensus, just those correct parties.
+The assumption there is that, you know, well, there were people who made incorrect decisions.
+What if we assume we're trying to achieve consensus with them as well?
+Whatever we choose, they may not do it right.
+They may not follow the rules.
+They may change their minds later.
+They may try to screw us up.
+So forget about them.
+We will just try to make the correct participants, the ones who do follow the rules, reach agreement.
+That sounds like it should be pretty simple.
+Okay.
+Now, as I mentioned a couple of slides back, there are some requirements we have on consensus algorithms, things we want to see out of a consensus algorithm.
+One, agreement.
+Agreement, obviously, that's what consensus is about.
+So that property says all of the correct participants will agree on what the outcome of the consensus is.
+They will agree that node 12 is the leader.
+They will agree that the total number of parts in the inventory is 5,003.
+Everyone who is behaving correctly at the end of the algorithm, once it completes, will agree on whatever we're trying to reach agreement on.
+Now, we also want to, of course, have termination, which means you will reach an end of this algorithm.
+Eventually, the algorithm will complete.
+Now, depending on circumstances, it may take longer or it may take shorter, but it will never take infinite time.
+That's a desirable characteristic, obviously.
+You want your algorithms to complete.
+We also want a property called validity.
+Validity says, well, how are the people in this consensus algorithm, parties, the nodes, the processes, whatever, how are they communicating?
+They're communicating via messages.
+So if one participant sends a message to someone else or to a group of others, the message will be delivered.
+Maybe it'll take a little while, but it will be delivered.
+And then there's the integrity property.
+This property says, okay, if you have 18 correct participants in this consensus algorithm and they all want to choose 12, node 12 is the leader.
+Node 12 gets chosen.
+Now, if 17 want node 12 and one wants node 10, maybe then we don't choose anybody and we do more work.
+And if there are a bunch of people who are not behaving correctly and they all say, I want node foo to be chosen, we don't care what they say.
+But all the correct participants, if they choose some particular result that they want to see as the outcome of the consensus algorithm, that result does get chosen.
+That's what we mean by integrity.
+Okay, here's how a typical, at a high level, how a typical consensus algorithm works.
+You got parties who are participants.
+Some of them are correct.
+Some of them are incorrect.
+Every interested participant says, here's what I think our result should be.
+Here's what I think we should agree on.
+All parties receive that.
+And they look at all the proposals from everybody.
+They have predefined in the consensus algorithm a fixed and well-known rule for saying, here's how we choose among multiple possibilities.
+There can be many different fixed and well-known rules, but they all have to agree on the same rule.
+It has to be the same rule for everybody.
+It has to not change during the algorithm.
+Okay, now, everybody waits for a while to see what the proposals are.
+It may be that some members don't propose anything.
+They are willing to go along with what some other people propose if consensus can be reached.
+So you wait for a while to see, well, you know, who's proposing.
+And after that, after you've waited that period of time, everyone who got some proposals from some of the other members will look them over, use the fixed rule and say, this is my candidate.
+This is what I think is the best proposal according to our fixed and well-known rule.
+And then they will all send out that message to everybody else.
+If a majority of those nodes that have sent out something saying, I think this is the best proposal, agree on what it is, then whoever it was who made that proposal will say, I claim this is the result of our consensus algorithm.
+If everybody agrees that, okay, fine, you agree that this, you say this is the claim, we agree.
+So all of the nodes, even those that proposed different things saying, I think this other number is the best number.
+If they agree that, yes, the one that has been broadcast as being the majority result is what we're going to agree on, then great.
+We've now reached the point where we're going to agree on.
+We've reached the point where we can have an election.
+We have to have, of course, knowledge that that happened.
+How do you have knowledge that that happened?
+Well, you wait for at least half of the parties, plus one, to say, yes, this is the result.
+So we've gone through multiple rounds here.
+And the reason we have to go through multiple rounds is because sometimes messages do get lost in real systems.
+Sometimes messages do not get properly handled.
+Sometimes people, you know, don't send messages to everybody.
+Sometimes people come and go.
+They are there for part of the algorithm, not for part of it.
+One presumption we have made here, and, you know, this is going to happen.
+This is going to be great.
+Except this basic outline of an algorithm only works if people tell the truth.
+If people lie, you have a different kind of problem.
+This kind of problem, well studied by theoreticians, is called the Byzantine general problem.
+This is based on the fact that Byzantium was successor to the Roman Empire.
+It was located where Turkey is located nowadays.
+And over the course of a thousand years after the fall of the rest of the Roman Empire, they got to be very, very tricky and very, very untrustworthy.
+So Byzantine generals would, you know, all perhaps supposed to attack the same hill.
+And they would all agree we're going to attack at dawn.
+And if they all attacked at dawn, they'd win the battle.
+But people brought Byzantine generals.
+And Byzantine generals sometimes hated other Byzantine generals.
+And they wouldn't do it.
+They said they were going to do.
+They'd say, sure, I'll attack at dawn.
+They didn't attack at dawn.
+And they hope the other guy would get slaughtered.
+And so they weren't very trustworthy.
+Now, this is what could happen, not because of the politics of Byzantium, but because you have either truly dishonest participants who want to prevent consensus from being reached, or you have buggy stuff, stuff that should properly say X is 5, but for whatever reason says X is 6.
+Just a bug, not even evil.
+But still, sometimes it says X is 6.
+Sometimes it says X is 4.
+Sometimes it says X is 5.
+So if you keep asking, it's going to give you different answers.
+Now, it turns out that if this is the situation you have, then you're going to have a lot more trouble reaching consensus.
+In most cases, if you don't have anything involving authentication of messages, it turns out that if you have a Byzantine general type of problem, it's not enough to have half of your nodes plus 1 want to agree on whatever you're reaching consensus on.
+The leader is 12.
+It has to be 2 3rds plus 1.
+Otherwise, even the ones who aren't lying will not always necessarily reach consensus.
+The liars can mess things up.
+So, as we've said, typically, one thing we tend to do to minimize the use of these expensive, difficult protocols is we run them very infrequently and we elect the leader using one run of the protocol, and as long as everything's going along okay, that leader makes all subsequent decisions and simply tells people, this is the decision.
+We aren't going to try to vote on things.
+We aren't going to say, what do you think?
+What do you think?
+The leader will simply say, here's what it is.
+Okay.
+So, how do leader election algorithms work?
+Well, you have a set of participants.
+People, nodes, processes, whatever it may be.
+In real world situations, you have to assume that some of these are reachable by network at any given time.
+So, it may be the case that some of them can receive a message and send back a message.
+Some of them can receive a message, but they can't send back a message.
+Some of them can't receive a message at all, but they send messages to you and those get through.
+Weird things happen in networks.
+So, at any given moment, that may be true.
+And some are not reachable.
+The ones who are not reachable may become reachable later.
+The ones who were reachable may not be reachable now.
+Things can change.
+So, it's also the case that, depending on what you're doing, it may be that you say there are 73 parties to this consensus algorithm.
+It's always 73.
+You know, some of them may not be reachable.
+Some of them may not be behaving correctly.
+But there are 73.
+There aren't 75.
+On the other hand, you can have consensus situations where the number can vary depending on what you're trying to do.
+And it may even vary in the middle of the algorithm.
+That gets more complicated.
+Now, ideally, with a leader election algorithm, what you want is the properties we saw before on consensus algorithms, which would, in this context, result in all the correct participants agreeing that somebody, node 12, for example, is the leader.
+Now, it may be necessary later on to run the algorithm again.
+One reason being, node 12 crashed.
+Okay.
+He's not around to be the leader anymore.
+Who's going to make our decisions for us?
+If you run another leader election algorithm, you can elect node 11 to be the leader, and he can make the decisions.
+But you have to run the algorithm to do that.
+Let's take a quick look at a simple, sample leader election algorithm.
+It's called a bully algorithm.
+So, basically, this is one of these things where you're going to choose a leader among multiple participants, and whoever is the leader is going to tell everybody else what to do.
+How do we choose who gets to be the leader?
+It's called a bully algorithm because it's thought up in the context of you've got a bunch of kids, little children, and they're going to play as a group, and they're going to choose a leader.
+And the leader is going to tell them, here's the game we're going to play.
+Here's how we're going to play it.
+Now, it may be that, children being as they are, that the way they choose the leader is whoever is the biggest, toughest kid on the block gets to be the leader.
+Because if he isn't the leader, he'll beat up the other guy and become the leader.
+So, we just say, fine, he'll be the leader.
+Now, that's fine as long as the biggest, toughest kid on the block is actually available when all the other kids want to play.
+If not, what are they going to do?
+Well, probably they'll choose the next biggest, toughest kid on the block.
+And that's fine until the guy who was the biggest, toughest kid on the block pops up.
+He's finished.
+He was having a piano lesson.
+His piano lesson is over.
+He comes out to play.
+He wants to take over.
+Okay.
+So, here's how it would work in a simple case where we would have, let's say, four children in a neighborhood.
+And the kids come out to play.
+So, out they come one by one.
+But the biggest kid named Spike can't come out yet because his mother is making him take the piano lesson.
+All right.
+So, what do the kids do if they're running this algorithm?
+Well, as the kids come out, they call out for the guy they know to be the biggest, toughest guy.
+So, he says, hey, Spike.
+And Spike isn't out yet.
+So, he doesn't answer.
+And after a while, having not heard, and it's not only this one kid who would say that, all the kids would say, hey, Spike.
+And none of them would hear from him.
+After a while, one of them would say, okay, fine.
+Spike's not answering.
+Let's go for the next biggest, toughest kid, Butch.
+And he'd say, hey, Butch.
+Now, that's Butch up there.
+And he'd say, I'm here.
+Who else is there?
+And they would say, I'm, you know, Pee Wee and Cuthbert are here.
+So, now we have the three kids there.
+And Butch is the biggest kid.
+So, Butch says, I'm the leader.
+Let's play tag.
+Fine.
+So, they go and play tag.
+And every so often, because Butch does not want to get a black eye if he ignores Spike, he's going to call out, hey, Spike, just to make sure that Spike isn't really there and isn't getting upset that he isn't the leader.
+So, he calls out, hey, Spike.
+And as long as the piano lesson is going on, Spike doesn't answer.
+Sooner or later, the piano lesson ends and out comes Spike.
+And after he's come out, shortly after that, the current leader, Butch, says, hey, Spike.
+And this time, Spike responds.
+He says, I'm here.
+And he wants to know who else is here.
+So, everybody else who's here, the three children who were there, all respond to Spike.
+And now he knows who's there.
+And he says, I'm the leader.
+We're playing baseball.
+Say, go ahead and you play baseball.
+Okay.
+So, that's basically how it works.
+We make some assumptions if we're running this algorithm.
+And, of course, we can run this algorithm not just for kids in the neighborhood.
+We can run it among a number of computers that are trying to reach consensus and are eventually going to be doing a lot of activities and are going to have to make decisions on things.
+They will use the bully algorithm to elect a leader.
+The leader will then make the decisions.
+So, this works if you have a static set of participants and you have a well-agreed-upon order.
+Spike is bigger than Butch, for example.
+And Butch is bigger than Pee-wee.
+And Pee-wee is bigger than Cuthbert.
+Now you know who the order is.
+You have to assume as well that everybody who is participating in this and is actually around to be a participant hears all messages and that there is a time limit on how long it is before they hear the message.
+Further, when they hear the message, they respond reasonably promptly.
+There's a maximum delay between when they hear something like, hey, Spike, and they respond or don't respond.
+Now these two assumptions, these time-based assumptions, imply synchronous behavior.
+This is something that we can't get in real systems in all circumstances.
+We can't always guarantee that our time delays are going to be any particular value.
+Messages in a computer system can be lost, which means that if we resend the message, it's going to take longer because now we've sent it twice.
+That's going to take longer.
+If it gets lost a second time, we have to send it a third time.
+And various other delays can occur, which means that it's not always realistic to say we have synchronous behavior.
+But if we can make the assumption of synchronous behavior, then this can work.
+So the basic idea here is that you could have a bunch of different kids or a bunch of different nodes or a bunch of different processes, all of which would like to be the leader because they don't know that there's anybody better suited to being the leader than they.
+But they know who is better suited than they are.
+And if they hear about one of those better suited parties being available to be the leader and wanting to be the leader, they will defer to that party because they're better suited.
+This is one of these fixed rules that everybody agrees upon.
+And you're going to keep track of whether you are or are not running a leader election algorithm at the moment.
+Once a leader has been elected, such as Butch in that first example, we're not running the algorithm really anymore.
+Butch is occasionally checking to see if the algorithm needs to be rerun because spikes come out.
+But we're not having a bunch of things where people are shouting out, hey, Butch, hey, Cuthbert, etc.
+We're just working with the leader we've got.
+And it is the responsibility of the leader we've got to try to ensure that if a better leader comes along, we start the algorithm up again.
+Okay.
+And generally speaking, very little work is going to happen when you aren't running the algorithm.
+You know, occasionally the leader is going to check to see if a better leader is available.
+But that's a good characteristic to say you're not running the algorithm all the time because running the algorithm is overhead.
+And we've discussed many, many times in this class that we don't like overhead.
+We never liked overhead when we were talking about single machine operating systems.
+And we still don't like overhead in distributed systems.
+So the less overhead, the less time spent running these consensus algorithms, the better.
+So we're going to have some timeouts here.
+So every so often, either because you haven't got a leader yet or because you have a leader, but the leader wants to make sure he should still be the leader, you call out the biggest kid's name.
+Whoever is the party who should be the leader.
+If that doesn't bring an answer, you call out the next one's name.
+And if that doesn't bring an answer, you call out the next one's name.
+Now, if there is no leader whatsoever, everybody's going to be calling out.
+And, you know, they'll all hear this.
+And eventually somebody will figure out, okay, it looks like I'm the biggest one.
+And we'll try to reach agreement on that.
+If you are the one party, the kid, the big kid like Spike, or the most important node who has been designated as the preferred leader, you don't have to do all of this calling out saying, hey, is a bigger kid there?
+Because there is no bigger kid.
+So if you did this in a distributed system, one node would be the coordinator, unless you're in the middle of running the algorithm for the first time.
+You have a set of nodes who you've been talking to in the past.
+You expect that they are still around and they are still participating.
+Every so often, you're going to ask the other nodes about this.
+And if you don't get an answer, or if there is an answer saying, I'm not around anymore, I'm not participating, then you may run the algorithm again.
+And in particular, if somebody you were not expecting to hear from, who wasn't part of your group, pops up and says, hey, I'm here, you're going to have to run the algorithm again.
+Now, is this a practical algorithm?
+Well, it works reasonably well if you can actually enforce the timeouts.
+Because if a timeout occurs, then what that means is you ask for something and you heard nothing and the timeout occurred.
+If the timeout always occurs, never, excuse me, never occurs when everything is going okay.
+It only occurs when a site you're trying to get an answer from isn't there at all, isn't able to answer.
+Then it'll work out okay.
+It's also important for that to be true, that messages don't get lost very often and don't get delayed too much.
+If you have a local area network, that's somewhat more likely.
+If you have a wired network as opposed to a wireless network, it's somewhat more likely.
+If you're trying to run over the internet and several of you are on different wireless networks at the edge, it's less likely.
+And then it's a practical algorithm provided there are no partitions.
+What do we mean by a partition?
+Well, partitions are something that occurs in distributed systems.
+They really do occur.
+Let's say we have a distributed system.
+Forgetting about kids.
+We have nodes, machines.
+And there are n participating machines in our distributed system.
+We know that.
+We know what they are.
+What if it is the case that nodes 1 through n over 2 can communicate with each other?
+We'll call them group 1.
+And nodes n over 2 plus 1 through n can communicate among themselves.
+We'll call that group 2.
+But nobody in group 1 can communicate to anybody in group 2.
+And vice versa.
+That's a partition.
+What's going to be the effect?
+Well, the effect will be that you have different views of what's happening in the world.
+If you've run a leader election algorithm, one partition says the leader is node 1.
+The other partition says the leader is node 32.
+Everybody in group 2 says it's 32.
+Everybody in group 1 says it's node 1.
+They have agreement within their partition.
+And they're not hearing about anybody who disagrees.
+But there's something going on across the network in a place they cannot talk to that is not in agreement with what they're doing.
+If node 1 and node 32 start making different decisions about what's going on, we have divergent behavior between what's happening in these two partitions.
+And that means the state changes in the two partitions.
+And this is going to get even more complicated, of course, if it's not two partitions.
+Two, it doesn't have to be two.
+It could be three.
+It could be four.
+It could be any arbitrary number up to the number of nodes you have.
+You could get in a situation where you've got 32 nodes and 32 partitions.
+It gets even more complex if you have multiple partitions and a couple of them merge.
+But there's another partition they don't merge with.
+Then we're going to have to, in the first place, for the two partitions that merge, we're going to have to do something to make their state an agreement.
+Perhaps their state wasn't an agreement because they were partitioned.
+Now they're together.
+They've agreed on maybe a new leader.
+Okay, we've got a new leader, but we did a bunch of things while we were partitioned.
+We need to work out what the result of those things that we did when we were partitioned.
+You think x is 7.
+You think x is 9.
+Which should it be?
+We'll have to decide upon that because you need to have a consistent state from everybody who's working the same partition.
+Now, of course, partitions can not just merge, but they can split again.
+And they can split again in arbitrarily complicated ways.
+If this happens a lot, if this happens very, very frequently, you may have a problem.
+The reason it might happen very, very frequently is you've got a piece of flaky equipment, a piece of flaky networking equipment, for example.
+You've got a bunch of nodes running in your local area network.
+There are also a bunch of nodes that are part of your group running in a different local area network.
+If one of those local area networks has a connection to the internet that is flaky, it goes up, it goes down, it goes up, it goes down, it does that fairly frequently, you're going to end up with partitions that split and merge and split and merge and split and merge.
+And that gets to be very complicated and expensive.
+So how do we actually deal with partitions in distributed systems?
+Try to make sure they don't happen.
+They're terrible.
+They're just awful.
+So let's not have them.
+And if you just have a LAN, if you've got, you know, let's say a ethernet of some kind or a switched ethernet, and it's very reliable equipment, and it's all locally within your building and so on and so forth, it may be the case that you probably won't get many partitions.
+So if you can work with that, if that's what your situation is, then maybe you don't have to worry too much about partitions.
+If you have multiple network paths so that the failure of one network path does not impact the ability for people to communicate, they could use the other path, then it becomes less likely that you get partitions, because now both of the paths have to fail for a partition to occur.
+So if you can design your networks this way, then you are going to have less likely of partitions.
+Now, one environment in which this is very, very important is the cloud computing environment that we've been talking about in previous classes.
+You remember in the cloud computing environment, we've got tens of thousands of machines in a warehouse.
+Now, we can set up our warehouse any way we want to, and in particular, we can arrange the networking in our warehouse any way that we want to.
+We are going to be hiring out various nodes to various people, and each party may want to make sure that they don't have any partitions within the set of nodes they've rented.
+But because we want the multiple flexibility as the cloud provider, we may want to have one of your nodes sitting in a rack on one side physically of the warehouse, and another node sitting in a rack on another side of the warehouse.
+So they're not right next to each other.
+They're not in the same rack.
+Well, if that's what's going to happen, we want to make sure as we design the network that connects up the various nodes in this cloud computing warehouse, we want to make sure that there's at least two ways for the guy on that side of the warehouse to get a message to the guy on the other side of the warehouse.
+Similarly, we want to make sure that there must be at least two ways to get out to the Internet, so that if we have one way that gets out to the Internet and that fails, the other one can be used, and we'll have to have the ability to switch between those paths.
+And two may or may not be enough depending on how much reliability you get out of things.
+In other cases, people who are building distributed systems say, you know, while it is certainly the case that partitions occur and they can occur, and I can't guarantee that they won't occur, eh, treat it like deadlock.
+Assume it doesn't happen.
+And hope for the best.
+And even if it does occur, maybe the results won't be that bad.
+Maybe we won't really diverge very much in important ways.
+And we just have to, you know, get back together again somehow or other when the partition merges.
+So that's a reasonably popular solution as well.
+It's particularly popular with people who don't understand distributed systems and don't even know that this can happen.
+Okay.
+We're going to talk more about other aspects of distributed systems in the final two classes of this course.
+But that's all we intend to say for today about synchronization issues in distributed systems.
+So in conclusion, synchronization is never easy, but it's harder in distributed systems than it was in a single computer system.
+We use leases instead of locks in many cases when we're running in a distributed system because they offer superior solutions to what happens in the case of various failures.
+But they do have a cost, a cost related to perhaps losing some of the guarantees of consistency that you would have gotten if you'd gone with very, very strict locks.
+It's hard to reach agreement in distributed systems.
+If you have more than one node working and you're running in a distributed environment as opposed to working within a single box, then it can be very expensive and difficult to run an algorithm.
+You know, I've known people who did a whole lot of work for years and years and years getting one of these algorithms to work only to find every time they thought it was working that here's another case that popped up where it didn't work.
+It's tough.
+Now, there are people who've worked out algorithms that for particular circumstances will work reasonably well, but they're expensive, they're difficult, you have to know what they are, you have to implement them correctly.
+Generally speaking, the easiest thing to do if you have to reach consensus, which you frequently do in a distributed system, is to elect a leader.
+It's very important if you possibly can avoid it to avoid partitions.
+They're hard to avoid in certain circumstances, but it's usually better, just as with deadlock, to avoid having the problem occur at all than to deal with it when it occurs.
+Okay, in the next class, we will start talking about security issues for distributed systems.
+Thank you.

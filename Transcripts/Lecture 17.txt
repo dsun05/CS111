@@ -1,0 +1,1729 @@
+﻿For the next few lectures, for the last few lectures of this class, we're going to start talking about distributed systems.
+So, today we're going to talk about some introductory and basic material concerning distributed systems.
+So, what do we mean by a distributed system?
+And then we'll talk about various ways that over the years, people have attempted to build various different kinds of distributed systems using different paradigms of how the machines in a distributed system are supposed to be related to each other and interact.
+So, first of all, why do we care about distributed systems?
+Well, modern computing is distributed systems.
+That's what we do today.
+Practically nothing is done on a single computer, not attached to the network, not communicating with any other computers.
+And in fact, in general, what really happens and what happens in particular for the most important applications, such as large AI, model building, data mining applications, large commercial activities, almost all of that stuff is going to be done with multiple computers that interact in some well-defined way.
+That's what modern computing is about.
+So, if you want to be a modern computer scientist, you probably need to know something about distributed systems.
+Why in particular are we talking about it in an OS class?
+Well, it is a systems issue.
+It's about the same kind of things that we were talking about in previous classes, dealing with memories, dealing with file systems, dealing with synchronizations, dealing with communications between processes.
+But now, in a context where you're talking about the computer, all of the computer, all of the information you need to make things work.
+Now, the information is spread out.
+So, this means that we're going to have to think about some of the problems that we've been discussing in previous classes in different terms.
+We're going to have different constraints, different possibilities as well.
+Generally speaking, it's hard to imagine one being a modern computer scientist without knowing something about distributed systems.
+And that's about the level I hope to get you at in this class.
+You'll know a little about them, not necessarily be an expert.
+Now, I've said that we use distributed systems all the time in modern computing.
+That's true.
+Why?
+Why have we gone to distributed systems so widely?
+Well, scalability and performance are a primary reason.
+Years ago, we used to have Moore's Law and our chips would get faster and faster and faster every year.
+But eventually, we got to the point where it was no longer physically possible to increase the speed of an individual CPU.
+Then, we began to say, well, how can we run faster?
+How can we get performance that is acceptable for very, very, very large problems?
+Because our problems just kept getting bigger and bigger and bigger.
+And our computers were not, at the CPU speed level, going to get faster and faster and faster anymore.
+So, what do you do?
+Well, you throw more computers at the same problem.
+This is feasible because there are various other limitations, like how much memory can you put into one computer?
+For a given word size, how much memory can it handle?
+How much storage can you put on a particular device?
+How many bytes can you move per second across a network?
+And so on.
+And many of those are related to a single machine.
+If you have multiple machines all working together, if you do things right, you may be able to combine the capabilities of all those machines and get a, what appears to be, a single more powerful computer.
+As our jobs get bigger and bigger and bigger.
+The goal is to say, we just add a few more computers and everything continues to run at the speed we need to run it at.
+Now, we also have the ability to get better reliability out of our systems by using distributed systems.
+At any given moment, a computer may crash.
+It may crash for software reasons.
+It may crash for hardware reasons.
+If it crashes, of course, it's not going to run anymore until at least it reboots.
+And perhaps if it's a hardware problem, it may never run again.
+Okay, now, if you're running a business and you're working with a bunch of clients and they are all interacting with you, you do not want to rely on one computer that could perhaps fail for hours or days or forever and would no longer be able to offer service to your customers.
+What you'd like to do is say, well, if I have a second computer or a third computer or a bunch of computers, if one of them fails, the others can take over the work.
+Now, this is going to be beneficial not just for the reliability issue, making sure that over the course of time, you can still continue operations, but from an availability issue.
+The idea behind availability is to say, whenever I want to use my computer to do whatever it is I need to do, the computer is available for use.
+There's never a case where it isn't.
+Now, we all know that for the real computers we use, even our laptops and our smartphones and so on, that isn't quite true.
+Every so often, for example, we get an update to the software and it's not available while the update is being delivered and put into the system.
+That could be a few minutes, it could be an hour, depending on circumstances.
+Further, if the system crashes, even if it's a crash that can be easily handled simply by rebooting, there's the period between when it crashes and when the reboot is complete that you aren't offering any services on that computer.
+On the other hand, if you have several computers and one of them crashes, the others can continue to offer the service.
+Your service does not get interrupted.
+Now, if you are running a high-scale business like, let's say, Amazon, you do not want to be in a situation where you cannot provide service to your customers at any moment.
+They're providing service worldwide.
+All around the world, people are using Amazon.
+That means that at any moment of any day, Amazon needs to be able to provide service to people.
+How are they going to do that?
+Not with one big computer, even if you could build a computer that big.
+You need to have multiple computers so that when one of them is down, the service can be performed on the other computers.
+Also, sometimes it becomes a lot easier to work with a distributed system because let's say you're working in an office environment and you've got a large company and you've got 500 employees and every one of them is going to have a computer that they use at work, perhaps sitting on their desk.
+Okay.
+Now, how are you going to control those 500 computers?
+Ideally, you probably want all 500 computers to be running the same software, to be configured in the same way.
+In order to do that, it would be nice to have some kind of centralized management of all of your machines.
+That's a distributed systems problem.
+Also, if we do things correctly, we perhaps don't even have to have 500 computers of our own.
+Perhaps what we can do is we can say we will go to somebody and we will rent 500 computers.
+That's what cloud computing is all about.
+And if we can do that, then we don't have to have the hassle and the cost of actually managing those machines.
+We don't have to hire a system administrator.
+We don't have to have a special machine room with high quality air conditioning.
+We don't have to worry about, gee, you know, if we have an electric outage, not only is our system down and we're not available to do anything, but maybe we lose a lot of data or something.
+It becomes not our problem.
+We're paying for it to be somebody else's problem.
+But if we do that, we are inherently entering the world of distributed systems.
+Also, it is the case nowadays that for complex business applications, we often do not build the entire application ourselves.
+We often use services by other companies or by machines that are running special purpose software.
+And we need to interact with those machines or those companies.
+And that, too, is a distributed systems problem.
+It may not even be the case that the companies we are interacting with are in our city, in our state, in our country.
+They could be halfway across the world.
+Distributed systems problem.
+Now we can, for certain kinds of services, effectively say, well, anyone, anywhere in the world could offer us this service.
+The party who we get the service from need not be the guy down the street.
+It can be the guy who gives the best service for the lowest price, wherever he may be, even if it's in a foreign country.
+Now, that's great.
+And that has been so compelling that we really are effectively using distributed systems for practically everything.
+But the moment you say, okay, fine, we'll go to a distributed system, you are buying into some problems.
+Some problems that are going to need some kind of solution.
+Now, thinking back about everything we've talked about in previous lectures, you will realize that there are going to be some issues here based on what we were talking about in those lectures.
+So, for example, how do processes actually communicate when they're all on the same machine?
+Well, what it boils down to is they share the same RAM.
+You put information you want to communicate from process A to process B in a piece of RAM.
+Process B can just read the piece of RAM if it is given the rights to do so.
+Bang, they've communicated.
+Or if you want to have a lock, how are you going to have a lock?
+Well, if you're going to have a lock, you're probably going to have a memory location that represents the lock.
+And because of the characteristics of RAM memory locations and with proper implementation, we can ensure proper synchronization based on the lock.
+Can't do any of those things in a distributed system because the memory on one machine is completely invisible to another machine.
+Now, the other machine can ask your machine's operating system what's in the memory and maybe it'll be told and maybe it won't.
+Maybe what it's told will be the truth and maybe it won't.
+But this machine over here cannot ask that machine over there, what is in memory location 1,024.
+It just can't do it.
+It cannot directly do it.
+It can ask the question, but it cannot go to that memory location and get it because that's not the way it works.
+Those machines are only connected typically by networking, which is not memory addressable.
+So this means that it's very hard when you're talking about a distributed system for any machine to know the state of any other machine.
+The only way we can interact in a typical distributed system is by using a network, sending messages, sending, receiving messages.
+Now, sending and receiving messages is done with networking protocols that we're not talking about in this class.
+That's for a networking class.
+But there are characteristics of those.
+Compared to accessing RAM, compared to accessing most devices that you have on your computer, even the ones that we've talked about as being slow in the past, it's really slow to use the network.
+You know, it's also going to be asynchronous.
+You can't really know when something's going to happen.
+You send a message out there and sooner or later, maybe it gets delivered.
+Sooner or later, maybe you get an answer.
+Maybe you don't.
+And you don't know when that's going to happen.
+You have to be prepared to deal with that happening at any point in the future or maybe not happening at all.
+Generally speaking, it's going to be slow.
+And there are modes of errors that we don't tend to see in single computers, but we do tend to see in networks, such as communication being lost.
+If we're on one machine, process A talks to process B using an IPC channel, that's not going to be lost.
+That communication, the data that is sent from A to B will not be lost.
+B may not work on it properly.
+B may choose to ignore it.
+But the data does not disappear arbitrarily.
+Send it from process A on machine 1 to process B on machine 2 via the network, on the other hand.
+And it could well be that it leaves machine 1, never gets to machine 2.
+And nobody is ever told explicitly, this message did not get to machine 2.
+You need to do something.
+You may be able to deduce that and do something in response.
+But stuff can just disappear in thin air.
+Worse, things can simply be altered.
+Bits can flip as you move the data from 1 to 2, from machine 1 to machine 2 across the network.
+That can happen.
+It is possible for that to happen in a network.
+This was not something that would happen typically in inter-process communication on a single computer.
+You know, you set up a socket between process A and process B on one computer, and you put data in with a particular bit pattern from the sending end, the same bit pattern will appear on the receiving end almost certainly.
+Extremely unlikely, vanishingly unlikely that it's going to be changed.
+So, that's going to be difficult.
+Now, further, in most cases, our distributed system is not machine 1 and machine 2.
+It's a whole bunch of machines.
+Thousands, hundreds, thousands, tens of thousands, sometimes hundreds of thousands.
+Who's in charge?
+Nobody.
+No machine is really in charge of everything that's happening on the other 100,000 machines.
+There can be a machine that's supposed to be telling them what to do, and maybe they'll do it and maybe they won't.
+But you cannot force from one machine things to happen on another machine in a distributed system.
+Another issue is that while we've said, oh yeah, you have distributed systems, they're going to be great for handling failures because this machine goes down, you can just use the services on a different machine to get the same result.
+True.
+But on the other hand, you don't necessarily know what happens on other machines, including did that machine crash?
+The only way it can communicate typically in a distributed system is by networking.
+Among the other things that could happen in a network is the network could temporarily halt.
+It could stop working for a while.
+And not completely.
+Just my machine 1 can't talk to your machine 2 because of a networking problem between them.
+No bits flow.
+Now I talk to other machines, 3, 4, and 5.
+And sooner or later, maybe the networking problem is solved and I can talk to machine 2 again.
+But at the moment I can't and I don't know whether it is because the network has failed or machine 2 has failed, or because machine 2 is in an infinite loop, or because machine 2 has just chosen not to do anything with Meyer communications, or there's just one lost message and everything else is fine.
+We can't necessarily tell.
+So, given that we don't know the state of other machines' memory, well, how are we doing synchronization?
+Mostly locks.
+What were locks implemented as?
+Memory locations, actual memory locations in RAM.
+We can't know it's in another machine's memory locations.
+So, if the only way to interact is by sending slow asynchronous messages, from the moment we send a message to the moment we could even reasonably expect a response, a fair amount of time is going to pass.
+And a fair amount of time is going to pass before our partner that we sent the message to even gets the message.
+So, things could change quite a lot.
+It's going to be very difficult for us to know what's going on remotely.
+The response we get back saying, here is the answer to your question, may no longer be valid by the time that response arrives.
+We'll have to worry about that.
+And we want a reliable computation overall.
+We said, oh, yes, you know, machine one fails and you can use machines three, four, five, six, and seven, which will offer the same service.
+Well, that's fine if that's possible.
+But what if the machine that failed has a critical component and you cannot continue correct operations because that machine failed?
+Well, how can you make a reliable computation there?
+What are you going to do about that?
+All right.
+Now, there's an important property that we like to see in distributed systems called transparency.
+Transparency is used in different contexts, in different areas of discussion, some in computer science, some not.
+In the field of distributed systems, transparency has a specific meaning.
+Transparency means, in this context, that a distributed system looks exactly like a single machine system.
+Now, generally speaking, you don't have full transparency.
+You have degrees of transparency.
+You approach transparency as closely as it is possible for you to do.
+Of course, you'd like it to be a better machine than your local machine, because that's why you're running a distributed system, to get access to more resources.
+So a transparent system is attempting to provide the illusion that you have one big, powerful computer, whereas actually you have a whole lot of small, less powerful computers.
+Now, people have been trying to build distributed systems for quite some time.
+My PhD dissertation back in the 1980s was a distributed systems dissertation.
+That's where I did my research on originally.
+And people have been working on distributed systems even before that.
+So over the years, people have tried to build distributed systems.
+And the tendency has been, if you weren't really thinking very carefully, or sometimes even if you are, that you make a few mistakes in your thinking.
+You do not think through properly all of the implications.
+A guy named Deutsch some years ago said, you know, looking at all of the various issues we have had with people's attempts at distributed systems, I've come up with seven fallacies, seven wrong ways of thinking about distributed systems.
+He called it network computing, same thing.
+And these have caused you to build distributed systems that ran into various kinds of problems.
+So if you are building a distributed system, you need to make sure you don't fall into any of these fallacies yourself, that your thinking is clear on these issues.
+So what were the fallacies that he kept observing in other people's work?
+First, people said, oh, the network is reliable.
+It isn't.
+The network is definitely not reliable.
+Sometimes it delivers a message.
+Sometimes it doesn't.
+Sometimes it does it quickly.
+Sometimes it does it slowly.
+Sometimes it does it never.
+Messages disappear.
+Messages get altered in transit.
+All kinds of bad things can happen.
+If you don't take that into account when you're building your distributed system, you're likely to run into problems.
+Another fallacy is that there is no latency.
+Now, of course, when we are working at the application level, even in a single computer system, we tend to pretend there's no latency, even though there is.
+I mean, if you ask to read a file, as we know from what we've already discussed, that's going to result in your process being blocked and all kinds of waiting going on.
+And sooner or later, you're able to read the file.
+But from the point of view of somebody running the application in a modern computer, you typically do not see any serious delay.
+It looks like things are happening all at once just because the computer is going so fast.
+However, in a distributed system, the situation is much, much worse.
+The latencies that you were expecting, even when you built your system software, the latencies you anticipated for the single machine system are no longer going to be the limits of what you're going to see when you talk about a distributed system.
+And far too often, people implicitly think that, well, I've sent this message off, and whatever is going to be the result of that message being received, well, that's already taken care of.
+It's happening.
+Not necessarily.
+Another fallacy that people have is that, okay, we're sending data back and forth between different machines.
+That's fine.
+Using the network for that purpose.
+We have as much bandwidth as we need.
+Well, you don't always.
+You certainly never have infinite bandwidth.
+Every machine has a network interface.
+It can move a certain number of bits per second.
+That network interface connects up to various other pieces of equipment, each of which has their own bandwidth limitation.
+They can move a certain number of bits per second.
+Effectively, you've got a pipeline of different pieces of equipment between the sender and receiver.
+Every one of them has a bandwidth limitation.
+And they also have, in many cases, other parties who are trying to use the same bandwidth you're using.
+Which means, if you are building a distributed system and it's working just fine, the messages are going back and forth, they're working at the speed you want, and you say, now I need to scale up my system.
+Ten times as many users, ten times as much work.
+If that requires ten times as much bandwidth, unless you're careful, suddenly the system grinds to a halt because you don't have enough bandwidth to handle all of the data you need to move between machines.
+Another fallacy we see is the network is secure.
+You know, I can trust the internet.
+I put a packet out into the internet.
+It's bound to get there.
+It's bound to be protected on the way.
+Well, that simply isn't true.
+Again, this isn't a networking class, so we're not going to go into the details.
+But the internet provides no security in the terms that we have discussed security to this point.
+What does it provide?
+Best effort delivery of packets.
+That's what you get out of the internet.
+Now, it does a pretty good job of best effort delivery of packets.
+And it does a pretty good job of delivering them as quickly as is reasonable under the circumstances.
+But that's what you get.
+You don't get guaranteed delivery.
+You don't get guarantees that the packets have not been tampered with.
+You don't get guarantees that the routing of the network has not moved the packets to places you didn't want them to go.
+You don't get any of that.
+If you care about the security of your system, you cannot rely on the underlying networking to provide it for you because it won't.
+You'll have to do something yourself.
+Now, of course, we're moving stuff across the network.
+We all know we're moving stuff across the network.
+And if you know a little bit about networks, you know that this connects to that, connects to that, connects to that.
+So to send something from here to there, you go here, here, here, here, it gets there.
+Well, that isn't always the case.
+Sometimes you go here, here, here, here.
+The topology of the network changes.
+What connects to what in the network changes.
+And this really happens.
+Now, you might say, how can that happen?
+You know, we're talking about electric lines that connect up two different points.
+There's something here, there's something there, there's a cable in between them.
+Well, that's usually true, leaving aside wireless networking.
+But there are multiple paths through the network.
+Sometimes some of the paths aren't working.
+Sometimes some of the paths are congested.
+Sometimes some of the paths are not being allowed to be used by one of the parties who controls a piece of hardware on one end of that path.
+So, topologies change.
+And this happens all the time.
+This is happening constantly in the internet.
+If you were working on the assumption that your packets were going to take one path through the network, you are probably going to get into trouble if that assumption is important.
+They may take another path.
+And if they do, you want to make sure your stuff still works.
+Another fallacy is that, oh, there's an administrator.
+Somebody's in charge.
+The sad truth about the internet is nobody's in charge.
+There is nobody who is in charge of the internet.
+Literally nobody.
+There are a few parties that define various standards for how the internet should work.
+And most people adhere to the standards.
+But they do not enforce the rules.
+They do not insist that anybody does anything.
+There are various places in the internet that are controlled by particular companies.
+And they do whatever they want.
+And if they don't want to behave a particular way, they won't.
+And you can't make them.
+You cannot change it.
+You can't even know what they're doing.
+They won't tell you.
+So, there is nobody who will guarantee anything about the internet.
+And this can lead to many, many issues where you expect that things are going to work one way because you think this is the way people do things.
+But somebody isn't doing things that way.
+And another fallacy is that cost of transporting additional data is zero.
+We've already talked about the bandwidth issue there.
+But there's also a cost on at least the sending and receiving node.
+You're going to have to do a lot more work if you transmit a lot more data from the sending side.
+And on the receiving side, even if you have the bandwidth in between to manage the extra traffic, there's going to be more work on both sides.
+And eventually, this may get to be too heavy.
+So, here's an eight.
+All locations on the network are equivalent.
+This is a little bit like some of the others.
+But there is a special issue here.
+You know, it used to be the case that we said, well, you know, I am this company.
+I offer this service on the network.
+I've got all my machines sitting in a big machine room in, let's say, Boston.
+And anybody who wants to use my service, well, they just have to use the internet and they get to Boston.
+It turns out that this isn't really the best way to do networking.
+It's a very good idea, for example, for a company like Google to have multiple locations scattered across the world, scattered at different points on the internet.
+And the reason for that is if you happen to be in, let's say, Bulgaria, it would be better to work with a site that is actually in Germany than it would be to work with a site that is actually in Buenos Aires.
+The networking is going to be a lot quicker.
+You're going to get much faster response if you don't have to travel all the way across the Atlantic Ocean and down to the southern hemisphere.
+On the other hand, if you have to go a few hundred miles or so to get to somewhere in Germany, well, you know, you may have to go through multiple links still, but it's going to be a lot faster.
+And this turns out to have a very, very, very big implication on many kinds of computing.
+Now, if you add up all of these fallacies, you will realize that there's no way I'm going to get full transparency.
+I will never make a significant large distributed system look like it's one computer.
+You can.
+Okay.
+So, given that we have these basic desires of what we're going to do with our distributed systems and these limitations on what we can do with distributed systems, how do you put together a distributed system?
+People have been looking at this issue for decades, as I've said.
+And here are a few basic paradigms, basic organizational approaches you can use to build distributed systems.
+And we'll talk about each of them in a little detail.
+Parallel processing, single system images, loosely coupled systems, and cloud computing.
+Parallel processing requires special hardware.
+We'll talk about the kind of hardware.
+Single system images say, we like transparency.
+We're going to make everything as transparent as we possibly can.
+There are advantages to that, and as we've seen from the last slide, challenges.
+Loosely coupled systems.
+These are systems where you say, we know about all of those limitations of distributed systems.
+We're going to try to build something that will work well, even though those limitations are in place.
+We're not going to try to really hide all those limitations.
+We're going to work within the boundaries.
+This is what a lot of people actually do with modern distributed systems.
+And then there's cloud computing.
+Which is a little bit like loosely coupled systems, but has its own unique properties.
+And is, of course, a very modern, very important way of providing distributed systems capabilities.
+Okay.
+So let's talk about each of these paradigms in more detail, starting with parallel processing.
+Now, parallel processing says we are going to need multiple computing nodes, each perhaps with some resources of its very own, its own CPU, its own RAM, and so forth.
+But we need them to be connected together.
+And because they are supposed to be working together, we're going to have them connected together in a special way that is better, faster, easier, perhaps, than using messaging.
+We're not going to send messages.
+Before I said, oh, you've only got the network.
+Well, if you're talking about a parallel processing machine, sometimes you have something more than that.
+So in a parallel processing machine, what it usually would consist of is you would have several semi-independent computers, meaning each one is able to run its own code.
+Each one typically has at least some of its own memory.
+And these are usually called nodes in this context.
+So the nodes are all part of the parallel processor.
+And we're talking here about a machine.
+So there's like a big box containing a bunch of nodes that all are connected in some fashion.
+How are they connected?
+One way you can connect them is to say, well, there's this hard wire from one to the other.
+And there is some kind of very, very special messaging capability between two nodes.
+Only from one node to another, perhaps.
+So only across this hard wire.
+But it's a short hard wire.
+It's a dedicated hard wire.
+Nobody else is using that hard wire.
+It isn't like the internet at all.
+That's one thing you can do.
+Another thing you can do is you can say, well, wasn't it nice to have shared RAM for all the processes running on a single computer?
+Wasn't that great?
+Why don't we somehow or other provide shared RAM for all of the nodes that are sitting in this box?
+Well, if we're going to use RAM of some kind, we're going to have to have a bus.
+A bus is going to have to connect up every single node in our computer, every one of those independent computers, to one pool of shared memory.
+Now, this is, in principle, not that different from simply saying, well, you know, in our single computer, we've got a bus.
+It connects up to the CPU.
+It connects up to other buses.
+It connects up to these peripheral devices.
+They're all on the same bus.
+They can all access the same memory.
+In principle, it's similar.
+But now we're talking about several computers, 16 CPUs, 32 CPUs, 128 CPUs, all connected to the same bus, sharing the same RAM.
+And we're expecting to see the same behavior out of that RAM that we would out of the RAM on a single computer.
+Now, if we are building a parallel processing system, what are we going to do with it?
+Well, you could do other things with it.
+Most commonly, the reason that people built these systems was they said, I got a really big job, too big to run on one computer.
+But I want it to run as if it sort of were on one computer.
+So what I'm going to do is buy a parallel processing system, use all the nodes in the parallel processing system to run this single job, and it'll run fast.
+So to do this, you typically would have to design the job to run on the parallel processor, and it might have to be designed to run on the particular type or even the particular model of parallel processor you're working with.
+And typically, what that would mean is you take up the overall work the job has to do, and you divide it into pieces, subcomponents.
+Each piece would run on one of the nodes of the parallel processor.
+Generally speaking, you would need to have these subcomponents running on the different nodes communicate with each other over either the bus through the shared memory or using the special networking messaging system based on the hardware connections between the nodes.
+And you want some form of synchronization in these communications, some way of saying this one is synchronized with that one.
+If you're talking about the shared bus with memory, the synchronization is perhaps going to be provided by the shared memory.
+If you're talking about the connection via network nodes, it's going to have to be something else.
+So I actually had a fair amount of experience in the early 1990s with parallel processors.
+I worked with a couple of different types.
+One type I worked with was called a hypercube.
+This was a special purpose system that was built at the Jet Propulsion Laboratory.
+So, you know, it was a very special purpose piece of hardware.
+And basically, it would have a bunch of independent nodes.
+Every node was independent.
+And the set of nodes, the overall number of nodes, was organized into an n-dimensional cube.
+So, for example, at one point, we had a 16-node hypercube.
+That was in a 4x4 cube with all of the edges of the 4x4 cube connecting to all of the other nodes at the other end of the edge.
+Okay.
+And basically, you would send messages directly from one node to another.
+You would perhaps have the ability to then forward messages if they were not, if the node that they went to across the first link was not the destination, ultimately, of the message.
+That's one type of parallel processor.
+Then we worked with another type of parallel processor that we purchased from a company called BBN.
+BBN was one of the companies that was most critical in building the original hardware for the Internet.
+This machine was called the Butterfly.
+This was a shared memory machine.
+So, there were independent nodes on the butterfly that shared a common memory.
+They had built a very, very high-tech special-purpose bus, which would allow any node on the butterfly to access the memory in the same way as if it were its very own dedicated memory.
+And there was synchronization to ensure that if node 1 was looking at a particular word, node 2 could not look at that same word at the same time and so forth.
+Okay.
+Now, having had experience with these things, I know about some of the problems with using them.
+In the first place, they required specially designed hardware.
+BBN Butterfly was a very special commercial machine.
+The Hypercube was not even commercial.
+It was not something you could go out and buy.
+You had to have hardware experts in your lab building the Hypercubes.
+Okay.
+Now, the problem with that is what are you going to put into the nodes of those machines?
+Well, probably you're going to buy something commercial, something that is off the shelf, because you can't also spend all your time building CPU chips when you're doing this other stuff.
+So, it turned out that by the time your machine came to market like the BBN Butterfly, the power of the individual node in the butterfly was many, many, many times slower than what you could go and buy at the local hardware store.
+You could just get a faster single machine than you could, let's say, a 16-node butterfly.
+The combined speed of the 16-node was not up there with the speed of the single CPU, and it was probably more expensive.
+And this was something that you really couldn't get around, because it always took you a long time to integrate the new processor into this special-purpose machine.
+And while you were doing that, other people were simply selling the new processor as a single computer system.
+So, this meant that the speed advantage you were hoping to get out of the parallel processor was hard to get.
+Now, that also made it more expensive, because you're putting a lot of extra hardware in there, like that special bus in the butterfly.
+Also, worse, perhaps, was it turned out it was very hard to design typical applications that would actually get the speed you were hoping for.
+I mean, ideally, if you had a 16-node butterfly, with each node being some particular kind of CPU, ideally, what you'd like to be able to say is, well, when I run my program on this parallel processor, it runs 16 times as fast, or, being realistic, maybe 15 times as fast.
+You know, not quite perfect.
+Well, that was real hard to achieve.
+For many, many, many kinds of applications, while in principle, yes, you're doing 16 times as many instructions per second as on the single node, you're synchronizing.
+And you're synchronizing in part because of the hardware.
+But even if the hardware is doing it pretty quickly and isn't running into many synchronization problems, chances are good that your program is.
+Your program is going to need to have the various components running on each node communicate to other components.
+And this component on node 7 can't move on and do its next piece of work until that component on node 9 has done another piece of work.
+And that means node 7 is sitting there doing nothing while it's waiting for node 9 to do its thing.
+This is a very common synchronization problem you run into when you try to parallelize applications.
+Unless you can do it very, very effectively, you simply don't get the improvements in speed that you were hoping to get.
+That means that it's not running as fast as you would hope.
+And probably you would have done better to just buy that single CPU and run it on that without any of these worries.
+So generally speaking, parallel processing is not really a big deal anymore.
+Now, nowadays, of course, we have multiple cores on a CPU.
+So there can be like eight cores on your CPU, which means you're running eight different streams of instructions at the same time.
+In principle, you could run parallel processing applications on such a machine.
+You could have one application divided into eight parts, each running on one of the cores, and they're all synchronizing.
+And if you did that, you'd run into some of the same synchronization problems that we ran into years ago when we were using the butterfly and the hypercube.
+So that's typically not what we do.
+Typically, when you have the eight core machine, the eight cores are running eight fairly independent things, either eight separate processes or perhaps eight threads in a single process, which has been designed in such a way that each thread is largely independent of the other threads.
+And thus, there is no synchronization between the threads.
+Bottom line, parallel processors are not really a popular way of building a distributed system.
+What other approaches are there?
+Well, the approach that I took, well, I didn't take it.
+I was part of a big research team, and it wasn't originally my idea.
+The approach we took was a single system image approach.
+The idea here is to say, okay, you're working in an office environment, and everybody has a workstation.
+This was at the very beginning of the time when people would get individual workstations.
+It was a big deal at the time.
+Nowadays, it's trivial.
+But back then, it was a really big deal.
+And there are going to be a bunch of people, 15 people working in your company, sitting at 15 desks.
+Each with their own workstation.
+Wouldn't it be great if we could take all those 15 workstations and perhaps a few other server machines and combine them in some way to make it look like everybody was working on one big machine?
+And let's make it look like, no matter where your code is running, which of the 15 nodes it's running on, it can work with any of the other pieces of hardware.
+It can do interactions with any peripheral device anywhere.
+It can talk to any process running on any of the other 15 nodes, just as if it were running on the same node.
+Okay.
+Now, we wanted to get high reliability out of this system.
+We wanted better availability than single machines.
+We talked about those issues before.
+We wanted it to be more scalable than parallel processors.
+We wanted to have commodity hardware here.
+We weren't buying special purpose hardware for this.
+We were buying commercial workstations.
+And we wanted applications, any application somebody wrote or ran on these machines, to have very, very high transparency.
+So, for example, we wanted to have one big file system that would incorporate all the files on all those 15 or however many machines there were in your office.
+And from any machine, you could open any file, just as if it were on your own machine.
+You wouldn't even have to worry about where it was.
+That would be something that the system would work with, would figure out for you.
+This system was called Locus.
+We built it.
+We ran it at UCLA for quite some years.
+There were other people who built similar types of things, not identical, but with the same general idea of trying to make a bunch of computers look like one.
+Sun, an old company that has now been eaten up by Oracle, they ran Sun clusters.
+Microsoft built something called Wolfpack that was somewhat similar.
+OpenSSI was another example.
+So, the goal here was to say, well, you know, when you think about this, people don't want to run an application, a program on hardware.
+They run really on top of operating systems.
+I mean, when you write a program, you do not write a program that interacts directly with the CPU chip, as we have discussed, or with the other peripheral devices on your computer.
+You write something that effectively is using the system calls of the operating system you run on.
+Okay, so since we're using the system calls anyway to control what's going on, and we're already virtualizing those resources in the operating system, why don't we say, let's virtualize the resources on the other computers as well?
+And so you can interact with those virtual resources, even though whatever is truly implementing the resource, like a remote file, a file stored on some other machine's disk.
+Even though that implementation isn't on your own computer, why don't we provide a virtual interface that allows you to get it?
+Okay.
+And this would mean that you could essentially run anything anywhere on any of the machines in this environment, and it would run just the same as it would anywhere else.
+That was the goal.
+High transparency.
+So graphically, this is kind of what we're doing here.
+Over here, we had, let's say, four physical systems, four machines, four different sets of peripheral devices on the machine.
+Each machine had its very own RAM, no shared RAM between any of the machines.
+Various processes running on different machines.
+Locks established.
+The lock would have to be on a particular machine somewhere because we're going to have to enforce the lock.
+And we want to make this.
+This is what we really have.
+And we want to make it look as if this is what we really have.
+One big computer that's running all the processes and maintaining all the locks.
+That's what we want it to look like.
+So, we wanted shared file systems.
+So, we would have one large file system that would appear available to any process running on any computer.
+And it would be able to get to any file on any machine, just as if it were local.
+And you would have, of course, one global pool of devices.
+So, you'd have different printers and scanners and all kinds of things attached to the various computers.
+You could use any of them from anywhere.
+Okay.
+Now, if we're going to do this, how do we do it?
+Well, what we're going to have to do ultimately is say, well, all of our nodes in our system, all those 16 or 4 or however many nodes you're trying to build into the system, they're going to have to agree on the state of the OS resources.
+They're going to have to agree on what the file system is like.
+They're going to have to agree on what processes are running on the various computers, what devices we have, what locks have been set, what IPC ports are in use, etc., etc.
+And if we can reach agreement on that, then we will allow any process on any machine to make use of that agreed upon resource in whatever state it happens to be in.
+Now, of course, ultimately what we have is 4 or 16 or however many independent machines connected by a network.
+So, if we want to do something on one machine that requires resources that are on another machine, the only way to really do that when you get down to the brass tacks is by sending messages and receiving messages back.
+So, among other things, if the state of a resource changes, like on machine one, we have just deleted file slash temp slash foo, we need to make sure that other machines are able to know that we've deleted temp foo.
+Maybe that means we need to tell them we've deleted temp foo.
+Maybe it doesn't.
+But it means we have to consider that issue.
+Certainly, if we're saying we've got a process running here that's communicating with a process running there on a different machine, if this process is killed, perhaps intentionally by control C, we need to make sure that its partner over there knows that that process was killed.
+So, we're going to have to send messages to that effect.
+If we add a new peripheral device to one of the computers, we need to make sure everybody else knows there's a new peripheral device.
+We'll have to send messages for that purpose.
+So, we're going to send messages back and forth.
+Effectively, we're going to try to create a global state agreed upon by all the computers in this set of machines that represents what's happening in our computer.
+And if it turns out that process 12 on my machine needs to use a resource that's on another machine, a file, for example, then we're going to have to say, well, I can't actually on this machine on 12 open and read the file that's over there on machine 14.
+I must send a message from machine 12 to machine 14 saying open that file.
+But we don't want the user or even the application to know that a message needs to be sent.
+We want that happening under the covers without any visibility.
+So, that will then mean that it'll go to node 14.
+Node 14 would do the open, send back the results, et cetera, et cetera.
+So, obviously, there are going to be a lot of messages sent back and forth.
+You're going to send messages around to access remote files, to coordinate various kinds of system activities like setting up IPC channels between processes, using remote devices, and generally agreeing upon the state.
+Anytime that any of the machines in this environment needs to talk to another machine, it's going to have to be via messaging.
+It's all you got.
+So, we're going to need fast, reliable networking.
+This implied that we were going to have all the machines connected by local area network.
+Now, in many cases, like in LOCUS, this was a reasonable presumption because the system was designed to run in an environment, originally in an academic environment, in the computer science department at UCLA.
+Ultimately, perhaps in a company where you would have a few dozen, a few hundred employees all sitting in the same building, all connected by the same local area network.
+Not an unreasonable assumption that that's what you would have.
+Local area networks were relatively quick.
+They had other advantages.
+Now, if you said, on the other hand, I want to take 50 computers scattered all over the world, but all connected to the internet, and I want them to run a single system image, then you would be saying, okay, we're going to network across the internet.
+Things become a lot trickier once that happens.
+Okay.
+Now, one of the goals that people tend to have with single system images is to say, failure of a single machine should not result in failure of the overall system.
+It's certainly better not.
+Moreover, it should mean that to the degree we possibly can, we are going to continue without any interruption all the system activities, despite the fact that one node has failed.
+Now, obviously, if process A is running on machine 8 and machine 8 crashes, then obviously process A is not going to be running on machine 8 anymore.
+There are some possibilities of replicating processes and things like that, or migrating processes or something.
+But generally speaking, if it's on machine 8, well, it's that.
+But, and for example, if part of the file system, a set of the files that you're trying to make available are also on machine 8, perhaps failure of machine 8 would mean that set of files isn't available.
+But you want all the other files to be available.
+We also tried to do replicated files where we had multiple copies of files on different machines.
+So if machine 8 loses it, there's another copy sitting over on machine 7, and you can use that one instead, perhaps transparently switching over to that one.
+That leads to a whole other set of complications that we don't have time to talk about in this class.
+Okay.
+So for simple failures, this has some very, very big advantages.
+But one problem that you run into is what's called a network partition.
+What happens if your network has a failure, which networks can have, in such a way that half of your nodes are on one side of the network, the other half of the nodes are on the other side of the network?
+Everyone on this side of the network can talk to each other.
+Everyone on that side of the network can talk to each other, but they can't talk between these two sets of machines.
+So if machine 1 is in partition A and machine 12 is in partition 2, partition B, perhaps partition 1 contains nodes 1 through 8.
+1 through 8 can all talk to each other.
+Partition B contains 9 through 16.
+9 through 16 can talk to each other, but 9 can't talk to 1.
+2 can't talk to 13, and so on.
+Now, this leads to some tremendous complications.
+The pieces can't talk to each other.
+Things get worse, of course, because you don't want this to happen, so you're probably going to try to fix it and bring them back together again.
+And while they were separate, things have changed.
+Things have changed on one side.
+Things have changed on the other side.
+You're bringing them together.
+How are you going to reconcile the changes that were made without consultation to what was happening on the other partition?
+This is particularly bad if things keep coming and going.
+Nodes up, nodes down.
+When that happens, you're going to continually be changing the state, the shared state of the system.
+System agrees.
+Yes, node 8 is up.
+System agrees.
+No, node 8 is down.
+The system agrees.
+Yes, node 8 is up again.
+The system agrees.
+Yes, node 8 is down again.
+And it just keeps bouncing back and forth.
+And if it happens fast enough, you may not even reach agreement on whether node 8 is up or not before its status has changed.
+This gets to be very, very painful.
+So what kind of performance do we get here?
+If you're really good about your implementation, if you work at this really, really hard, you can cut down the overhead.
+Maybe you'll add 10 to 20 percent overhead, more performance hit than you would have had if you had a bunch of individual computers not really talking to each other.
+Which, you know, isn't great, but is perhaps not terrible.
+But it can be a lot worse than this.
+Now, you get very, very good transparency out of these systems when they are working.
+As long as everything is working the way it should be working, if you have implemented it very, very carefully, this is a very pleasant system to work with.
+This works beautifully when it works.
+You can get reasonably good robustness.
+One node fails, other nodes take over.
+Most of the applications you're running will not even notice the failure.
+It's a nice system to provide to application developers, to provide to customers.
+They like it.
+However, building this kind of system and getting that relatively low overhead and relatively high degree of transparency is complex.
+It's very, very complicated.
+It's difficult to do.
+It tends to be a much bigger system than if you didn't try to do this.
+And generally speaking, it doesn't scale beyond a certain point.
+Certainly, if you're working outside of a local area network, the challenges become much, much greater.
+If you're talking about a sufficiently large number of computers in the system that probabilistically something is failing at all times, which would happen in, let's say, a cloud computing environment where you have tens of thousands of machines, this becomes an infeasible thing to try to do.
+Generally speaking, you're going to send a lot of messages.
+Sending messages tends to be expensive.
+So you're going to pay a big performance overhead just for the messaging.
+So people tried real hard at this.
+We tried real hard on Locus.
+Other people tried real hard on other systems.
+Differing degrees of success.
+However, we learned a number of lessons here.
+One lesson.
+Consensus protocols are expensive.
+What's a consensus protocol?
+A consensus protocol is where you try to get a number of parties, computers, processes, whatever, to agree on something, to agree on anything.
+Is the answer yes or no?
+Are we finished with a computation or are we still working?
+Have we moved beyond this phase or have we not moved beyond this phase?
+Has this value gone above a threshold or has it not gone above a threshold?
+It is very, very difficult to build a consensus protocol that is always, under all circumstances, going to be correct and it tends to be expensive.
+We will talk more about this in the next lecture.
+Generally speaking, when things are not going well, they converge very slowly, meaning they come to their answer, their consensus, their agreement slowly, and they don't scale very well.
+The more nodes you have doing this, the worse the performance gets, the harder it is to reach some kind of consensus.
+That's a lesson that we learned the hard way by trying to do it.
+We've also learned that, gee, you know, there's a lot out there in a system.
+Systems have a lot of resources.
+And if we make a notification to a lot of nodes every time any resource changes, I guess it'd be quite expensive.
+One thing we discovered from people using our system, like Locus or like one of these other systems people built, is that if you have location transparency, meaning I'm sitting on this computer, but I don't care where my files are.
+I don't care where the other processes are.
+I don't care about any of that.
+I just do whatever I want and it works.
+People, not surprisingly, tend not to care about where things are.
+They tend to work with non-local things.
+And that tends to be expensive.
+Generally speaking, operating systems that are built to work this way are complicated, very, very complicated.
+Distributed objects are hard to manage.
+You know, if you have, for example, a couple of replicas, a couple of copies of the same file, and they're supposed to always be the same, that can get to be quite complicated.
+In order to reduce the overhead, you're going to have optimizations of various kinds.
+And some of those get very, very complicated, meaning there's at least the possibility of errors in the optimization that lead to other problems.
+And generally speaking, we're going to have to recover from arbitrary failures.
+If you build this kind of system, you've got to be prepared for any bad thing that can happen, because probably sooner or later it will.
+So you have to have code built into your system that will deal with arbitrary problems, such as that bouncing node.
+The node's up, the node's down, the node's up, the node's down.
+Your code better deal with that well, or else sooner or later you're going to get in a situation where that happens and it deals with it badly.
+So generally speaking, people don't run these anymore, and people don't try to build them anymore either.
+What do they do?
+Well, one thing they do is build systems based on the paradigm of loosely coupled systems.
+What's a loosely coupled distributed system?
+Well, you have a bunch of independent computers.
+They're largely independent, not completely independent, but largely independent.
+Again, we're probably going to work in an environment where they have a very high-speed local area network that connects them.
+We're trying to run some particular kind of application that has a very important characteristic.
+We're going to get in a lot of requests that are going to have to be satisfied.
+Each one of those requests is similar to the others.
+They're doing the same kind of thing, but they're largely independent of all the others.
+So what's happening to satisfy one request may have nothing to do with what's happening to satisfy all of the other requests.
+Now, if there is very, very little coordination between the different parties who are using our system and very, very little cooperation between these parties, then again, this is going to be a potentially useful way to design our system.
+Now, what we're looking for if we're building one of these loosely coupled systems is we want to have good price performance and good scalability.
+By price performance, we basically want to reduce the cost of handling every single one of these requests.
+We're getting millions of these requests coming in.
+Minimum cost for handling each request.
+Now, this is minimum cost in terms of CPU seconds and so forth.
+But also, ultimately, we're going to be buying a lot of machines.
+The fewer machines we have to buy to satisfy a million requests per second, the better the prices of running our system.
+So we want that to be a price issue as well.
+And scalability is another.
+We've got a million requests.
+We bought a set of machines set up this way to handle a million requests.
+It's working fine.
+We get popular.
+We get two million requests.
+How are we going to handle two million requests?
+Probably we need more hardware.
+What we'd like to do if we have this kind of system is buy a bunch more machines and just somehow or other plug them into the overall system.
+And now we have more hardware.
+We paid for more hardware.
+But we are able to run for two million requests at pretty much double the price of running for one million requests, which is a reasonable deal.
+We, of course, would like to have availability.
+If we have 100 machines in our loosely coupled system and one of them crashes, we want to be sure that that single failure of machines will not cause everybody, everybody using our service, to be unable to get their requests satisfied.
+Ideally, what we'd like to have happen is we'd like to say, OK, we just lost 1% of our capacity.
+We had 100 machines running.
+Now we have 99.
+We can satisfy nearly as many requests or the same number of requests nearly as fast with our 99 machines as we could with 100.
+That would be great.
+Now, in order for this to work, we're going to have to have stateless servers, which we'll talk about in a few slides.
+If we can set things up in this particular configuration using this particular paradigm, we will have a tremendous advantage in management, ease of management.
+One problem that we can see if we have complicated distributed systems is who's going to take care of the complicated distributed system.
+We've got to set up all kinds of configuration issues on every computer.
+We may have to change things fairly frequently.
+If we can avoid that, if we can say everybody gets set up pretty much exactly the same but with only tiny differences like what is your node number, then we will have a much easier to manage system.
+And if it turns out that we need to shut off some machines or we need to upgrade some machines and leave some others running the old version of the system, we'd like that to be relatively easy.
+And for this kind of paradigm, for this way of organizing your distributed system, that could be true.
+So what do we do with these loosely coupled systems?
+Well, if you are interacting with a serious web server, somebody who's providing a whole lot of service, like let us say Amazon or Facebook or Instagram or any of those things that have vast numbers of customers doing vast numbers of things every second, they're doing something like this.
+They're using some kind of loosely coupled system.
+But it doesn't have to be just World Wide Web type stuff, HTTP traffic.
+There are various other kinds of application servers that can be done this way.
+So, for example, some types of these online games where you are providing an online gaming world that is available to thousands and thousands and thousands of customers at the same time, they are often built the same way as this, with loosely coupled systems.
+Now, loosely coupled systems are built around a principle called horizontal scalability.
+In a loosely coupled system, you want to make sure that every single node, got 100 nodes, every single one of those 100 nodes is pretty much independent of all of the other 99 nodes.
+And if you do this right, what this means is you have 100 nodes, you need a little more capacity, you buy one more node.
+And you just put it on the side of the other 100 nodes.
+And now you have 101 nodes.
+And you have that extra 1% of capacity.
+You just add nodes as you need to add nodes.
+Now, this can't be done forever.
+Because ultimately, there are going to be things that are shared.
+In particular, for example, a local area network might be shared.
+So, there's going to be scalability limited by the network.
+But the hardware, how many instructions you can perform on each node, that won't make any difference.
+You need more capacity, you buy another node.
+You don't have to buy a faster node.
+You don't have to speed anything up.
+You just have to buy another node that adds more CPU seconds effectively to what you're doing.
+And you don't have to have an algorithm.
+You know, one of the things we had in the single system images that was difficult was those consensus algorithms.
+If we have horizontal scalability, we're not going to try to reach consensus very much.
+We don't care about consensus.
+What I'm doing on node 12 makes no difference to what's happening on node 73.
+Node 73 does not need to reach agreement with me about anything I'm doing.
+And I don't need to reach agreement about anything he's doing.
+We're each doing our work independently.
+Therefore, no consensus is necessary.
+We don't need a complicated algorithm to achieve that.
+Now, there are going to be some limitations, as I said, one being a network.
+Another is we're probably going to have a special machine we called a load balancer, which we'll talk about in a moment.
+And that may provide a bottleneck, a limitation on how big we can get.
+An advantage of horizontally scalable systems is high reliability, high availability.
+Failure of one node out of end nodes, one node out of 100, only reduces the capacity by a little.
+And if we have 100 nodes running and a few of them fail, then still, at any given moment, anytime during the day, 24-7, 365 days a year, we can have most of our capacity available to any of our customers who want to work with us.
+We don't have to do anything really fancy to do that.
+We just have to set up our system this way.
+So this is basically what it looks like.
+Out there in the Internet, typically, you got a bunch of clients, a bunch of people who want to browse the web or play your game or get to your database or whatever it is, whatever the service is that you're providing to your clients.
+So what do they do?
+They send you messages saying, I want to do this.
+I want to do that.
+I want to do this other thing.
+Each of those messages from each of the clients is pretty much independent of what the other clients are doing.
+For example, on a web server, if I ask for a particular web page from Amazon, you're probably going to ask for a different web page from Amazon.
+If we ask for the same web page, that's no more really than a coincidence.
+And our request for those web pages, for most purposes, do not have to be dealt with as a set, as a combination of requests.
+They can be dealt with independently, even though it's for the same page.
+Okay, so what happens?
+We get messages coming in from our clients out there on the Internet, and they all arrive at one location.
+At that location, we have a special piece of hardware, which we'll call a load balancing switch.
+Now, the load balancing switch has one and only one job.
+As a request comes in, it has to choose some other machine in our environment as part of our locally scalable environment and say, this request goes to that machine.
+Another request comes in, this request goes to the other machine.
+A third request comes in, this third request goes to yet another machine.
+It simply divides the load up among the machines.
+So, for example, here, under the load balancing switch, over here, we see that we have several web servers.
+As we get the first request coming in, the load balancing switch might send it to that web server.
+The second request might go to that web server, the third to that one, the fourth to that one.
+And then the fifth one might go back to the first one.
+The load balancing switch would choose what it would do.
+It would simply say, I know I've got four, or I've got 100, or I've got 1,500, or however many of these servers I've got.
+And I divide up the load between them in what seems like a reasonable way.
+Now, you might notice here that there was a phrase attached to the load balancing switch, with failover.
+It should have occurred to you that we were talking about how reliable the system is.
+Yeah, the system is reliable if one of the web servers fails.
+But what happens if the load balancing switch fails?
+Well, then, all of the requests are going to a machine that is not running.
+So typically, if you are setting things up this way, you will have a pretty special piece of hardware sitting here with a load balancing switch.
+It would basically be a set of hardware that has duplicates of everything, perhaps even two separate machines that implement the same function with some special purpose hardware in between.
+If one of the machines fails, the special purpose hardware would start up the other machine and switch over to that one.
+Normally, only one, perhaps, of the two sets of machines that's doing the load balancing would be active, but they'd be able to switch back and forth if failures occur.
+In which case, you now get higher reliability of the load balancing switch.
+Since the load balancing switch is doing very, very simple stuff, here, here, here, here, there, there, there, just handing out requests to different nodes, you don't need to have a whole lot of state or a lot of complexity in what's happening in either the hardware or software of the load balancing switch.
+Very simple to work with.
+Okay, now something else you might notice in this diagram associated with web servers is down here, there is a single machine.
+This is a content distribution server.
+Well, if what you're doing is you're providing web servers, presumably you either have a fixed set of web pages that you've already prepared, or more commonly in modern web servers, high performance ones, you will build web pages on the fly from bits and pieces of what you've already got, that will be designed to satisfy very particular requests.
+This is the way that people like Facebook and Instagram and all that respond to web requests.
+They build something from pieces they already have available to satisfy the particular request.
+Okay, well, you got to have all those bits and pieces somewhere.
+Or if you have a fixed set of web pages, you have to have a fixed set of web pages somewhere.
+Those things would be kept at the content distribution server.
+And each web server, as it needed to satisfy a request, would, if necessary, ask the content distribution server, I need this piece, I need that piece, I need this other piece in order to fill my request.
+The content distribution server would provide it to the web server.
+These pieces would typically be static, which would mean they would not be updated by any of the web servers.
+Therefore, you would be able to build the page from pieces that are perhaps shared by other web servers at the same time.
+Since read-only, you can share them as much as you like.
+And in fact, one thing you'd worry about if you were doing this is you'd say, well, gee, will not the content distribution server become a bottleneck?
+Won't everybody be asking that machine for, give me this, give me that, give me this other thing?
+Well, set up some storage on each web server and cache.
+Cache a bunch of stuff there.
+And therefore, with luck, many times what you need is in the cache on the web server and you don't ask the content distribution server at all.
+Now we can do the same thing with an app server.
+So let's say this is an online game.
+And you've got information about the online gaming world that you keep in a database server.
+And you've got a bunch of apps dealing with the requests from the various people playing the game.
+So if it turns out you need more web server capability here, what do you do?
+Well, you just buy another web server.
+Now we have five instead of six.
+And where did that web server go?
+Kind of right next.
+In fact, perhaps if you have racks, you put in an empty slot on the rack and you connected up some networking and away you went.
+So that makes it very, very easy to add web server capacity.
+So if we're building this, what do we got?
+Well, we've got a bunch of these independent servers, each one of which is capable of handling requests of a particular type.
+They're all going to run the same software, but each one is going to service a different set of requests.
+There's probably going to be, as we saw, a back-end database and a machine associated with that back-end database.
+You might want to have some failover capability on that as well in case the database machine fails.
+You're going to have the front-end switch, which is going to say, as a request comes in, I choose one of these independent servers to satisfy this particular request.
+And you can do this in a very simple load balancing sense.
+And you can have failover in a special piece of hardware in the switch.
+And then, from a software point of view, you have to have some kind of protocol.
+A protocol that says, here's how I service a request.
+Now, if you are going to try to do this, you want to design these servers to be stateless.
+Why do you want them stateless?
+Well, if they're stateless, when a request comes in, they will satisfy the request, they will send back the result, and then they'll forget about it.
+They will not remember what they did to satisfy that request.
+Now, in many cases, of course, when I'm interacting with, let's say, a website, I go to one page, I click on the link, I go to the next page.
+Often, what happens when I go from page to page is I get information on the second page related to what I did on the first page.
+If nothing else, it's because the first page links to the second page.
+And perhaps there's more to it than that.
+But if I'm trying to build a system in this way, I cannot say that whoever, whichever one of these independent servers got the request, service that first page for Peter.
+It can't remember, oh, and when I service the first page for Peter, here's what I did.
+Here's what I showed him.
+Here's information about that first page.
+I will remember that in my server.
+Can't do that.
+No state in these independent servers.
+Well, that means that when the second request comes in, when I ask for the next page, it doesn't have to go to the same server.
+Because that server doesn't remember anything about that request.
+None of the other servers remember anything about that request.
+It's equally well decided to send it to any one of those servers.
+It's okay to send them anywhere.
+They all can do the same thing.
+Now, it's also the case that sometimes we're going to run into a situation where an incoming request comes in.
+The load balancing switch says this is going to go to node 7, server 7.
+Sends it to server 7.
+At some point, server 7 crashes.
+Now, maybe server 7 had responded to that request, and maybe it hadn't.
+What we can do is say, well, we don't even have to keep track of the fact that server 7 did or did not respond to this request.
+We just have to repeat the request.
+Of course, 7's down, so we can't repeat it at 7.
+Let's send it to 13 instead.
+Now, since there was no state in any of the servers, sending it from 7 to 13 will be okay, provided we have an idempotent operation.
+Servicing this request is idempotent.
+What do we mean by idempotent?
+This is a term that you probably never heard of before if you haven't worked in this kind of networking and distributed system environment.
+An idempotent operation is an operation that gives you the same result no matter how many times you do it.
+You do it once, it gives you a particular result.
+You do it twice, it gives you the same result.
+You do it 15 times, you still get the same result.
+So as a simple example, x equal 10 is idempotent.
+You do it once, x is 10.
+You do it twice, x is 10.
+You do it 15 times, x is still 10.
+x equal x plus 1, on the other hand, isn't idempotent.
+If x started out to 0, the first time you do it, x is 1.
+The second time, x is 2.
+The third time, x is 3.
+And so on and so forth.
+You want, if you're building this kind of system, for everything these servers do to have this idempotency principle.
+Why?
+Because if they have the idempotency principle, and it turns out that we're not sure whether a node did this work or not, it is perfectly safe to have another node do the work.
+Because one of two things happened.
+Either that first node did the work before it failed, or it didn't.
+Now, if it did the work, it provided an answer to whoever asked for the work, and they got the answer, x equal 10 or whatever.
+If it turns out that that happens, and you then say, well, I don't know whether it happened or not, I then ask node 13 to do it.
+Back comes x equal 10.
+Generally speaking, people who ask for these kinds of things don't care if they get duplicates, because after all, it's the same thing.
+If it is not idempotent, then this isn't going to work out too well, because you send it to the first node.
+It's a non-idempotent operation.
+It's x equal x plus 1, and x started at 0.
+If that node performed the operation and sent back the result, the guy got 1.
+If, on the other hand, you do it a second time, and x goes to 2, then the person who asked for this got two responses, 1 and 2.
+Not good.
+Which one is correct?
+Well, he can't know which one is correct.
+And in particular, probably the first one is correct, but you don't know that, because one thing you should know about networking, you don't necessarily get messages delivered in order.
+You know, x equal 2 could come in before x equal 1 comes in.
+Who knows?
+That's networking.
+So, if you don't have idempotent operations, it becomes very, very difficult to ensure that you get proper results in the face of failures and temporary problems.
+So, you want to make sure that whatever you're doing with this loosely coupled architecture, whatever each one of these servers does has this idempotency property.
+If you can build a server this way, what benefits are you going to get?
+Well, you're going to get a really good price-performance ratio.
+Now, typically, people who build these systems, they do not buy expensive workstations as these servers.
+They instead buy what are called blade servers.
+Blade servers are machines that are not top of the line.
+They aren't the most expensive, fastest computer you can buy today.
+They are cheap, $100, $200 a piece.
+They're also small.
+They can fit a bunch of them, say 16 of them, into one rack about the size of a typical filing cabinet.
+So, you can have a rack of 16 of these sitting somewhere, and it's taking up no more space than a filing cabinet.
+You need more, you set up a second rack.
+Now, it can hold another 16.
+How much to fill them up?
+Well, maybe $3,000 to fill up the second rack beyond the price of the rack itself.
+So, that means that you can increase your capacity in a very cheap way.
+If you have an empty slot in the rack, well, you need more capacity.
+You just shove another blade server into that empty slot.
+So, it's also the case that unlike with the parallel processors that we talked about earlier, you're going to get some really nice speed up on these because there's no cost to reaching consensus.
+None of these nodes are waiting for another node to do anything.
+As they get a request, they independently, without waiting on anybody, fulfill that request most of the time.
+Therefore, you get close to perfect speed up.
+100 nodes, 100 times as fast as one node.
+Maybe not quite that fast, but pretty close.
+Availability is excellent.
+Failure of one machine does not impact the rest of the machines, assuming your front-end server can bypass the failed machine.
+The stateless servers make it very, very easy to do failover.
+And, of course, you also have to, on the other hand, say, client asked me for a web...
+I, the client, asked for a web page.
+I waited and waited and waited and I didn't get my web page.
+What do I do?
+If you automatically re-ask for the web page with one of these systems, then presumably, the reason you didn't get a response to your first request is it got farmed out to one of the servers.
+That server crashed.
+Okay, you ask again.
+It'll get farmed out to a different server.
+This time, probably, it won't crash.
+And you'll get your response.
+Now, there is a challenge to this once you get to a reasonably high scale, which is, I've got a thousand machines.
+I have a popular website.
+I need a thousand of these servers.
+How am I going to handle a thousand servers?
+Now, they're all going to be similarly, perhaps almost identically configured, which helps somewhat.
+But still, you've got a thousand machines.
+If any of you have done any kind of system administration, you know that if you had a thousand machines to administer, you would be running around all the time administering 1,000 machines.
+You would have a full-time job doing that.
+So, you want to minimize the cost of this.
+Now, if you do make sure that every machine has the same configuration, then adding that extra machine on the side because you need some more capacity, it's going to be relatively cheap to do.
+It's going to have the same configuration as all the others.
+So, it's going to be a very simple automatic installation.
+If you decide now is the time for everybody to update their software, well, you have something that says go to each of the thousand machines and update on the thousand machines.
+You don't have a system administrator going humanly, individually, from machine to machine and say, update this one.
+Now, I plug into that one and update that one.
+It all gets done automatically.
+You also, of course, want to make sure that if something fails, it reboots pretty much automatically if it possibly can, which frequently it can.
+And at this point, you're going to get to the stage where the cost of running the system beyond buying the hardware is going to be related to your management costs.
+Do I have to hire a system administrator?
+Now that I've gone to a high capacity, do I need two of them, doubling my system administration cost?
+There are going to be other costs such as electricity and air conditioning that you have to consider as well.
+But those are not hardware costs.
+Those are not algorithm costs.
+So what's good and what's bad about this approach to distributed computing?
+It's very, very practical.
+It solves a problem that a whole lot of people have.
+Very common problem.
+Therefore, it is used by many, many, many people and it solves our problem well.
+It deals with many of the hard issues that we saw in parallel processing or single system images by effectively saying, well, we're going to ignore that problem.
+We're going to solve applications that just don't need that stuff.
+They don't care about that.
+Therefore, we can ignore the problem entirely.
+It allows you to use very cheap hardware, unlike parallel processing.
+And it's scalable in a lot of ways.
+And as it turns out, especially for web service, this is a wonderful match.
+This does very, very well when you're providing high scale web service to lots of clients.
+There are disadvantages.
+It works well for a lot of things, but it doesn't work so well for other things.
+If you need to achieve distributed consensus in your application, if that's what you're doing, this is not a good match for your problem.
+And of course, there are scaling limitations, like the load balancer or those backend database machines or the networking capability of your environment.
+Okay.
+Another paradigm that we have seen that is somewhat more recent, not real recent now, it's been around for more than a decade, is cloud computing.
+What's that?
+Well, it's a distributed system approach.
+It is a distributed system.
+We talked about cloud computing a bit when we were talking about virtual machines.
+So, you have tens of thousands of machines sitting in a warehouse, all connected by high speed network, all connected to the internet, each of them running its own set of things using virtual machines, et cetera, et cetera, et cetera.
+Okay.
+So, what are we going to run in the cloud?
+We're a client.
+Will we take our job to the cloud computing facility or will we say that's not a good match for what we need to do?
+What could we run in the cloud?
+Well, in principle, you can run anything in the cloud.
+So, that's great.
+You could say, I'm going to run a single system image in the cloud.
+You know, I'm going to have the cloud people provide all the hardware services.
+I'm going to run Locus or Wolfpack or whatever in the cloud.
+You can do that in principle, at least.
+However, distributed computing is hard in general.
+Building those single system images and running those single system images is hard.
+The cloud environment is going to solve a few of your problems, but it's not going to solve all of them.
+It's not going to solve your consensus problems, for example.
+So, this isn't typically what you do in the cloud.
+Typically, what you do in the cloud is something that is well matched to the properties of that hardware environment.
+And typically, this is done with special tools.
+They allow you in a simple way as a client to say, by using this tool in my cloud environment, a tool provided typically by the cloud computing provider, I will be able to solve my problem, and I will be able to get good performance, and I won't have to worry about many of the hard issues in distributed computing.
+So, you do things like horizontal scaling.
+You can do that in cloud computing environments.
+People frequently do.
+Many websites are built in cloud computing environments.
+But you can do other things like MapReduce, which we'll talk about shortly, in the cloud computing environment, and it works very well.
+Ideally, if you're working in a cloud computing environment, if you're renting out space in the cloud, you really don't want to be a distributed systems expert.
+Now, that implies that you cannot run something in the cloud environment that requires you to be a distributed systems expert.
+Not because they won't let you, not because it's impossible, but because you probably don't have the necessary expertise because very few people do.
+So, horizontal scaling works well, but here's another tool that is built in cloud environments that's very, very useful.
+It goes under various names.
+MapReduce is one of them.
+It's very common use in the cloud environment.
+So, basically, one of the things you want to do in a cloud environment is you want to say, well, there's a lot of machines there.
+I need a lot of computing power.
+Therefore, I need a lot of machines.
+I will rent a lot of machines from the cloud computing environment, and I will throw them at my problem.
+But how do you throw 100 machines at your big problem?
+How do you make effective use of the 100 machines without worrying about some of the issues like failures of machines?
+How do you make sure that you can reach distributed consensus on at least completing my job?
+How do you do that?
+You can build the code yourself, but what if you can just say, here's a simple tool.
+It requires me to provide a couple of pieces of information fairly specific to my data set, the result I'm looking for.
+But as long as I provide those pieces of information, all this other hard stuff about distributed systems is taken care of for me.
+That's what MapReduce is about doing.
+Basically, it allows you to divide your large problem into small compartmentalized pieces.
+Each one of these compartmentalized pieces can be performed on an individual node.
+And eventually, the approach that this provides will combine together the results of all of what's happening on the individual nodes and give you one final output that is the representation of what would have happened if I had run the same computation on one theoretical, big, incredibly powerful machine.
+Typically, if you're going to do MapReduce, you have a problem that can be stated in the following terms.
+You got a lot of data, a whole lot of data, individual pieces of data.
+You have a function of some kind, a function you can specify.
+And you want that function to be performed on every single piece of data, individually on each piece of data.
+You don't need to have connections between the pieces of data.
+Each piece of data needs the function provided individually.
+So, for example, you can say each of these pieces of data is a character string.
+And I want to search for a substring within that character string.
+The function is search for substring within character string.
+For example, that's just one example.
+There could be many, many, many different functions, many, many different types of pieces of data.
+So what do you do?
+You take the overall immense data set and you divide it into disjoint pieces.
+You know, it's 10 terabytes.
+You divide it into four, two and a half terabyte pieces.
+Okay.
+Each piece contains some of these individual chunks of data that the function should be performed on.
+You put each of these pieces of data on a separate node.
+Each has its own node.
+And each of these nodes then says, I am, for my piece of data, going to perform the function, whatever function you specified, on every one of the data items that you have given me in my chunk.
+Meanwhile, the others are going to do exactly the same thing.
+We are not going to communicate to each other.
+We are just going to do our thing.
+Now, eventually, all of us are finished with doing our thing.
+Depending on circumstances, type of data, type of function, et cetera, et cetera, it may be that some of us, some of the four nodes here, each working on two and a half terabytes, finish a lot quicker than the others.
+Some of them may take a lot longer.
+Not their fault.
+We're probably all exactly the same size of CPU and so forth.
+It's just that's the way things divided up.
+So we're then, after all of us have finished, we're going to take all of our individual results and we are going to combine them.
+The first phase, where each of the nodes is individually doing whatever it needs to do, performing the function on each of the data items, that's called the map phase.
+When we take the results of all the map phases on all the nodes and we combine them, that's called the reduce phase.
+So let's take an example, simplified example.
+We got 64 megabytes of text data and we want to count how many times each word occurs in the text.
+Let's say the text data is divided up into individual character strings of 80 characters each or something.
+So what do we do?
+We could say, okay, we can afford four nodes.
+We will rent out four nodes.
+Let's divide up our 64 megabyte data set into 16 megabyte chunks, four 16 megabyte chunks.
+We will then assign each of those 16 megabyte chunks to one of the four machines that we have rented.
+And they will then take the function, which is count words within the text.
+So here we are.
+We got our four nodes.
+Each one of them has a set of the data, a subset of the overall 64 megabytes.
+And they each have their own separate storage where they're going to store temporary results as they work through their map phase.
+So this one counts up and it says, I see foo once, bar four times, baz three times.
+And oh, yes, I see zoo six times.
+Yes, 12 times, two, five times, et cetera.
+And they're all doing this and they're working at whatever speeds they happen to be working at.
+And as you can see, some of them finished before the others.
+That's the map stage.
+Now, as you can see in this particular case, I've actually, at the output of each node's map phase, produced two separate things.
+One has all of the words starting between, let's say, A and L.
+And the other has all the words starting between M and Z.
+So as you can see, each one is divided up into two parts.
+So that's fine.
+But we have not yet got a full count of how many words occurred in all the 64 megabytes.
+What do we do?
+Well, we either take two of the nodes we've already used or we have two more nodes that we've rented.
+Let's say for the moment we have two more nodes we've rented.
+And we say, you are the reduced nodes.
+The other nodes were the map nodes.
+You're the reduced nodes.
+So what's going to happen is we're going to say, each of those reduced nodes is expecting to hear from each of the map nodes a piece of the data.
+So one of the reduced nodes will get all of the A through L data.
+The other reduced node will get all of the M through Z data.
+Okay.
+And once each of those reduced nodes has all of the pieces of data from all of the four map nodes, then, and only then, it will start working on adding up everything from all of the map node pieces.
+So here we have our four map nodes producing their results.
+And there are the two reduced nodes at the bottom.
+So the first reduced node is getting all of the pieces that come from the various map nodes with the A through L words.
+So it got that one.
+And it got that one.
+It got the other two.
+The other reduced node is getting all of those.
+Okay.
+Each of the reduced nodes, once it has all four of those pieces, is then going to start adding up the content of all four pieces.
+Because that's what the reduced function is.
+Add up them all.
+You could have a different reduced function, like what is the maximum.
+But let's say it's add up all the words.
+Because you want to know how many often each word occurs.
+So the reduced nodes do their job.
+And this one says, okay, I saw foo 14 times, bar 20 times, baz 19 times.
+The other guy says zoo 16 times, yes 42 times, two 24 times, and whatever.
+You write the results out to a file, and you're done.
+Well, that wasn't really what you wanted.
+You wanted a combined list.
+Well, that's a problem.
+You've got two files.
+One with the A through L, and one with the M through Z.
+What do you do?
+Well, you can then say, I'm going to do a second map reduce on those, and that's going to combine everything for us.
+And it's going to be a smaller map reduce, because we have less work to do.
+Okay, now, why are we doing things this way?
+You gain a big benefit in synchronization by doing things this way.
+So what's a map node supposed to do?
+The map node is supposed to take an input, and it produces an output.
+It cannot produce the full output file until it's used, look through the full input file, and perform the function on every record in the input file.
+Okay, so the way we're going to do this is we're not going to have the map node gradually sending bits and pieces of whatever it's seen to its reduce node that should get that result.
+Instead, the map node is going to do all of its work, every single bit of its work, and it is going to produce, in this case, two reduced components.
+It doesn't have to be two.
+It could be four.
+It could be whatever.
+But here it's two.
+So that is done atomically.
+What we mean by atomically is either it's all done or it isn't done.
+Okay, now the reduce node is not going to do a damn thing until it gets a full piece from each map node.
+This forces a synchronization point between the map and reduce phases.
+So the reduce nodes don't do any work until all the map nodes are finished, or at least finished with their phase.
+So it might be the case that one of the reduce nodes gets all four of its pieces of data from the four map nodes.
+It can do its work because it's got all the data it needs to work on.
+Let's say the other reduce node gets three of the pieces, but before it gets the fourth piece, the node, the map node that produces that fourth piece, crashes.
+Okay, now we don't have the full four pieces in that reduce node.
+If we don't have the full four pieces in the reduce node, we cannot do our work.
+What do we do?
+Well, map reduce is set up in such a way that it would say, okay, I am missing a piece, and I know that the map node that was supposed to send it is not responsive.
+It crashed.
+What do I do?
+Well, I will take the work that the map node that crashed should have done.
+Maybe it did it.
+Maybe it didn't.
+Who knows?
+And I will give it to one of the other map nodes.
+And the other map node will now do the work.
+Now, presumably, this is going to be something where it doesn't matter which map node does the work.
+They all do the same thing, idempotent operations.
+So that means, of course, we'll get a delay because now we'll have to do that piece of work again before we can provide the last piece to that second reduce node.
+But we also know, since we're sitting here waiting for the two reduce nodes to each say, I'm done, I'm done.
+One said I'm done and the other hasn't.
+That means we're not finished.
+We know that we have to wait for that second one.
+So we're getting a nice, strong, simple synchronization point between map and reduce and after reduce is done.
+This means that many kinds of partial failures don't cause a problem.
+We don't run into a problem, for example, if one of the map nodes provides half of its output to the reduce node and then it crashes and we don't get the full output.
+Not a problem.
+We know that we haven't gotten the full output at the map node.
+We discard it because we know another node will be given that job again and this time, with luck, it'll produce the whole thing.
+So we don't have to worry about, gee, can we put together half from here and half from there and where is the point at which they match?
+We don't worry about that.
+We get full pieces from the map nodes.
+If we don't get a full piece from the map node, forget about it, discard it, wait until we get a full piece from another map node.
+So this makes it very, very easy for the people who are using MapReduce to use it.
+They don't worry about the synchronization.
+That's been built into the MapReduce approach.
+All they have to worry about is these are my functions.
+This is my map function.
+This is my reduce function.
+So cloud computing works well with horizontal scaling as well.
+Because, you know, basically, what do you do?
+You say, I today have decided I need 100 web server nodes plus some load balancing stuff.
+I will go to a cloud computing provider.
+I'll rent 100 nodes or 101 if I want one of them to be the load balancer.
+Life is good.
+All my 100 nodes are busy.
+I'm making tons of money.
+I could make more if I only had more capacity.
+What do I do?
+Go to the cloud computing provider and say, I'd like 120 nodes instead of 100.
+And he says, sure, give me a little extra money and here are your 20 nodes.
+And bang, because we're doing horizontal scaling, we know what to put on those nodes.
+We just put them on the nodes, start them up, and away we go.
+And now we have 20% more capacity.
+It turns out that, gee, you know, that was just a blip.
+I was doing real well for a while, but my content isn't as popular anymore.
+Now I really only need 50 nodes, but I'm paying for 120.
+What do I do about that?
+Well, I go back to the cloud computing provider and say, I want to go down to 50 nodes.
+I don't want to pay the full cost of 120 nodes.
+I only want to pay for 50 nodes.
+And the cloud computing provider says, well, that's too bad, but fine.
+Here's the contract for 50 nodes, cheaper price.
+These are your 50 nodes.
+Away you go.
+And you just chop off 70 nodes that you didn't have before.
+The load balancer now load balances between 50 instead of 120.
+Very simple.
+And it also is nice.
+This means, for example, that you, the web server provider, don't have to buy any machines.
+You don't have to say, gee, should I plump for buying 120 machines when I don't know?
+If my capacity will, my requirements will remain that.
+You just say, well, I need them now.
+And it appears likely I'm going to need them for the near future.
+I'll pay for it now.
+And, you know, I got a three month contract.
+If it turns out after three months that I don't need them anymore, I can get a new contract for fewer.
+I haven't bought the machines.
+I'm not stuck with the machines.
+I also don't have to run the machines.
+I don't worry about whether the machines crash.
+I don't worry about whether there is a flaky network connection on one of the machines.
+I don't worry about updating the software, the system software on the machines.
+Not my problem.
+The cloud computing provider will do that for me because I'm paying him to do that for me.
+Much simpler task.
+Now, all I have to do as the web server provider is I have to say, well, I got to worry about what my website is like.
+I got to worry about my content.
+I got to worry about how I build my web pages, how I make them attractive to users.
+I don't have to worry about do I have sufficient local area networking capacity to handle all the load.
+Not my problem.
+Cloud provider problem.
+So what's good and bad about cloud computing?
+Well, it hides a great deal of complexity.
+And in particular, it hides a lot of the unpleasant issues of running computers.
+Running large numbers of computers can be very, very challenging.
+In cloud computing, that challenge has been offloaded to whoever is running the cloud facility.
+And the person who wants to use the computing capability doesn't have to worry about it.
+That's great.
+And it matches very, very nicely many important computing issues.
+Matches a horizontal scalability issue.
+Matches the map produce issues and some others.
+It gives you really great scalability as a user.
+You can pretty flexibly increase and decrease the amount of compute power you need to deal with your current requirements.
+And it thus provides a great economic model for the users, while at the same time providing a great economic model for the providers.
+They just have to find customers.
+They don't care what the customers do to a large extent.
+They just have to find customers who are willing to rent machines from them.
+Now, there are downsides here.
+You want to run a single system image?
+Well, you know, they'll sell you the computers.
+But actually getting the single system image to work properly is largely your problem.
+And if you have a more general distributed computing problem, that too is your problem.
+And of course, not just anybody can run a cloud computing facility.
+It only works if you have a very, very large scale, which means you have to put a lot of money into it.
+And you have to put a lot of continuing money into it.
+Because not only will you be renting or buying the warehouse and buying all these computers and buying all the networking equipment, you're going to be paying a whole lot of system administrators.
+You're going to have big electric bills.
+You're going to have to worry about air conditioning problems.
+You're going to have machines that frequently fail and have to be replaced.
+It's going to be a big expense.
+Now, you can make a big profit off of it, but you cannot get into this market easily.
+You know, you can't say, I got a few thousand dollars to spend.
+I'm going to become a cloud computing provider.
+You need big, big investments to make this work.
+Okay.
+Now, there's one other approach to building distributed systems that we're going to talk about.
+Remote procedure calls.
+This is sort of a more low-level approach.
+This says, I'm going to write my own distributed system code.
+I'm not going to have this big operating system sitting behind me that's going to do all these fancy things.
+I'm writing my own call code.
+And what I'm going to do to make the code kind of fit together is I'm going to use remote procedure calls.
+RPC is the abbreviation here.
+Typically, in computing context, if you see the term RPC, it means remote procedure call.
+It's a way of building a distributed program.
+You have some very, very special, unique distributed program.
+It's not MapReduce.
+It's not horizontal scaling.
+It's something special, something different, something particular to your needs.
+Your company has some special needs.
+So, you're going to write some code.
+You've got a bunch of programmers that are going to write some code to build you a special purpose distributed system that will be wonderful, you hope.
+How do you do it?
+Well, if you were writing on a piece of code for a single computer, you would probably be using some kind of language that used procedure calls or that used method calls if you were using object-oriented programming.
+Basically, this piece of code calls that piece of code.
+That piece of code does something.
+It returns the result to this piece of code.
+That's the way we do computing.
+That's how you do Java.
+That's how you do C.
+That's how you do pretty much all of the computing systems that we build today.
+So, it's a fundamental paradigm.
+If you have a programmer who has learned how to program, they understand procedure calls.
+They understand how this works.
+They understand parameters.
+They understand return values.
+That all makes sense to them.
+So, what you could do is you could say, why don't I allow you to build this distributed system that I'm talking about where you have a piece of code running over here and a piece of code running over there?
+And the way those pieces of code will communicate is not by explicitly sending messages back and forth.
+This piece of code will call a procedure over there.
+Now, they are not only in different processes, but they're on different machines.
+So, this is going to be, when we think, a bit tricky.
+But if you can do that, if you can set things up that way, then it becomes a lot simpler for your programmers to think about what's going on here.
+They're just calling procedures from one place to another.
+Okay.
+So, RPC is a mechanism that will allow you to do this relatively simply with relatively few limitations on what you can do.
+Effectively, it can say, I'm running a process on machine A.
+The process on machine A will call a procedure, a piece of code running on machine B.
+And it will not send the message to machine B explicitly.
+You won't write code saying, create message to machine B.
+Please call this procedure.
+Instead, you will do, just call a procedure.
+Even though it is not in your address space, it is not part of your code, it belongs to that process over there.
+And it'll look a lot like your regular procedure calls.
+How is this magic to be performed?
+Well, this is actually kind of a natural boundary between two machines that are running code in a distributed system.
+One of them is kind of the client.
+It asks for things to be done.
+The other is the server.
+It does things for clients.
+A procedure call is kind of a natural boundary to do that.
+The client asks the server to do something.
+The server does it, returns the result.
+The client asks the server to do something else.
+The server does it, returns the result.
+That's very much like a procedure call.
+So, it also is the case that even if we were talking about one process on one machine, that's what procedure calls do.
+My code calls one procedure in this process, and it does stuff without talking a lot to the procedure that called it.
+Comes up with a result, returns a value.
+That procedure then is able to go ahead using the return value.
+So, that's great.
+But, of course, you can't actually do that.
+You can't, on one machine, call a procedure in another process on another machine.
+As you should remember when we talk about processes and how they work, that just isn't going to work.
+There's an address space over here.
+There's an address space over there.
+They aren't the same address space.
+They don't even share the same RAM.
+How are you going to do a procedure call?
+Well, what you're going to do, of course, is hide all of the mechanism, but the mechanism is still there.
+And the mechanism in question is going to have to be messages.
+Because when you have two machines that are separate machines, the way they communicate, if they communicate at all, is by message.
+So, if we're going to perform remote procedure calls, we're going to send and receive messages.
+Because that's all we can do to have this process over here, talk to that process over there in any way to do anything, including procedure calls.
+So, what are we going to do?
+The guy over here is going to think he's calling a procedure.
+But something is going to convert that attempt to call a procedure, which is over there, into a message that goes from here to there.
+When it gets over there, something is going to grab that message and say, I know what I should do with this message.
+I should call a local procedure on this computer and do whatever the local procedure says to do.
+Once I've done that and I've reached the end of that procedure, I should try to return the result.
+And the way I'm going to return that result is I'm going to create a message over here and send it over there.
+When it gets over here, the something over here is going to say, okay, this is the response to my remote procedure call message.
+I know what I should do.
+I should grab information out of this response and say, oh, this is the return value of this procedure.
+Then I should go to whatever appeared to be the local procedure here that was calling it and say, here's your return value.
+We'll go through an example of this.
+Clearly, because of the fact that there are not processes on the same machine, there are not procedures in the same process, there are a few things we're not going to be able to do.
+So, what are the limitations we see here?
+You can't have implicit parameters or returns.
+So, for example, you can't have global variables.
+You can't say, here's a variable that is known to all the procedures in my machine, in this process.
+You can do that, of course, within a single process.
+We do that all the time.
+But you can't do it across remote procedure calls because the global variable is sitting on this machine and the remote procedure is being run on that machine and they don't share memory.
+So, it isn't over here if it was designed global over there.
+So, that will work.
+You also can't do call by reference parameters.
+So, in a C code, for example, you can have a parameter that is a pointer to an integer.
+You can't do that in remote procedure calls.
+And you should see exactly why.
+What is a pointer to an integer?
+It's an address in the address space of the process that made that call.
+Okay.
+So, the pointer to the integer is an address over here in this particular address space belonging to the particular process that made the call.
+Over here is the code that is going to respond to that remote call.
+It has a different address space.
+The pointer from over here is not going to point to the right thing over there if it points to anything at all.
+So, you simply can't do that.
+And then, of course, when you do a procedure call in your own process, so one procedure in your process calls another procedure in your process, what happens?
+Well, you set up a new stack frame and you jump to the new stack frame and you start executing from a new location.
+You do a few things that aren't, you don't even have to do a system call to do that.
+You just do an ordinary jump and maybe run some special instructions that in the hardware set up a stack frame.
+But it's just a few instructions and bang, you're doing your procedure.
+Well, that's not going to happen in remote procedure calls.
+What's going to happen in remote procedure calls?
+You're going to figure out it's a remote procedure call.
+You're going to go to some code that sets up a message.
+You're going to send the message you've set up across the network.
+With luck, the message gets received at wherever it's supposed to go.
+Whoever receives the message is going to say, oh, I got a message.
+This one's a remote procedure call message.
+I better call a correct remote procedure.
+It's going to do whatever it does.
+Then it's going to say, oh, I've got the result for you.
+Good luck.
+And now I need to send back the result.
+To send back the result, I'll create a second message.
+That message is then going to get sent from the server machine to the client machine.
+The client machine is going to receive the message and say, oh, look, it's a message.
+We've got an interrupt indicating there's a message.
+And that means we can then do whatever we're supposed to do with this message.
+What are we supposed to do?
+Well, we're supposed to go to this process called this remote procedure.
+And we're supposed to go back to this location and say, here's your return value.
+There are going to be multiple system calls plus networking delays associated with doing a remote procedure call.
+Even a very, very simple one.
+So you're going to have very serious delays.
+You wouldn't have if it were a local procedure call.
+As always, there ain't no such thing as a free lunch.
+Now, also, it is the case that while, yes, this is relatively simple to program, you have not actually solved many of those distributed systems problems that we talked about earlier in the class.
+You haven't solved issues of consensus.
+You haven't solved issues of locking.
+You haven't solved issues of termination.
+You haven't solved all of the issues of failures.
+There's all kinds of things that it just isn't going to help you with.
+And you probably still have to deal with those somehow or other.
+Okay.
+So, fine.
+How do I actually do it?
+If I want to use remote procedure calls, how do I do it?
+Well, you could, of course, write your own set of code from scratch that does everything you need to do.
+But why do that when people have been building remote procedure call frameworks for nearly 50 years?
+Not quite that long, but close.
+So, typically, what you're going to do if you want to use RPC is you're going to find an RPC library.
+You're then going to say, I'm going to use the RPC library.
+Now, the RPC library is going to try to hide as many of the unpleasant details of how you make it work as possible.
+In particular, everything having to do with the messaging is going to be hidden away from you because it's going to be handled by library functions.
+There is still code that's doing it, but you don't have to write that code, and you don't have to worry about the correctness of that code and dealing with all the special circumstances.
+Now, of course, you're trying to essentially tie together a process on one machine to a process on the other machine, and you're using some library on the calling machine to do that.
+You have to use the same library on the called machine.
+More precisely, what usually happens is you have a server that says, I do RPC for you.
+Here are my procedures that you can call, and I use the following library.
+If you want to use that server, or if you want to build a set of servers that are all going to interoperate with each other, you agree upon what is the library.
+Which of the several RPC frameworks that's available am I using?
+And you use that one.
+So, the way this actually works is we have several components that are built into the library, typically.
+One is an interface specification.
+This basically says, you know, this will specify for this particular RPC installation, what are the procedures you can call?
+What are the parameters of those procedures?
+What do they return?
+So, now you can say, well, here's what I could call, and here's what I will get if I do call it.
+Further, you have a little issue here.
+There are different machines out there.
+Different machines have different instruction set architectures, which is, you know, of interest.
+But in particular, sometimes they have different data formats.
+Some of them have one floating point format.
+Some of them have a different floating point format.
+Some of them don't have a floating point format at all in hardware.
+Some of them are 32-bit machines.
+Some of them are 64-bit machines.
+Some of them are big Indian versus little Indian.
+Don't worry about that.
+It's just a difference in the format of how a word is set out in the RAM.
+Okay, you don't get any guarantees, unless you're very careful about such things, that the two machines, the caller and the called, have the same hardware characteristics in their data formats, the same type of floating point representation, the same number of bits in the word or whatever.
+And clearly, if you didn't do something, if from a 32-bit machine you called a 64-bit machine, you'd have some issues there.
+How do I take the integer from over here that's 32 bits and use it on the 64-bit machine?
+Now, clearly, it's possible to do that.
+You know, you just have to cast the 32-bit machine to the 32-bit word to the 64-bit word.
+But you better know that you need to do that.
+Well, because there are many, many different possibilities, the way that this is handled in RPC frameworks is each one of them creates what's called an external data representation, XDR.
+Basically, what this says is this framework wants to see all of its data, its floating point numbers, its integers, et cetera, et cetera, in the following form, always.
+Now, on one machine and on the other machine, they may not actually be in that format.
+They may, in both cases, be in different formats and not compatible with each other.
+So what we do is we say the package, the library we're running, will convert on the calling end whatever format they've got into the XDR.
+We'll move the data in the XDR format across the network.
+We'll deliver it to the package, same library, on the receiving side, on the server side.
+It will say, okay, here is the data in the XDR format.
+I don't use the XDR format on my machine, but I know how to convert from the XDR format to the formats I do use.
+Then you convert it, you perform your procedure on the formats that the server understands.
+The server creates a piece of data or a set of data that gets returned.
+Well, that's, of course, created in its own local formats, its own local word size, for example.
+Before we send it back, we better convert it to the XDR.
+So it goes into the XDR, goes back across the network to the sending node.
+Sending node says, oh, here it is in the XDR format.
+That's not what I use.
+I will convert back from the XDR format into whatever I do use.
+Then I can call my, I can go back to the procedure, call this procedure, and tell it, here is the 32-bit integer you wanted to see.
+Okay.
+So XDRs are of great importance.
+Now, you don't have to worry about them as the user because they've been built into the library.
+That's already built in.
+You just go ahead and use whatever you use locally on the machine, and the library takes care of all of the other issues.
+Now, of course, what happens if you have two identical machines?
+Client and server are exactly the same type of machine, exactly the same data format.
+Then, if we converted from data format A into XDR, XDR back to data format A, data format A to XDR, XDR back to data format A, you know, that would be a lot of extra work that we would not actually need to do.
+We could just stick with the data format A across the whole thing.
+So sometimes you get optimizations in the RPC packages that say, okay, I know that the sending and receiving, the calling of the called machines are using the same data format.
+I don't need to use the XDR.
+Okay, now another important thing that you're going to have in an RPC package is what's called a client stub.
+So what happens on the client side, the calling side, when you say, I'm calling a procedure, and it turns out that's a remote procedure?
+You do call a procedure.
+There is a local procedure you call.
+That is set up by the RPC library for the procedure you wanted to call.
+But it isn't going to do any of the real work of the remote procedure.
+What it's going to do is say, okay, I know this is a remote procedure.
+It's over there.
+I will have to take whatever you've told me you want to do, the call you want to make, the parameters you want, and I will package those up into the messages I need to send to the server that's over there.
+And I will send the messages.
+Now, it looks to you on the client side like you've just called a procedure.
+But all that procedure is really doing is packaging everything up into messages and sending.
+Okay, now on the other side, exactly the same kind of thing happens.
+Here it's called a server stub, sometimes called a skeleton.
+All that this does is it says, okay, I receive messages.
+What do I do with messages?
+Well, I know that I am a remote procedure call server.
+Therefore, the messages I get are going to be attempts to call my procedures.
+So I'm going to have to take those messages.
+I'm going to have to decode them and say, oh, this one wants to call procedure foo.
+Okay, so I have to call procedure foo.
+Here's the parameter for procedure foo.
+I call procedure foo.
+When procedure foo says, I'm done, it's going to come back to this stub and say, here's your result.
+Here's your integer that you wanted.
+Okay, what do I do with that?
+Well, the stub will know that this is associated with the message that came in from this client who wanted the procedure performed and wanted to see what the integer result was.
+And then it'll format that back up and send it back across the network in a message.
+That message will arrive at the client.
+The client will say, great.
+The client stub will get that message and say, okay, I know what I'm supposed to do with this message.
+I am supposed to pretend that I did the work locally and just return the value, that integer that came across.
+So effectively, we are going to have a bunch of tools in this library that build RPC environments.
+You're going to build a different environment for every server that's going to provide service, for every client that's going to use it.
+They're going to work together.
+So you're going to specify the interface saying, here's what I want.
+Here are the procedures I want.
+Here are the parameters.
+Here are the return values.
+You feed that into a generation tool.
+It says, okay, I need to build an RPC environment for those procedures.
+And it does that by building stubs and skeletons.
+It says, this is the external data representation I'm going to need.
+And then the client application code, which is the code you have written for this purpose, is going to take the stubs and the external data representation.
+That's going to be in the client code on the client side.
+On the server side, the server, somebody's written something that actually does the procedures you're supposed to do.
+And there's also the skeleton that you built and the external data representation.
+That's all going to get built into a procedure that will run on the server side.
+So the output here is going to be two procedures, a client procedure, two processes, a client process and a server process.
+Okay.
+Now, the client is always going to link against local stuff.
+So it calls local procedures and it appears to get results from those local providers.
+Local procedures.
+Those local procedures are the stubs.
+The RPC implementation is inside those procedures, everything relating to networking and so on.
+The client application only knows that it called the stub.
+It does not know what happens when it calls the stub.
+What happens is all kinds of messaging magic.
+But we don't worry about that in our client code that we, the programmers, are writing.
+All we say is there's a procedure over there I can call using RPC.
+It'll do the following thing for me.
+I just have to say, here's the procedure name and here are my parameters.
+I'm calling that procedure.
+You don't have to worry about any of the networking nonsense.
+There's always networking nonsense.
+So, for example, what happens if I've called a remote procedure, my stub has sent out a message saying, do this.
+What happens if the message gets lost?
+Which can happen, of course, in networks.
+Well, probably what you want to do is say, well, let's resend the message.
+And then you want to wait a certain amount of time to see, well, did I get a response this time?
+If I didn't, well, then maybe I need to send it again.
+And maybe I need to, at some point, say, gee, the server over there isn't responding anymore.
+Maybe I need to tell the client that.
+Okay.
+Now, this is all that stuff, though.
+All that networking stuff, which could be quite complicated, is built into the RPC library.
+And by the tools, is inserted into the client procedure, the client process.
+So, the interface is very important.
+You have to define the interface.
+You have to say, this is what I want.
+And, of course, somebody has to build the code.
+So, here's a simple example of how it works.
+So, we have a guy over here, and he is writing some code called process list.
+And process, he's writing some code.
+Process list is going to run a bunch of lines of code.
+What's it going to do?
+Well, it does a bunch of stuff.
+And then it says, list 0 is equal to 10.
+List 1 is equal to 20.
+List 2 is equal to 17.
+And then it says, all right, now I want to get the maximum value in the list.
+So, how do I get the maximum value in the list?
+Well, I will call list max.
+And let's say that list max is a remote procedure.
+Okay.
+So, this is going to be code that is not executed over here on this guy's computer.
+The code that said list 0 equal to 10, list 1 equal to 20, and so on.
+That's all run on his own computer.
+But once he hits that max equal list max, that is going to be a remote procedure call.
+And in particular, over there is a server that's going to run that procedure for him.
+This has all been set up ahead of time.
+And there is the internet in between them.
+Okay.
+So, what's going to happen here?
+He's got a little demon running on his computer associated with a remote procedure call for this particular application.
+And it's going to say, oh, he wants to do a remote procedure call list max.
+That's over there.
+Well, I better format up a message saying, hey, you over there, here's something you should do for me.
+So, he formats a message saying, I want you to perform list max, and here's the parameter.
+And then he sends a message.
+Okay.
+So, the message goes across the internet and gets delivered to this server.
+Now, this is a server that is specifically set up to do RPC.
+And in particular, it knows that one of the procedures it can perform is list max.
+In fact, it's got its own little demon sitting over there waiting for these messages to arrive.
+That little demon says, okay, it's an RPC message.
+I could do a bunch of different functions.
+Which one does this guy want to do?
+List max.
+And the parameter is list.
+So, I'll call list max on list.
+I'll call the local procedure on this computer, this remote computer, that is going to figure out what is the maximum of the list.
+So, it's going to say the local max is this.
+And then it's going to say, great, I now know what the result of that procedure is.
+So, local max equals 20.
+It looked at the three elements of the list, said 20 is the biggest one.
+Okay.
+Now, of course, this was a remote procedure.
+So, the mere fact that it's done it on the local computer is not sufficient.
+It's got to get the result of that procedure, list max, back to the guy who actually called it who's on the other computer.
+So, it formats up an RPC response message saying, hey, you remember you called list max?
+Here's the result of calling list max.
+Integer, 20.
+And you send the message.
+And it goes across the internet.
+And it gets delivered to the demon over here.
+And he says, oh, okay.
+I was waiting to hear about what the result of that procedure call is.
+List max was a procedure call.
+It was made by my local user.
+Therefore, now I've got it.
+And I can give him his return value.
+So, I extract the return value.
+And I say, okay, max is equal to 20.
+And away you go.
+And you resume the local program.
+Just as if list max had been a local call.
+Now, how does this actually get used?
+Now, in principle, in concept, and people actually thought of this being how people would use RPC originally.
+What's going to happen is people will set up RPC servers.
+And they will have a battery of different procedures they will perform for arbitrary clients.
+And, you know, you want to do work, you will look up the RPC calls that this particular server will do.
+And you call those RPC units.
+And, you know, the client server doesn't really know what the client's doing.
+It just says, I do the following 73 different things, 73 different procedures.
+In practice, that's not what really tends to happen.
+In practice, what really tends to happen is you say, I need to build a complex distributed system.
+Okay, let's get everybody together.
+Somebody's going to do the server work.
+Somebody's going to do the client work.
+We're going to do RPC to connect up the clients to the server.
+So, it gets designed more or less from scratch.
+Except, of course, it is using a standard RPC tool library or framework.
+So, a large company, for example, you know, something with 50,000 employees might set up an RPC framework that does a lot of different things for all of their, applications that are locally developed.
+Okay.
+Now, RPC sounds great, but it really is not a complete solution to your distributed systems problem.
+What's incomplete?
+Well, one thing.
+It requires a client-server binding model, by which we mean here's the client.
+He's going to call procedures.
+Over there are a bunch of servers that can provide procedures.
+How do we say this client is calling that server?
+There must be a way of doing that.
+And moreover, really what you're going to do here is you're going to say, let's set up a live connection between every client process and the server process.
+Because that'll make it a lot easier rather than having to say, here's an incoming message from a client I never heard of before.
+So we have to have some way in which we bind together these two and say, we're working together.
+I'm the client.
+You're the server.
+I'm the server.
+You're the client.
+Then a second issue is, how are you going to run the RPC server?
+Well, ultimately, it's going to just run code.
+It's going to get a message, run some code.
+Get another message, run up some code.
+Get another message, run some code.
+Most commonly, if you're going to set up an RPC server, there are probably going to be quite a few different clients working with that server.
+Several of them may be working simultaneously.
+If you want to be able to support multiple remote procedure calls simultaneously, then you're probably going to want to have a multi-thread server.
+The server is going to have multiple threads.
+When a message comes in from one of the clients, one of the threads will deal with that message, will deal with that remote request.
+Another request comes in, one of your other threads will deal with it.
+So on the server side, you're really not going to have just one thread.
+You're going to have a whole bunch of them.
+We have very limited failure handling in RPC.
+So we have the client, we have the server, and they're expecting to talk to each other, and we've set up some kind of fairly live connection between them.
+But what happens if the server disappears?
+Well, generally speaking, the client has to worry about this issue.
+Does the client crash?
+Does the client choose to do some other piece of work forgetting about the remote procedure call?
+Does the client go to a backup server that could do the same kind of thing in the absence of this server?
+What does it do?
+Well, the client has to actually think about that.
+That's typically not built into the RPC framework.
+Also, there's the issue of consistency.
+There's very limited consistency support.
+The consistency support is just between the calling client and the calling server.
+So the client calls a server, and he calls a server again, and he calls a server again, and he calls a server again.
+He will get consistent results.
+But if the client calls multiple different servers or multiple different clients call the same server, we do not get guarantees that everything is consistent between those pairs of things.
+And if the clients are using something other than RPC to communicate as well, you know, they both call the same server.
+One was told X is 10.
+The other was told X is 20.
+There are no guarantees that that won't happen.
+And then finally, because we have all these limitations, that made RPC in certain circumstances rather hard to use.
+So various people over the course of time said, we can solve those problems too, or at least we can provide some solutions to those problems.
+So people built frameworks on top of RPC.
+Microsoft's DCOM is on top of RPC.
+Java's RMI, Remote Method Invocation, is on top of RPC.
+And they deal with some of these problems, like consistency problems and failures of servers and so forth.
+Okay, we are going to be talking a great deal more about distributed systems in the remaining classes.
+But for today, that's all we have to say.
+So in conclusion, we are talking about distributed systems because they offer a great deal more power than any single machine the best computer in the world can possibly provide.
+There is a cost.
+There's always a cost.
+The cost here tends to be complexity.
+More complex things can happen, and we have to somehow or other deal with that complexity.
+How?
+We do it by typically saying, let's build a distributed system that works in a very carefully defined way.
+It is not an arbitrary machine that works in the same arbitrary way that a single computer system with multiple processes running will work.
+Instead, it is more limited.
+It does a certain set of things in a certain way, and that's what it does.
+And that allows us to gain some control over the complexity.
+And this is fine, provided that your requirements of what you need out of your distributed system fits into those limitations that are used to control the complexity.
+If what you need to do doesn't fit into those limitations, can't be made to fit into those limitations, your problem becomes a great deal more complex.
+And we'll talk in the next few classes about some of those complexities and why it is complex and what people do to try to handle those complexities when they absolutely have to.
+Thank you.

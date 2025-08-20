@@ -1,0 +1,1067 @@
+﻿We're going to today move to a different topic.
+We're going to start talking about virtual machines.
+So what we'll talk about in this lecture is, well, what is a virtual machine?
+What is the whole concept?
+We'll talk about our motivations behind wanting virtual machines, which, of course, is the motivation for why we are spending a lecture in this class talking about them.
+We'll talk about how they work, because a large component of how virtual machines work is involved with the operating system itself.
+So a natural topic for this class.
+And then we'll talk about some issues that are related to virtual machines that are worth considering and knowing.
+So what's a virtual machine?
+Now, in computer science, we use the term virtual fairly frequently.
+And what virtual means in computer science is that something isn't real.
+So virtual memory isn't real memory.
+But on the other hand, to anybody who is using it, it looks like it's real memory.
+So we are trying to provide something through an illusion that is actually not exactly what it appears to be.
+So we're talking about virtual machines in this lecture.
+That would imply, indeed, that a virtual machine is not a real machine.
+In particular, it is not a set of hardware.
+There is not necessarily some particular group of hardware that represents this is the virtual machine.
+However, we want it to act as if it were a machine.
+And in particular, a machine in the sense of being a computer.
+So a virtual machine should be able to do whatever a computer can do.
+Run applications, for example.
+So what really is a virtual machine?
+It's a software illusion.
+It's an abstraction.
+Another of these abstractions that we keep talking about in this class.
+And it gives the appearance to those who are working with it that it's a real machine.
+But it isn't.
+Now, you will hear the term virtual machines used fairly frequently nowadays.
+It's often abbreviated as VM.
+Kind of an unfortunate abbreviation because VM is also used frequently in computer science to represent virtual memory.
+Usually, the context in which it's used will make it clear whether VM refers to virtual memory or virtual machines.
+Okay.
+So what do we really mean by this idea that a virtual machine is a software illusion?
+Well, we can't run applications.
+We can't run code on purely imaginary stuff.
+In order to run code, you have to have a real computer.
+You have to have a real hardware machine that is capable of running instruction.
+So if we have a virtual machine, we do have somewhere a real actual computer.
+Something that is actual hardware that has a physical presence.
+You can reach out and you can touch it with your fingers.
+And that is a real computer.
+So what we're going to do with that real computer is run something on top of it that allows it to appear to be perhaps many computers.
+We have one real computer.
+We make it look like three or four virtual computers.
+Or alternately, we can say this is a computer that is running Windows, but we're going to run a virtual machine that makes it look like you're running on a computer that's running Linux, for example.
+And how are we going to do that?
+Well, ultimately, as I've said, we can't run code on imaginary stuff.
+We can only run code on actual hardware.
+And of course, anytime we're doing computation, ultimately, we are running code.
+So the code that we are apparently running in the virtual machine ultimately must run or some version of it must run on the real hardware.
+So that's what's really going to happen.
+But we want it to look like everyone who is working with the virtual machine, which would be the applications running on the virtual machine, users interacting with those applications on the virtual machine.
+We want them to think that they have a real computer.
+So here, in a more graphic sense, is what we got.
+So you've got a server computer sitting somewhere.
+It's an actual computer.
+It's got a CPU with multiple cores, etc., etc., etc.
+So it's got a real CPU.
+And it's got real RAM as well.
+And probably it has some real peripheral devices.
+At the very least, it's likely to have a network card of some kind.
+Or it's almost certainly going to have some storage, persistent storage, like a flash drive or a rotating hard disk drive, maybe several other peripherals as well.
+So this is all real stuff.
+Somewhere, this computer is sitting attached to electricity, and it is running computations on real hardware.
+If you know where it is, if you have access to where it is, you can go there.
+And you can take your finger and you can tap on that computer, and it is as real as can be.
+We're going to have the ability, though, to implement a virtual server on top of this real hardware.
+The virtual server is going to have virtual components, a virtual CPU, virtual RAM, virtual peripheral devices.
+As with all things virtual, they aren't real.
+So how do we make it look like we have those things when we don't?
+Well, we have some real stuff.
+So what we're going to do is we'll use the real hardware that we have down there on the actual computer that we can touch to implement the virtual hardware that is, to some extent, imaginary.
+So how does that work out in a little more detail?
+Well, on the virtual machine, you're going to run applications.
+The applications want to run instructions.
+They're going to run instructions that they expect to run on a CPU.
+The virtual CPU doesn't exist, but the real CPU does.
+So we will take the instruction that you wanted to run on the virtual CPU and we'll run it on the real CPU instead.
+Now, let's say your instruction was something that was going to load information from a virtual RAM address into a virtual register on your virtual CPU.
+Well, what that means is we are going to say, well, we don't have a virtual CPU isn't real, but we have a real CPU.
+The real CPU has real registers.
+What about the RAM?
+Well, we have some real RAM as well.
+So we will take something at a location in the real RAM and we'll run the load instruction in such a way that it takes whatever is in that real RAM location and loads it into one of the real registers on the real CPU.
+The real disk will stand in for the virtual disk and so on for all the other peripherals.
+Okay, well, that's fine.
+But why would you want to do that?
+Because this sounds like, you know, you've already got the real machine.
+It can do real things.
+Why do you need a virtual machine on top of it and having something that is going to mediate in between that's going to translate the virtual into the real?
+Why would you bother doing that?
+That leads to the obvious question of why do we want virtual machines at all?
+There are a number of reasons.
+One is fault isolation.
+A second is that you get superior security out of virtual machines.
+A third is that a real machine runs one real operating system.
+What if you want to run another real operating system?
+You can have a different real machine.
+You can reboot the real machine from the operating system you don't want to the one you do want.
+But virtual machines offer another possibility.
+We will run the operating system that we'd like to be running in the virtual machine on top of the real machine, which is running a different operating system.
+And a very, very important reason that we want virtual machines in today's environment is that they will allow us to have better control of sharing of the resources of a real computer than we would get if we were just running a single operating system.
+We'll talk about each of these in a little more detail.
+Now, as we said in early classes, it is vitally important in traditional computing that your operating system doesn't crash.
+Because when an operating system crashes, everything running on that machine goes down with it.
+The operating system takes down all of the running applications along with it.
+However, what if you're running in a virtual machine?
+Virtual machines running a virtual operating system.
+If the virtual operating system crashes, if things are done properly with the virtualization technology, the way you're providing the virtual machines, then what goes down?
+Well, the virtual operating system failed.
+And presumably, all of the applications that relied on the virtual operating system, they went down too.
+But what if there is another virtual machine that is totally unrelated?
+Well, it shouldn't be affected because its operating system didn't crash.
+And of course, the real operating system down there at the bottom running on the real hardware, that shouldn't crash either.
+Because it wasn't that operating system that crashed.
+It was one of the virtual operating systems that crashed.
+So, if we do things properly in how we perform virtualization, we can isolate the fault of the operating system.
+This is a big deal for operating system development.
+Back in the 1980s, when I was developing operating system code as a graduate student for a research project, when the operating system crashed, it was a big pain in the butt.
+And, you know, you're developing advanced research code.
+And, of course, it crashed.
+It crashed fairly frequently.
+What happens when it crashed?
+It would take everything down with it.
+It would be hard to figure out why it crashed.
+When you had figured out why it crashed and you tried to fix the problem and brought it back up again, you'd have to entirely reboot the computer.
+Could you get back to the same state that you were in before?
+It was a big pain in the butt.
+Here, with virtualization, if you're running your operating system in a virtual machine and it crashes, well, you know, you probably have some information lying around in the real machine's operating system to say, why did that virtual machine crash?
+And, moreover, you don't have to reboot the whole system.
+You only have to reboot the virtual machine and its virtual operating system.
+And it's also the case that sometimes you can have faults that would damage a real device.
+So, there have been cases where if you give the wrong command to a peripheral device because of the way the device was designed, the way its device driver was designed, that could result in physical damage to the device.
+Well, if you physically damage a virtual device, that doesn't necessarily mean you've done anything bad to the real device.
+Maybe only the virtual device got harmed, in which case, so what?
+It's a virtual device.
+It isn't real.
+Better security.
+Why is the security better?
+Well, of course, as we discussed in previous classes, the process abstraction pretty well isolates what's going to happen in a particular process, running a particular application.
+It doesn't have an easy ability to touch the resources that belong to other applications, other processes running on the same machine.
+That's good.
+But there are certain elements, as we've been discussing in previous classes, that the operating system provides that are shared by all processes, in particular, for example, the file system.
+Now, that means that there are ways that one process can influence another process by perhaps corrupting files.
+Well, that isn't a very secure thing to do, and moreover, if there are implementation issues in the operating system, it may allow things to happen, perhaps for performance reasons, that really are not quite right and could have security implications.
+If we have a virtual machine instead, then those implications and the limitations on what a given process can touch are going to be within the realm of the virtual machine.
+A virtual machine's file system, for example, is that virtual machine's file system.
+If there are other virtual machines running on the same physical machine, they have different file systems.
+The application running in one virtual machine cannot open the files in a virtual file system in another virtual machine in a different one.
+So, it's a lot easier to argue about what's happening here securely if you have multiple parties running on the same physical hardware.
+Using a different operating system.
+So, let's go through that example again.
+You've got a computer, you're running Windows.
+That's what you normally want to use.
+But you've gotten hold of a Linux executable.
+It'll run on that CPU.
+It's got the right instruction set architecture.
+But it is a Linux executable.
+It's not a Windows executable.
+Windows doesn't run Linux executables, just as Linux doesn't run Windows executables.
+They have different APIs, different ABIs.
+They're not going to interoperate properly.
+What could you do?
+Well, you could have two machines.
+Here's my Linux machine.
+Here's my Windows machine.
+You could have dual booting, where you boot into one or you boot into the other.
+At any given moment, perhaps you're running Windows.
+Perhaps you're running Linux.
+I've done that many, many years in the past.
+That used to be a fairly standard thing to do.
+It was a big pain in the butt.
+With virtual machines, we have another choice.
+You don't have a second physical machine.
+You don't have to reboot the physical machine you've got.
+It can continue to run Windows.
+However, you run a virtual machine within Windows.
+And within this virtual machine, you install the Linux operating system.
+Now, you have a virtual machine running Linux.
+If we do things properly, and this is all what the magic of virtual machines must do for them to be useful, we are then able to take our Linux executable, run it on the Linux virtual machine, which in turn is sitting on top of a Windows operating system on a real machine.
+So, that's great.
+Now, there's obviously going to be some magic going on here.
+There is going to be some work involved.
+But, if you can get it to work properly, well, then you can run your Linux executables on a Windows machine effectively.
+Of course, you have to get it right.
+And we'll talk about the issues there and how it's done.
+Here's a very, very important one.
+Now, when you're running a bunch of applications on a particular operating system on a particular computer, we've talked about various mechanisms that the computer uses and the operating system uses to properly share those resources.
+Things involving how do we share the virtual memory, the physical memory.
+We've got a certain amount of RAM.
+How do we share it?
+Things involving how do we make sure that people are able to share caches effectively.
+What do we do when we get a page fault?
+What do we do?
+And that might affect the TLB, for example.
+What do we do when we have a context switch and a new process starts running?
+All of those have an effect on how we share resources among the several processes that are running on a particular computer.
+It turns out that while we are doing a good job, a reasonably good job, of sharing those resources, it is hard to make sure that everything is precisely shared.
+So if you say, this process should get 10% of the CPU, that's rather hard to do.
+This process should be able to use 40% of all of the RAM in the machine and the other processes should not.
+Well, that's also rather hard to do.
+You can think about why that would be hard to do.
+And we talked about in the past how we do memory management, how we do context switches, how we work with page faults and things of that nature.
+It turns out that this is easier to do if we have virtual machines.
+It's easier to say this virtual machine gets 40% of the resources than it is to say this process in our current system gets 40% of the resources.
+That means we have a better ability to guarantee the particular allocation of resources to different parties if we are running virtualization than if we aren't.
+Now, why is that important?
+Well, cloud computing for one reason.
+We will talk about that later in today's class.
+But that's a very, very big deal for cloud computing.
+All right.
+So I hope that you have reasonable belief that, yes, there is value in virtual machines.
+There's a reason we run virtual machines.
+Several reasons, in fact.
+So how do we do it?
+How are we going to do it?
+Now, of course, if you have a virtual machine sitting on top of a real machine, you have a virtual CPU sitting on top of a real CPU.
+If it turns out that the ISA for the virtual CPU is different than the ISA for the real CPU, that is going to be a bit on the painful side.
+It's going to have some very bad performance effects.
+So typically, what we are going to do is say, well, you know, you can have a different operating system.
+You can have a different operating system in your virtual machine than in your real machine.
+But it better be the same ISA.
+It better be the same CPU.
+Your virtual CPU is the same model as your real CPU, or at least a compatible model.
+So that's what we usually do.
+All right.
+So given that, how do we do it?
+Now, as with all things in system software, a major goal is good performance.
+We need to run as fast as we reasonably can while getting the effects we're supposed to be getting.
+How are we going to do that in the virtualization case?
+Well, what's going to happen in a virtual machine?
+The virtual machine is running applications.
+The applications are issuing instructions.
+The more of those instructions we perform in a unit time, the better the performance we see out of the virtual machine.
+But a lot of instructions in unit time.
+How do we run a lot of instructions in unit time?
+Well, the way we've done this before virtualization was limited direct execution.
+We basically said most of the time applications just get to send their instructions directly to the CPU without the operating system getting involved.
+We're going to play the same trick here.
+We're going to say when we have an application running in a virtual machine, most of the time that application is going to send its instructions directly to the real CPU without either its own operating system or the virtual machine or the real machine's operating system intervening.
+If my application running in a virtual machine wants to do a load, we'll simply do a load.
+We will put that instruction onto the CPU and we will run it most of the time.
+So, to the extent we possibly can, we are simply going to execute the instructions in the virtual machine's applications, in the processes running on the virtual machine, using limited direct execution.
+And that'll be relatively fast.
+Now, sometimes we're not going to be able to achieve that because we aren't actually running on the virtual machine.
+We're running on a software illusion that is being supported by a real machine and a real operating system that do different things.
+So, every so often, something is going to happen in an application running on the virtual machine or perhaps in the operating system running on the virtual machine, which itself must run code to be a proper operating system.
+One of those is going to do something that cannot be done within the virtual machine context.
+It's going to require system support.
+What are we going to do then?
+We're going to trap.
+To what?
+Where are we going to trap to?
+We're going to trap to something called the hypervisor.
+The hypervisor is sometimes known as the virtual machine monitor, abbreviated as VMM.
+What is the hypervisor?
+What is the virtual machine monitor?
+Well, it's a controller.
+Effectively, it's really an operating system.
+It's an operating system that is running on the genuine, real, actual hardware.
+Now, we expect in many circumstances that we have several virtual machines running on one physical machine simultaneously.
+We'll see examples of this in a few slides.
+If that's the case, then we have to have something underneath that is coordinating the behavior of those several virtual machines.
+That is the hypervisor.
+So it runs below all of the virtual machines.
+And it is going to be the entity, the software entity that catches traps.
+When a trap occurs for whatever reason, or when an interrupt occurs for whatever reason, it's going to go not to the operating system running in the virtual machine.
+It's going to go to the hypervisor, which runs below that.
+And what is the hypervisor going to do with that trap?
+Well, whatever it needs to do.
+The trap presumably asked to have something done that the application itself, the application that was running in the virtual machine, could not do.
+So we are going to, when that occurs, drop down into the hypervisor via the trap mechanism and do whatever it needs doing.
+This is a lot like a processes system call, but it's got a few differences.
+When are we going to do this?
+So when do we have to trap to the VMM?
+Well, we're going to see that the virtual machines themselves do not run in privileged mode.
+If they don't run in privileged mode, then if the virtual machine, its operating system, for example, tries to do something privileged, can't do it.
+It's not going to be able to do that thing.
+Who can do it?
+The VMM is going to do it because the VMM is what's going to run in privileged mode.
+So if the virtual machine, either an application in the virtual machine or the operating system in the virtual machine, tries to do something that requires a privileged instruction, something from the privileged instruction set, it's going to trap down to the VMM.
+We're also going to trap to the VMM whenever we have, for example, an interrupt.
+So if a message comes in across the network on the real network interface, we're going to trap, we're going to go via interrupt to the VMM.
+Okay.
+Now, what's the VMM going to do with this?
+Well, typically, it's going to turn out that this trap or this interrupt occurred because of there was something that one of the applications or one of the virtual machines needed to have done.
+Okay.
+Now, it turns out the VMM is not going to understand what has to happen in the operating systems of its various virtual machines.
+So how can it possibly do the right thing?
+It doesn't know what it needs to know to do the right thing.
+Well, the operating system that's running in the virtual machine in question, the one whose application generated the trap, for example, is going to say, okay, I know what to do with that.
+So the VMM will consult that operating system and try to get the operating system to do the work.
+Now, probably in most cases for a system call, for example, doing that work is going to require running a whole lot of non-privileged instructions in the virtual machine's operating system.
+And this is not news.
+We've always seen when we were running operating system code that most of the instructions that are run by the operating system aren't privileged instructions at all.
+It's doing the same stores, the same loads, the same shifts, the same jumps, all the same kind of stuff, the ads that other code was doing, and that's all non-privileged code, all non-privileged instructions.
+Same thing is going to be true when we were running virtual machines.
+So this is what the old architecture looked like, as you may remember.
+We've seen this diagram before in previous classes.
+At the top, we have applications, user applications, maybe some system-level applications, things like a login process.
+Underneath that, we have operating system services and middleware services.
+We talked about that.
+Still running in a non-privileged mode.
+Then we have an application binary interface.
+Below that, we have these general libraries that are providing services for the applications.
+And below that, in the traditional model, we had the operating system kernel and the device drivers associated with the operating system.
+They were going to run in privileged mode.
+That was sitting on top of the hardware, on top of the ISA, the instruction set architecture.
+So down there, we had the general instruction set, the privileged instruction set, and we had the actual devices like your network card.
+That was what was running in privileged mode in this old architecture.
+Now, we want a different architecture, one that's going to provide virtual machines.
+How's that going to look?
+Well, it's going to look a lot like the old one, but we're going to slide in a new level, the VMM, the hypervisor that I was talking about a couple of slides ago.
+Okay, now, what in this architecture is running in privileged mode?
+Not that.
+That's running in non-privileged mode.
+It used to, in the old architecture, run in privileged mode.
+Now, it's running in non-privileged mode.
+It cannot run those privileged instructions in the privileged instruction set.
+That is running in privileged mode.
+The VMM, only the VMM runs in privileged mode.
+So only it can run those privileged instructions.
+And, of course, things can get more complicated than that.
+So here's the VMM sitting on top of our hardware.
+And we can have operating system kernel A and operating system kernel B and operating system kernel C.
+Three totally different operating systems.
+In principle, one of these could be Linux.
+One of them could be Windows.
+One of them could be macOS.
+And they could be running their own set of applications, each of which is suitable for its particular operating system.
+But we only have one set of hardware.
+Because these three different operating systems are running in virtual machines on the same physical machine.
+So there's one CPU, possibly multi-core.
+One set of RAM.
+One set of peripheral devices.
+Actual hardware shared by all of these.
+So there are three virtual machines.
+That one for A.
+That one for B.
+That one for C.
+The VMM has the job of saying in the first place, for each of these virtual machines, I have to make the hardware do whatever is necessary for kernel A, kernel B, or kernel C to operate properly.
+And secondarily, I have to make sure that nothing kernel A does interferes with kernel B or kernel C.
+And similarly, nothing app 1 does interferes with any of the applications in other virtual machines.
+So there are going to be three system call interfaces.
+Because again, these could be three different operating systems.
+So app 1, for example, won't run on kernel B or kernel C.
+App 3 won't run on kernel A or kernel C.
+App 5 won't run on kernel A or kernel B.
+Because those apps have their own system calls, which they are designed to use with a particular operating system they run on.
+Perhaps one on Linux, one on Windows, one on macOS, three different APIs and ABIs, even though it's the same hardware, the same ISA.
+And so they couldn't run on each other's operating system.
+So we have three separate virtual machines here, all running on the same physical machine.
+Okay.
+Now, how are we going to do a system call now?
+How are we going to make a system call work?
+We are not, if we possibly can avoid it, going to change any of the applications.
+Not one line of code, either at the source level or at the binary level, is going to change in any application.
+We are going to be able to take an application that runs properly on the operating system in question and move it into a virtual machine running that operating system, and everything must work without altering the application at all.
+Preferably, we also don't even want to alter the virtual machine's operating system.
+So in this case, if kernel A is, let's say, a Linux kernel, we want to have a Linux kernel that would have run perfectly well on the hardware in question.
+It's not running directly on the hardware.
+It's running in a virtual machine.
+But it could run on the hardware.
+It is going to be unaltered.
+We are not going to change one line of code in this operating system in order to run it in a virtual machine here.
+What this implies is the applications are going to be chunking along, doing limited direct execution.
+And sooner or later, one of them is going to issue a system call.
+So this is the virtual machine.
+One of the three.
+I've not shown the other two.
+They're actually running around in the background, just as on the previous slide.
+But they're not going to be relevant to what happens with the system call.
+So let's say it's application one, which is running on the virtual machine, and it makes a system call.
+So it says, I would like to open a file.
+Okay.
+So that is ultimately going to require a privileged instruction.
+You're going to have to go off to some storage device and pull the file off the storage device.
+And you know you'll need to do privileged instructions for that.
+So that's the system call.
+However, what's going to happen then?
+Well, it's a trap instruction.
+In order to do the open call, you perform the trap instruction in app one.
+You did that in the original code in app one.
+You didn't change the original code in app one.
+So you're going to do it here.
+Okay.
+Now, what happens when you try to issue a trap instruction?
+It's a privileged instruction.
+Therefore, you are going to trap to somebody who can run privileged instructions.
+And in this architecture, the VMM is what can run the privileged instructions.
+So you're not trapping directly to operating system kernel A, which is what the application kind of would have thought was going to happen.
+But it's not what's happening.
+Instead, it's going where it can go to run privileged instructions, the VMM.
+Okay.
+Great.
+Well, that's all well and good.
+So now the VMM has gotten that privilege instruction, a trap instruction in this case from app one.
+What's it going to do with that?
+It can't actually perform the system call that app one asked for.
+App one is running Linux, for example.
+And perhaps the VMM is a Windows machine.
+It's running Windows.
+So it doesn't even understand what the system call is all about.
+And further, it doesn't know anything about the file system that is being supported by kernel A.
+Maybe that's a log-structured file system and the VMM is running some other kind of file system, NTFS or whatever.
+Okay.
+What's it going to do?
+Well, it knows.
+Because it's a VMM, it has understanding that it's got these virtual machines running on top of it.
+It understands that one of those is virtual machine A running this kernel.
+It understands that this particular trap came while something, an application as it happens, was running in that virtual machine, in virtual machine A.
+So it knows that this is related to virtual machine A.
+Okay.
+So what's it going to do?
+It's going to say, I cannot do this.
+I can run the privileged instructions.
+Sure, I can do that.
+But I don't know which privileged instructions to run, much less all of the unprivileged ones.
+What am I going to do?
+I do not know the state of kernel A.
+I don't know, for example, what kind of file system they're running.
+I don't know what files are supported on that file system.
+I don't know what it's cached in its block I.O. cache.
+Virtual machine operating systems are going to have their own block I.O. caches.
+I don't know what's in there.
+Who does know that?
+Well, operating system A knows that.
+So I can't do anything in the VMM level directly with this system call.
+I can't honor it.
+What do I do?
+I do, because this is how you set up virtual machines.
+My VMM does know where A has stored its trap table, which is somewhere sitting in RAM.
+Somewhere in RAM that has been set aside for virtual machine A is virtual machine A's trap table.
+Okay?
+VMM says, okay, I know that this was a trap call that came from somebody who's running in virtual machine A.
+Therefore, let's invoke virtual machine A's trap table and say, okay, you take care of it.
+So now we're running in kernel A.
+So kernel A can now say, oh, look, it's a trap instruction of the following nature.
+I will do the following things.
+I'll handle that syscall.
+All right.
+Well, that's fine.
+We start handling the syscall in kernel A.
+But sooner or later, it's an open syscall, as we said.
+That means it's going to have to probably do some IO.
+IO means it's going to have to use a device.
+Using a device requires privilege instructions.
+Kernel A can't perform privilege instructions.
+So kernel A runs along and does some work on this system call and runs into a privilege instruction.
+Now, it thinks it's running as an operating system.
+So it thinks, okay, I can just do the privilege instruction.
+It tries.
+What happens when it tries to do the privilege instruction?
+That's not a problem.
+It's going to trap to whoever handles privilege instructions, which is the hypervisor, the VMM.
+So once you get to the point where kernel A says, okay, I need to, for example, issue this call.
+It's going to result in a read on this particular peripheral device, which, by the way, is a virtual peripheral device, not a real one.
+Then it's going to trap down to the VMM.
+Okay.
+The VMM says, oh, you want to run the following instruction, the following privilege instruction.
+Okay.
+I'll do that for you.
+Assuming it says it should do it for it.
+And then after I've done it, I'm going to go back to you.
+I'm going to run whatever you want to run.
+Okay.
+So if you were going to do that in the first place, if you're going to go up and down and up and down like this, every time there's a privilege instruction, why did we not in this architecture just run A, operating system A in virtual machine A with privilege?
+If we did that, then presumably it could do its own privilege instructions without any problem.
+Well, what if based on the overall set of things happening on this machine that involves several virtual machines, not just one, what if we really shouldn't have done that instruction?
+That was not a good instruction.
+That was an instruction that for whatever reason, we shouldn't be doing that instruction, at least maybe not right now.
+Okay.
+What if, for example, it was trying to say, okay, each of these virtual machines, A, B, and C that we've got, each of them is going to have some RAM, right?
+They're going to have some pieces of RAM that have been devoted to each of these virtual machines.
+Otherwise, it couldn't do anything.
+So what happens if A tries to access a page of RAM that belongs to B?
+Well, it shouldn't.
+We are trying to provide strong isolation there.
+So if that happens, we cannot allow A to run in privileged mode because then it could do that, which isn't a good thing.
+Instead, if A tries to access that, we would drop down to the VMM and the VMM would say, oh, that is B's page of memory, not your page of memory.
+Therefore, you may not touch it.
+It would block that request.
+Okay.
+Ultimately, in order to make this architecture and the goals we have for virtual machines work properly, the VMM has to be in control.
+It has to have a greater degree of control than any of the virtual machines running on top of the VMM.
+Now, as I've said, normally the virtual machines running on top of the VMM, their operating systems have not been altered.
+They have not been changed one whit.
+So they are, to the extent one assumes an operating system has any knowledge or will, they think they're in control.
+They think they control the hardware, but they don't.
+So what we're going to have to do is make it look to them like they do, even though they don't.
+So here's a potential issue.
+A is running in non-privileged mode.
+We've already argued it must run in non-privileged mode.
+Okay.
+Now, when it was running on its very own piece of hardware, when it wasn't a virtual machine, it was a real machine running a real operating system A directly on the hardware, then we knew how to make sure that we could enforce this interface.
+This is the interface between applications and the operating system.
+Now, on an ordinary machine, the things we've been discussing in previous lectures, that interface allows us to ensure a strong separation of processes.
+App 1 was not able to write all over the memory of App 2 or vice versa.
+App 1 was not able to kill App 2.
+They couldn't interfere with each other to a very large degree.
+Why not?
+Because in order to access whatever they needed to access in order to interfere with the other, they had to go through this interface.
+They couldn't avoid the interface.
+And the kernel that was running below them on a real machine would have said, no, you can't do that.
+App 1, you may not write into the page table of App 2, for example.
+But that was based on privileged instructions.
+And we no longer have the ability to enforce privileged instructions directly in kernel A because the privileged instructions are being run by the VMM.
+How can we prevent App 1 from messing with A's internal data, even operating system A's internal data, not just other applications running on that operating system?
+So how would we do that?
+How could we stop App 1, for example, from deleting the process descriptor that kernel A is keeping for App 2, which would effectively result in App 2 crashing?
+How could we prevent that from happening?
+So the operating system A believes itself to be in control.
+It thinks it's in control of everything.
+It thinks it's providing, in this example, segregated virtual memory separate page tables for App 1 and App 2.
+And how do you do that?
+Well, you manage the page tables, and you manage the CPU registers pointing to those page tables so that App 1 cannot even name the pages and the page frames being used by App 2.
+And we did that with privileged instructions.
+But the operating system in this architecture, running in the virtual machine, has no ability to control these CPU registers.
+It can't set them.
+It can't change them.
+And presumably, it can't enforce that page tables being accessed or effectively accessed by one of the applications it runs are not going to tromp all over pages, page tables belonging to another application.
+You might say, well, okay, that's the VMM's job now.
+Oh, you've had the VMM.
+Take over the privileged instructions.
+However, the VMM has very limited knowledge of what is happening internally at runtime in any of these virtual machines.
+It doesn't even really know that App 1 and App 2 are running in this virtual machine.
+All it knows is, hey, this is a virtual machine.
+It's a virtual machine of this type.
+Here is some information about, like, the trap table for this virtual machine.
+I don't know what applications it's running.
+I don't know how it's allocated pages.
+I don't know how it's set up page tables.
+I don't know how it wants its CPU register set.
+What am I going to do?
+A core element of this is virtualizing the memory.
+So, before we talked about VM virtual memory in the context of a single operating system, life gets more complicated now.
+So here again, we see our situation where we have the VMM sitting on top of the hardware, and it is providing service to three virtual machines, A, B, and C.
+Each of those is running a different operating system.
+They have their own applications.
+They are supposed to be totally unaware of the other operating systems, the other virtual machines, even existence.
+And somewhere down there, we have RAM.
+And that RAM is being shared by everybody.
+It's being shared by the three virtual machines, by the various applications running in those virtual machines.
+It's being shared by the VMM itself.
+The VMM also needs to have some information kept in RAM.
+So what we think is happening, though, is that each of these virtual machines, A, B, and C, has its own set of RAM.
+And what we would like to do is say, A can take care of its set of RAM, B can take care of its set of RAM, C can take care of its set of RAM, A can't touch B and C's RAM, and similarly, B can't touch A and C's, etc., etc.
+So that's what we want to have happen.
+How are we going to do that?
+Well, the operating system that's running in each of these virtual machines, A, B, and C, thinks that it has physical memory addresses, pointing to physical page frames, that it can allocate to its various processes.
+It can set up its page table saying, this process has this page frame, that process has that page frame.
+That's what we did before.
+And then the processes would issue virtual addresses, and we would use these page tables set up by the operating system in the virtual machine to translate to the physical address of the page frames.
+Okay, well, we can't actually do that in this architecture.
+What we're going to do is add another level of indirection on addressing.
+We had physical addresses, we had virtual addresses.
+The VMM is going to handle a third type of address called machine addresses.
+So, machine addresses are going to be the genuine addresses of page frames in the physical RAM.
+So, it's when in a VMM architecture, when you're talking about virtual machines, the actual address of a piece of RAM, the actual chip that holds the data, is in a machine address, not in a physical address.
+But we're not going to change any of the paging hardware.
+We're not going to require you to have a different piece of CPU, or a different MMU, or different RAM, or different anything to run the virtual machine technology.
+So, we have the same paging hardware that we had before.
+We have the MMU.
+We have the TLB in the MMU.
+We have a certain amount of RAM, etc.
+Okay.
+This is probably going to confuse you, because it certainly confused me the first time I heard about it.
+It seems to confuse most people.
+Because it's not really very clear.
+Particularly because some of the names are historically set, and we're stuck with the historical names.
+And things are a little different than they were.
+So, there are three address types now.
+There used to be two.
+There used to be virtual addresses and physical addresses.
+Virtual addresses in the old architecture were not RAM addresses.
+They were virtual.
+In this architecture, physical addresses, which used to be real RAM addresses, are not RAM addresses.
+They are not real RAM addresses on the actual physical RAM either.
+They're called physical addresses because they always were.
+But they aren't actual physical addresses.
+Machine addresses are the actual addresses out there on the RAM.
+That's how you point to a particular page frame on the RAM.
+Physical addresses aren't really physical.
+They are not locations on RAM chips.
+Machine addresses are locations on RAM chips.
+So, let's take a closer look at this.
+So, here you have a virtual address.
+The virtual address is issued perhaps by an application running in a virtual machine.
+Application 1 running in virtual machine A, for example.
+We're going to translate that to a physical address.
+This physical address is going to be maintained by the virtual machine's operating system in virtual machine A.
+It isn't really physical.
+We're later, at some point, going to change that physical address.
+We're going to translate that physical address to a machine address, which is an actual RAM address.
+Machine addresses will be taken care of by the VMM.
+So, let's take a close look at how this works on a simple, relatively simple, address translation in a virtual machine environment.
+So, application 1 is running along.
+It is an application in virtual machine A running on top of operating system kernel A, which, of course, is running in a virtual machine.
+Now, since application 1 is an application, clearly it's running unprivileged.
+But remember, even if we were running code in operating system kernel A, it would still be running in unprivileged mode.
+Everything is sitting on top of the VMM.
+Now, there's all kinds of stuff, all kinds of hardware below the VMM.
+For the purpose of this application, for the purpose of showing this translation, we're going to concentrate on two hardware elements, the RAM and the TLB.
+So, application 1 issues a virtual address X.
+You know, I want to load virtual address X.
+Now, let's say for the moment that it's not in the TLB.
+There is nothing in the TLB for virtual address X.
+So, that's going to cause a miss.
+Okay.
+And we know when there's a TLB miss, we're going to get a trap.
+We're going to trap to the operating system.
+Now, this, because it is a virtual machine architecture, is not going to trap to kernel A.
+It's going to trap to VMM, the hypervisor.
+So, the VMM catches that trap.
+Fine.
+We're down there in the hypervisor.
+And now, we're running in privileged mode, as you can see from the little banner here on the right.
+The VMM is, in turn, going to go back up and say, hey, operating system A, here is something that needs translation.
+Why does it do that?
+Well, where is application 1's page table?
+The page table, it says, address X translates from virtual address X to physical address, whatever it translates to.
+That's being kept by the kernel that is in the virtual machine.
+kernel A.
+So, only kernel A knows where that page table is and can tell you what its contents are.
+So, we're going to go back to kernel A and say, hey, translate X for us into whatever it translates to.
+Okay.
+So, A is going to do that.
+Now, of course, we're running in unprivileged mode, but this is okay, because so far, all we're doing is we're looking at some RAM containing a page table for app 1.
+And we are looking up in that page table.
+Here is the page frame in question.
+So, we go on, running in unprivileged mode.
+OS X A looks up virtual address X in application 1's page table.
+A set up application 1's page table.
+So, clearly, it can do that.
+It doesn't need to be in privileged mode to do that.
+So, it looks it up.
+And then it says, okay, what am I supposed to do when I've gotten a TLB miss on a particular address X and I now have a physical page frame number that I would like to allow translation of.
+I need that in the TLB.
+Let's put it in the TLB.
+So, kernel A is going to say, let's put it in the TLB.
+Here's the translation of X to whatever it might be.
+Please put that translation in the TLB.
+That's a privilege instruction.
+So, it's going to cause a trap.
+Okay.
+The trap is going to go to the VMM.
+The VMM runs in privileged mode.
+Now, the VMM is going to say, okay, that's what kernel A wants to do.
+But I know better.
+I know that the address that he's actually working with, while he thinks it's a physical address, is not the address of the actual page frame out there in my real realm containing the page that AppOne would like to work with.
+It's not right.
+So, however, how do I know what it should be?
+Well, I know that I gave a bunch of what A thought were physical page addresses, addresses of page frames.
+I gave him these and I said, these are yours.
+Work with these.
+And he's used one of them.
+Well, if I have kept my own page table, a page table that covers the entire virtual machine A, I can look up the physical address that he created that A translated X to.
+And I can say, okay, that really doesn't translate to what he thought it did, to Y, for example.
+Actually, I can see here that if he said Y, what it really means is Z.
+That is the machine address.
+Okay, so X translates to Z.
+I don't need to have anything in the TLB that says X translates to Y and Y translates to Z.
+I'll go directly from X to Z in the TLB because that's what I really want to do.
+I want to know when AppOne says X, what does he mean?
+He means Z.
+Okay, fine.
+That's where it is.
+That's the piece of RAM that holds that information.
+So I install it in the TLB from the VMM.
+And then I say, okay, fine.
+That's all the privileged stuff I need to do.
+Let's go back and unwind.
+Maybe we'll have to do a little bit more unprivileged stuff in operating system kernel A.
+Maybe not.
+We'll get back up to AppOne eventually, all the while running unprivileged.
+And then we will be able to say AppOne will rerun that instruction that caused the TLB miss, which is what you do when you have a successful TLB miss handle.
+And it'll then say, okay, I want X.
+And now the TLB contains something that says X is in the following page frame, Z in the example I'm giving.
+And it'll go to Z and there it'll be.
+Let's look at the same thing in a different way in the hopes that by looking at it in enough slightly different ways, you will be able to get a pretty clear picture of what's going on here.
+Okay, Application One is going to issue address for page containing X.
+We'll say for the moment that, yeah, there is a page frame that actually contains that data.
+It is in memory.
+It's in RAM.
+So the question is, fine, I've issued X.
+The TLB, which is just a cache, remember, doesn't have that particular translation cache.
+I need to install something in the TLB, and it's cache that does the translation for me.
+Okay, well, who knows what page frame surely contains this page?
+Well, the VMM knows that.
+Because the VMM is in charge of allocating page frames to different virtual machines, including to kernel A.
+Fine.
+So the VMM knows where it is.
+But on the other hand, the VMM does not know what X means.
+It does not know what virtual address X in the context of Application One means.
+Remember, every application running in an operating system has its very own page table, its very own view of what the virtual address space looks like.
+Quite possibly, Application Two has an address X somewhere, and it's a different page frame.
+And for that matter, the Applications Three, Four, Five, and Six that are in different kernels, in different virtual machines, they may all have their own view of what page X is.
+One of those X's, the translation that is for App One, is the right one.
+That's the one we want to get.
+Who knows which one is the right one?
+Well, the operating system that is handling the page table for Application One.
+That operating system is not the VMM.
+That operating system is kernel A.
+So, the VMM will have to ask or effectively use the resources of kernel A in order to get it.
+So, the VMM consults A to perform the translation.
+More precisely, the VMM jumps into a piece of code that's already in kernel A that causes the translation to occur.
+That may have confused you.
+It may be you need to think a great deal more about how that works.
+And if this isn't clear, this would be a wonderful time for you to schedule an office hour, to ask the TA or to ask me about it, to read more about it in the book and reread things.
+This is not simple.
+However, this is a lot simpler than it could be.
+What happens if this isn't just a TLB miss?
+What happens if there's a page fault?
+And that can happen.
+Well, if it's a page fault, then the page in question for memory location X isn't in a page frame at the moment.
+If it isn't in a page frame at the moment, and assuming we don't have an error, where is it?
+Probably out there on the flash drive in some kind of swap space.
+Okay.
+If that's what's going to go on there, then we're going to have a lot more work to do.
+And we're going to be going back up and down and up and down from the operating system kernel A to the VMM and back again and back again.
+In order to do things like figure out where on the hard disk, the flash drive, it really has that page located in swap space.
+To order the read of that swap space, to put it into a buffer in the correct place, because the buffer addresses that kernel A is going to be fiddling with, those aren't real addresses.
+Those are the physical addresses that must be translated to machine addresses.
+All kinds of stuff is going to go on behind the scenes.
+However, the basic mechanism is always going to be the same.
+As much of the work as is possible is going to be done with non-privileged instructions that already exist, that aren't new instructions.
+They haven't been altered.
+They haven't been changed.
+They haven't been created.
+They're already existing instructions in kernel A.
+And every so often, one of those instructions is privileged.
+Bang, we're going to go down to the VMM.
+The VMM may do a good deal more than just run that instruction.
+But it's going to take care of everything that instruction was supposed to do.
+Then it'll go back to kernel A.
+So there could be lots of stuff going on here.
+Think about, for example, working sets.
+What's going to happen with the working set algorithm?
+Well, VMM doesn't know anything about the working sets for kernel A, kernel B, and kernel C.
+And if it turns out you're going to need to steal some pages from one application's allocation in kernel B to another application in kernel B, well, that'll be complex.
+And are you going to do working sets for the separate VMMs?
+Is there going to be a working set for all of VMM A, all of VMM B, all of VMM C?
+There could be.
+There could not be.
+It's a question of how the VMM works.
+Okay.
+Now, there are implications here.
+Now, just going with a relatively simple TLB miss, what you're going to have to do, the work that is going to be required to fulfill whatever is necessary to install a new entry in the TLB when there's a TLB miss, there's going to be a lot more work to do that.
+You're going to be moving back and forth from privileged mode to unprivileged mode.
+There's going to be the kind of context switches that you saw when you went from the application to the operating system.
+But there's also going to be another set of switches that go from the operating system to the VMM.
+And they may have several in handling one TLB miss, depending on how things work.
+So there's going to be overhead costs for that every single time.
+And there's going to be a lot more system code run.
+Further, we now have to have more page tables.
+So in addition to the page tables that virtual machine A and virtual machine B and virtual machine C are going to be keeping for their own applications, the VMM is going to have to keep page tables for itself and for virtual machine A and a page table for virtual machine B and a page table for virtual machine C.
+And it's going to have to have code that manages those and occasionally changes things in them and so on.
+And we may have to do some page faulting based on that.
+You know, we may have to demand page things out from one virtual machine to another virtual machine.
+There's going to be all kinds of stuff that's going to have to happen here.
+There's going to be a lot more overhead.
+The result of this, of course, is if you were running virtual machine technology, you can expect to pay a performance penalty.
+Now, it is fortunate that nowadays we have very, very fast processors.
+So we can, in many circumstances, make this performance penalty be more or less invisible.
+But you're paying it.
+We never, of course, like to pay performance penalties.
+So what could we do to lessen the performance penalties that we see when we run virtual machine technology?
+Well, one thing that we do, which we've often done in the past when we've had situations where things didn't run fast enough, is we added special hardware to make them run faster.
+And this has happened in the world of virtual machine technology.
+We have had chips that are built with specific hardware features that make it easier to virtualize the CPU and easier to virtualize memory.
+So there are features built in that make certain things that are going to happen frequently because you're running in a virtual machine environment to make those things cheaper.
+Another option you have is called para-virtualization.
+Now, I've said a few times in this lecture so far, the operating system running in the virtual machine has not been changed.
+It is line for line, instruction for instruction, exactly the same as when it was running on a single piece of hardware all by itself with no virtualization of machines.
+That's the default.
+But what if you did change that operating system, the host operating system that's running in virtual machine A, in virtual machine B, in virtual machine C?
+You change them in such a way that they said, I know that I am not running on the actual hardware.
+I know that down below me, there's this virtual machine monitor, and it is going to be controlling the hardware itself.
+I don't get to control the hardware.
+It controls the hardware.
+There are ways that you can redesign your operating system so that it will reduce the performance penalties that you would see if you only knew that this is what you were doing.
+It wouldn't necessarily be the best way to run the operating system if it were running on the hardware all by itself, if it were in charge of privileged instructions.
+But given that it isn't, if you know that's the case, it can do better.
+So, people have done that as well.
+There have been versions of operating systems that have been altered specifically to make them run faster in virtual machines.
+Now, in particular, one thing I alluded to earlier was that virtual machines turn out to be useful for cloud computing, more or less vital for cloud computing.
+We've alluded to cloud computing before.
+Let's talk about it in a little bit more detail.
+What are we talking about when we are talking about cloud computing?
+What we're talking about is setting up a large collection of hardware that will be shared between multiple different customers.
+So, somebody is in charge of the overall set of hardware.
+You have many customers, but you have one controller of the cloud environment.
+What's that party doing?
+What it is doing is either selling or more commonly renting computing services to all of these customers.
+Each of them will come to the cloud provider and say, I need this much CPU time.
+I need this much memory.
+I need this much networking, et cetera, et cetera, et cetera.
+And they will pay a certain amount of money to the cloud provider who, in turn, will provide them with that set of services.
+Now, in order to make this work properly, to make this a business model that is reasonable, the cloud provider is going to have to make it very, very simple for his customers to actually make use of whatever it is that they have contracted for.
+Basically, they want to say, probably here are my applications.
+Maybe here's an operating system I want to run and applications I want to run on it.
+Or maybe I just want to run on top of this version of Linux or that version of Windows or whatever it may be.
+The customers do not want to have to have any penalty that they have to pay in terms of learning curves or in terms of altering anything they do, their applications, for example, how they interact with their applications.
+They don't want to pay for that when they are going to the cloud provider.
+They want the cloud provider to take their money and make it easy for them.
+So, the cloud provider is committed to handling all difficult issues.
+Now, in order for this to work out well for the cloud provider, who is typically in this to make money, that's why you're in cloud computing, you want to make a bunch of money.
+So, given that they're going to do this, they need to have a lot of customers.
+The more customers they have, the more money they make.
+This implies, again, that they need a lot of hardware because if they want to support a lot of customers, they're going to have to have a lot of compute power.
+They're going to have to have a lot of hardware.
+So, typically, your cloud environment, a cloud computing environment is going to look something like this.
+You're going to have rows and rows and rows of hardware.
+Probably, if you want to set up a cloud environment, you're going to build or rent a warehouse, a true warehouse, an immense empty room.
+And you're going to put a whole vast number of machines in that immense empty room.
+How many machines?
+Oh, tens of thousands.
+That's a lot of computers.
+Now, how are you going to fit tens of thousands of computers into even a pretty big room?
+Well, you're going to have small computers, physically small computers, and you're going to put them in racks.
+So, they're going to be stacked up one on top of the other.
+So, that's what we see here in this diagram.
+Racks and racks and racks of computers going as far as the eye can see.
+Now, in order to actually make them work well with each other and to allow remote customers, you don't want people coming to your warehouse to do their work.
+You want them to be working at different locations in the world, interacting remotely with your cloud computing environment.
+And that's how they get their compute services.
+So, that means, of course, that everything within the cloud environment, everything within that warehouse, must be networked together.
+And it better be a high-speed network because you're going to have to have all kinds of data moving all kinds of places between different machines and different racks, between the racks of machines and the outside world, the outside world of different machines within the racks, etc., etc.
+So, you're going to have a very high-speed internal network that connects up everything, all 10,000 machines in your warehouse.
+And, of course, as I said, the customers don't typically come to the cloud environment.
+They don't come to the warehouse.
+They work remotely.
+You know, what they wanted to do is say, I don't want to have a machine room where I have 50 machines.
+I want you to run 50 machines for me.
+I don't care where they are.
+I don't care what they are in terms of, you know, which particular machines you've chosen.
+But you're supposed to provide me with 50 machines, and I and my customers want to interact with our 50 machines.
+I and my customers are not at your warehouse.
+So, they're going to have to go across the Internet to get to your machines sitting in your warehouse.
+So, you're going to have high-speed connections to the Internet from the warehouse to the rest of the world.
+So, what you're hoping, if you're running this environment, is you're going to make a ton of money.
+And the way you're going to make a ton of money, again, is to have a ton of customers.
+So, there are going to be a whole lot of customers.
+And very, very unlikely that one customer is going to use all 10,000, you know, 50,000 machines or whatever you got.
+Probably, you're going to have hundreds or thousands of customers, each of whom is using some set of machines, all simultaneously, all at once.
+And in many cases, indeed, the customer cannot get by with one computer.
+They're doing something like providing a large website.
+So, they're supporting hundreds of thousands of simultaneous users on their website.
+One machine won't do for that.
+They're going to have a bunch of machines.
+They're going to have rented from you a bunch of machines saying, I need these machines to provide web service to my clients who are out there somewhere on the internet.
+And further, if I am working with a cloud environment, I want to get a pretty strong guarantee that, in the first place, I get what I paid for.
+I paid for 50 machines.
+I get 50 machines.
+And in the second place, I know that you have 10,000 computers and only 50 of them are mine.
+I don't want the rest of those 10,000 of computers to be able to interfere with my 50 computers.
+I've got data that's private.
+I want to make sure I get integrity of my operations, that nobody can go in and mess with ongoing data, mess with the files I've stored.
+I want strong guarantees that I am isolated.
+I'm getting what I paid for.
+Other customers are not able to interfere with what I'm getting, either intentionally or accidentally.
+Okay.
+So, given that that's the model of how we are going to make money in cloud computing, why are we going to use virtual machines?
+Well, I've spent a tremendous amount of money setting up this warehouse.
+Typically, cloud providers set up a whole bunch of different warehouses in different places.
+They have spent hundreds of millions or more on building this environment.
+And they spent a lot of money running it, too.
+The electricity, the cost for providing air conditioning, the maintenance cost, replacing machines that break, paying for the internet connectivity.
+All of this is going to add up to a lot of money every month.
+So, they need to make a lot of money.
+How are they going to make a lot of money?
+Well, they want to maximize the amount of money they make out of having put 50,000 machines in this warehouse.
+How do you do that?
+The more customers you have running on those 50,000 machines, the more money you make.
+Very simple equation.
+If you have 5,000 customers running on your 50,000 machines, you make a certain amount of money.
+If you have 10,000 customers running on your 50,000 machines, you probably make about twice as much money.
+And you'd like to make twice as much money, not half as much money.
+So, you want to maximize the number of customers you can satisfy with a given amount of machines.
+Now, you might say, well, he wants 50 machines and he wants 100 machines and he wants 500 machines and so on.
+I add it all up, I have 50,000 machines.
+Once I've allocated 50,000 machines, that's it.
+That's all I can support.
+That would be true if people actually always needed what they paid for.
+But typically, they don't.
+Typically, people have peak needs.
+The amount of computing, the amount of memory, the amount of networking they need when things are really, really, really busy for them.
+When their customers are working very hard.
+And probably, they are going to want to pay for their peak need to say, if I get up to the point where my business is really humming, as I expect it will be, I need to have enough computing power.
+So, I'll pay for that.
+However, part of the time, maybe much of the time, I'm not going to have quite that much of a requirement.
+I said I needed 50 machines.
+A lot of the time, I'll get by with 30.
+Okay.
+Well, if you just gave these 50 machines to that customer, and he paid you money for 50 machines, you would look at the cloud provider.
+You would look at this and say, well, you know, 70% of the time, he's only using 30 machines.
+I've got 20 machines worth of compute power that are completely going to waste.
+Nobody's using them.
+Yeah, he's paying for them, but nobody's using them.
+He's not actually running his code there.
+I could have given him 30 machines, and for those periods of time, at least, he would have been perfectly satisfied with the 30, even though he paid for 50.
+Well, gee, that suggests that maybe I want to do something a little more complicated here.
+And, of course, I also need to have strong isolation.
+I'm supposed to guarantee them that, you know, his 50 machines don't get interfered with by that guy's 500 machines.
+So I'll have to have some nice way of doing that.
+How can I have more efficient use of my 10,000s of machines and strong isolation between everybody?
+Well, if I ran multiple customers on the same machines, I would perhaps, if I moved things around, if I settled so that, you know, everybody got what they needed when they needed the peak needs, but when they're not using the peak needs, I use their extra resources for somebody else, I make more money.
+And they would be happy as long as they had strong isolation.
+Well, virtual machines, that can give me strong isolation.
+So what do I do?
+If I'm running a cloud environment, what I'm probably going to do is say, you have hired 50 machines.
+Great.
+I'm giving you 50 virtual machines.
+Now, if you hired 500, if you rented 500 machines from me, if that's what your agreement said, I'll give you 500 virtual machines.
+Now, you expected that when you bought 50 virtual machines or 500 virtual machines, you were going to get 50 CPUs worth or 500 CPUs worth at peak need.
+But you're not normally at peak need.
+The 50 CPU guy is normally at 30 CPUs.
+That's what he needs to do, everything he needs to do most of the time.
+So what I could do is say, I will give you 30.
+I'll devote 30 of my tens of thousands of machines to you, but I'll give you 50 virtual machines.
+So I will load some of your 30 machines with two virtual machines.
+Some of them aren't doing anything at all because you're not at peak need.
+Others are busy.
+Well, you still have 30 machines that are doing all the work you need to do.
+It looks to you like you got 50 machines because even if you try to interact with one of the machines that is not busy, there's a virtual machine there and it does the right thing.
+But you don't have that much work to do.
+So I am able as the cloud provider to make use of my hardware in a more efficient way.
+Now, in fact, what's really going to happen here, if I want to have maximum flexibility, is sometimes I'm going to say, well, this computer is going to have 12 different virtual machines running out because these 12 customers have almost nothing to do.
+They don't need very much in terms of resources at all.
+I can put all 12 of them on this machine and they will all have as much as they need.
+None of them will complain that they aren't getting the service that they need.
+Even if they did ask for a virtual machine each, a full virtual machine each, they're doing okay.
+Assuming, of course, that they can't interfere with each other accidentally or intentionally.
+So if I put these 12 virtual machines for 12 different customers on one physical machine, I, the cloud provider, need to make absolutely sure that each one of these 12 customers gets the full appearance as if he's running on a machine with nobody else running on that machine.
+Ah, virtual machines can give me that if I set things up properly.
+Now, what's going to happen, of course, then, is you're going to have to say, I've got 50,000 machines.
+I've got 1,000 customers.
+They all have these different needs.
+I add up the different needs of all the customers.
+The peak needs of all the customers comes to more than 50,000 machines.
+But, you know, I know they're not at peak needs.
+Let me take whatever I know about their performance, what they're doing, how much they actually need.
+And now let me put virtual machines on the right physical machines so that everybody gets what they want.
+But I am satisfying all 1,000 customers, even though they think they need, in total, more than 50,000 machines.
+So that will maximize my profits.
+I will make out like a bandit.
+I will become rich.
+So how am I going to do that?
+So I've got a whole lot of physical nodes, 50,000 physical nodes.
+I've got a whole lot more virtual machines, 75,000 virtual machines, let's say.
+How am I going to put 75,000 virtual machines on 50,000 nodes, physical nodes, in the most efficient way possible so that everybody gets what they absolutely have to get at the moment and I make the most money possible?
+I'm going to have to put each virtual machine.
+I'm going to have to put one physical machine.
+Some physical machines, obviously, are going to get more than one virtual machine.
+All right.
+How do I do that?
+This is a kind of problem that we call bin packing.
+You know, you've got a bunch of bins, in this case, the physical nodes, and a bunch of things you can put in bins, in this case, the virtual machines.
+And the virtual machines each have a certain requirement, and the physical machines each have a certain capacity.
+And you want to put everything into a bin such that no bin is overloaded on its physical capacity.
+And you want the most efficient way of doing that.
+So these algorithms have been very carefully studied for dozens and dozens and dozens of years.
+Very, very well-known problem.
+This is the kind of problem that has the characteristic of being called NP-hard, non-polynomial hard.
+Which means that we don't have very efficient algorithms for providing an exact correct solution.
+There are exact correct solutions for any bin packing algorithm, which give you the most efficient possible assignment, in this case, of virtual machines to nodes.
+There are such algorithms.
+However, the algorithms that provide you with the absolutely optimal answer are very, very, very slow.
+Because they tend to rely on some factor n.
+In this case, n might be the number of nodes you've got.
+N might be the number of virtual machines you've got.
+It might be both.
+At any rate, as n gets big, this gets to be a very, very, very large number, which means you really can't do it.
+Now, in particular, in the virtual machine environment, in the cloud computing environment, you're not just saying, how much CPU do you need?
+Customers are also telling you about how much RAM they need.
+They're telling you about how much storage they need.
+They're telling you about how much internal networking they need, which means, you know, I've got 50 nodes.
+How much do they need to communicate with each other?
+How much external networking do they need?
+How much, in total, are they going to use the internet?
+And they may have other characteristics as well that you have to consider, like how much persistent storage do they need?
+When you add together all those factors, solving these problems optimally becomes really impossible at the kind of scale we're talking about.
+So, what do we do?
+Same thing we do with NP-hard algorithms, and we've done for NP-hard algorithms for, you know, 75 years or something.
+We estimate.
+We run an estimation.
+Now, unfortunately, even if you have a pretty good estimation here, you are going to get to a situation where, at this moment, midnight on this evening, I came up with a pretty good estimation of where I should put my virtual machines.
+And I put them there.
+And 12 hours later, it turns out that everything's changed.
+You know, I've got commitments for 75,000 nodes, and I've only got 50,000 nodes.
+And at midnight, this was a pretty good estimate that made it look to everyone like they had their 75,000.
+But things are changing.
+Some people are getting busier.
+Some people are getting less busy.
+It's beginning to get to the point where people aren't being satisfied with what they've paid for.
+Now, if you don't satisfy these people with what they've paid for, at least in the long run, this is going to be bad for your business.
+And in most cases, you have a contract.
+You've made a contract between the customer and the cloud provider saying, I will give you this.
+And if I don't give you this, I will pay you back in a certain way.
+You will get some refund.
+You will get some other benefit that's going to cost me a cloud provider if I don't provide you what you were guaranteed to get.
+So you really want to provide these people to the extent possible what you were guaranteeing them.
+If you don't, it eats into your profits.
+So you don't want to do that.
+So what this means is that every so often, you're going to have to look at your adjustment of how you've assigned virtual machines to nodes in your cloud computing environment and say, this isn't good anymore, and you're going to have to change it.
+So now you could do this by saying, this is not so great, but this job's going to stop.
+That job's going to start.
+As jobs stop, as jobs start, I can use that.
+The fact that this virtual machine no longer even exists.
+That one is a new virtual machine.
+Now I can have a bit more flexibility in where I put things.
+But you may also have to do support of a long-running job.
+So one of the things that people will go to a cloud computing environment to provide is something I've already alluded to.
+I need a website.
+I need a website that's going to require 100 nodes worth of support.
+And sometimes it'll require less.
+Sometimes it'll require the full 100 nodes.
+You, the cloud provider, are probably going to alter which nodes are going to be supporting my, 100 virtual machines.
+But I'm always going to be running these 100 virtual machines.
+And assuming all goes well, they never stop running.
+I hope they don't.
+Because you, the cloud provider, were not supposed to let them stop running.
+They were supposed to keep running continuously.
+That's what you promised me.
+If you crash my nodes or if you stop some of my virtual machines running, that's not good.
+That's going to impact what you contracted with me for.
+And you're going to have to pay a penalty.
+So what are we going to do there?
+Well, one thing we can do is say, well, if you said you needed 100 and you were using 100 because it was a busy period and now it's gotten less busy and you only need 70, I'll take away 30 of your virtual machines and 30 of your physical machines if I was running one virtual machine per physical machine.
+And now I have 30 machines I can use to support somebody else while you're still happy with your 70.
+That's fine.
+But what are you going to do when you need more hardware or when somebody is sitting doing a little bit of work on a computer but not too much?
+You may have to migrate processes.
+Not migrate processes, but migrate entire virtual machines, which can be complicated.
+Now, cloud computing is certainly one area in which we make very, very heavy use of virtual machine technology.
+But it isn't the only one, as you guys should know.
+You have been doing your projects on virtual machines, by and large.
+And this is very common when we are talking about something where you have a group of servers that are dealing with a whole lot of different clients.
+We have a group of servers that support many, many, many UCLA students doing different things on the server.
+In many cases, we provide them with virtual machines.
+So this gives flexibility of which server you run on, insurance that any problems you have in your particular application are not going to impact other people.
+We can even, if we chose to do so, allow you to run what it looks like, operating system code in one of these virtual machines.
+And if you screw up and it crashes, well, it took down the virtual machine, not the real machine.
+Okay.
+Now, this is pretty much all I have to say about virtual machines.
+So in conclusion, virtual machines are not some exotic thing that you don't really have to think about.
+They are a critical technology in modern computing.
+We use them very, very, very heavily in modern computing.
+How do you build a virtual machine?
+Everything must run on a real computer, ultimately.
+Virtual machines must run on a real computer.
+So a virtual machine is always implemented on real machines.
+It may be that today the virtual machine is on this real machine and the same virtual machine later may be on that real machine, but they're always on some real machine or they're not running at all.
+The important thing when you are trying to implement a virtual machine technology is to say the virtual machine operating system, the operating system running in the virtual machine must have the illusion that it has complete control of a set of resources that it itself is not actually allowed to touch.
+It does not have the use of the privileged instructions.
+Therefore, we're going to have to do something to provide it with the effect of being able to use those privileged instructions when it can't actually use them.
+Further, as always with all system software, performance is key.
+We must get good performance.
+And this is going to limit how we can implement virtual machines.
+It's going to push us in certain directions.
+Finally, cloud computing is nowadays one of the major areas in computing.
+An awful lot of computing is done in the cloud environment.
+All the stuff with Amazon Web Service, all the stuff with Microsoft Azure, many, many other cloud environments are built.
+Virtual machines are of particular importance in cloud environments.
+If you're running in a cloud environment, you are almost certainly working with virtual machines.
+You're running in a cloud environment.

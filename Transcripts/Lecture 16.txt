@@ -1,0 +1,1760 @@
+﻿Today, we're going to start talking about security issues for operating systems.
+So we'll have some introductory material, of course, and then we'll talk about several important areas of security within operating systems, how we perform authentication, how we perform access control, and how we use cryptography to achieve various security effects that are desirable in an operating system.
+Okay, so why are we having a lecture in this class, which is on operating systems, on security?
+Why is that important in operating systems?
+Well, as we've said several times, the operating system is essentially the interface between the user and the lower levels of the computer, particularly the hardware.
+The operating system is, to the extent the API makes it, visible to the users.
+It shows the users what the underlying hardware and software of the computer is capable of doing to them.
+And moreover, it is on top of the hardware.
+Generally speaking, the operating system is able to do whatever the hardware is capable of doing.
+It can order the hardware to perform in any way that hardware is intended to perform.
+So, this means that because nothing really happens on a computer unless the hardware is involved, unless the hardware is told to do something, and the operating system can tell the hardware to do anything.
+Well, this means that if you do not have security, control of your operating system, if somebody is able to illegitimately influence your operating system to do something that you really shouldn't be doing, then you have very, very little control over your computer as a whole.
+The hardware can be made to do things that shouldn't be doing.
+Now, this is very, very well known within the field of operating systems and within the field of computer security.
+Generally speaking, the assumption has to be that your operating system is secure when you are a user or when you are someone who's building software on top of a system.
+Because if your operating system isn't secure, there's very little you can do to secure everything above it.
+And also, of course, for the designers of operating systems, this means that having security flaws, any kind of flaw in an operating system, any kind of bug in the operating system is bad.
+A security bug is particularly bad because it cannot be compensated for typically at higher levels.
+Now, in particular, what is going on in the operating system that has security implications?
+Well, the operating system controls access to application memory.
+The operating system is able itself to read or write any application memory it chooses to.
+Any piece of memory, any page of memory that belongs to any process can be read or written by the operating system.
+And moreover, the operating system can give access to any page of a process's memory to any other process it chooses to give access to.
+And it shouldn't.
+It's not supposed to.
+But it's able to.
+Also, of course, who decides when a process runs?
+There are a bunch of processes that could run on your machine.
+And somebody's going to choose that this one runs next and this one doesn't run next.
+Who's doing the choosing?
+The operating system is doing the choosing via its scheduling.
+If it says, I don't want to run that process because for security purposes, I would prefer not to have that process run.
+Process isn't going to run.
+When a user says, I would like to open a file, I want to open my home directory slash foo.
+How do you know for a fact that the file that you were given access to when it says, here's your open file, actually is the foo that you wanted?
+How are you going to be sure of that?
+Well, you're sure of that because the operating system told you so.
+If the operating system gave you a different file or gave you different content for the file than you thought was in there, you have no way of knowing.
+You can't tell because that's how you get to the file through the operating system.
+So generally speak, and that's not true just for the file system.
+It's true for the network.
+You're getting a whole bunch of messages coming in remotely from people you're working with in the operating system.
+It's telling you that you're getting messages.
+How do you know that messages were sent and received?
+You don't know.
+That's true for anything else.
+You were recording information.
+How do you know that what gets recorded is actually what should be recorded as opposed to some other sound entirely?
+Well, you don't know, except of course that you expect that the operating system is going to honestly take the input from the speakers, the hardware, and save that in some format, which you can use later.
+Generally speaking, if the operating system is not behaving honestly, it's pretty much impossible to guarantee anything about the behavior of your computer.
+You cannot be sure that what you are doing, what you think is happening on the computer, actually is.
+Now, one implication of this from the point of view of overall computer security issues is that we usually, when we are talking about building secure software or building secure systems, we usually work on the assumption that the operating systems of a machine that is involved in this system is secure.
+At most, we say, well, our operating system must be secure.
+We'll try to work with that.
+But our machine must be secure.
+It must be behaving as we expect it to behave.
+If that's not true, it becomes almost impossible to achieve other security effects that are desirable.
+Now, in the field of security, we think of things a little bit differently than we think of them in other areas of computer science.
+So we're going to go through a few definitions that are relevant to the security field in general, and thus to operating system security in particular.
+First, security.
+What is security?
+You kind of vaguely think you know what security is.
+You know, I don't want my machine to have its sensitive data stolen and so on.
+But if you think about this in a little bit more detail, you see that what we really mean by security in this context is a policy.
+A policy that says this is what should happen.
+This is what shouldn't happen.
+And we don't, at this level, care quite as much about how.
+How do we make it happen?
+How do we prevent it from happening?
+What we care about is what do we want to have happen?
+How do we want the system to behave?
+So, for example, let's say we're talking about a file.
+There's a file that belongs to me.
+It's got sensitive data in it.
+Some of the other people who work with me on the computer, I want them to be able to read the data in the file.
+Other people, I don't want to be able to read the data in the file.
+So, I can say the security related to this file is that no unauthorized user may access the file.
+It's a policy.
+That just says this is what should and shouldn't happen.
+Now, of course, that's an intention.
+That's a desire.
+That's something we wish to achieve.
+In the real world, we have to have a mechanism by which we achieve our intentions.
+Protection refers to the mechanisms.
+How do we make a policy effective?
+How do we make sure the policy is enforced?
+How do we make sure we achieve the security we said we wanted to achieve?
+So, for example, if our policy is no unauthorized user may access this file, then we might have a mechanism that says the operating system or perhaps the file system checks the user's identity against the access permissions and only allows the access to go ahead if they match properly.
+So, protection mechanisms implement security policies.
+Okay.
+A couple more definitions.
+Vulnerabilities and exploits.
+What is a vulnerability?
+A vulnerability in the computer security sense is some kind of weakness, most commonly in software, possibly in hardware, maybe in network protocols in some cases.
+It's a weakness that allows an attacker to do something problematic, typically something that would not follow the desired security policy.
+There are different vulnerabilities in different pieces of software and different pieces of hardware.
+Some vulnerabilities can cause certain kinds of problems, but they can cause other kinds of problems.
+Other vulnerabilities might be able to cause the full range of problems or some other subset of the problems, but again, not every possible problem.
+There are many, many, many vulnerabilities out there.
+The software that we work with all the time, plus, of course, all the software that is rarely used by anybody, that software is just riddled with vulnerabilities.
+There are vulnerabilities left, right, and center.
+Now, the fact of the matter is that in practical terms, in what we see in the real world, security is very much about what we see in the real world usually.
+We do not see most vulnerabilities ever being exploited, ever being used to achieve an undesirable security effect, to overcome a policy that somebody wants to have enforced.
+Practically no vulnerabilities ever get actually exercised by an attacker to cause something bad to happen.
+The vulnerability is there, but it may not be used by anybody.
+An exploit, on the other hand, is what happens when somebody does take advantage of a vulnerability in a particular real system.
+Not the generality of saying, well, this could be done.
+I could have a buffer overflow or whatever over here.
+It's this happened.
+On this computer, on this state, the following thing happened that exercises vulnerability with the following effect.
+That's what we mean by an exploit.
+Generally speaking, not all exploits can do all possible bad things.
+Some, for example, may be denial of service exploits.
+Some of them may be exploits that allow you to view data that you shouldn't be able to see.
+Some of them may be exploits that allow you to gain access to a computer that you shouldn't be able to have.
+Different exploits allow different things.
+Now, there is a second meaning in the computer security realm to the term exploit.
+Typically, when you say there's a vulnerability and somebody is able to make use of that vulnerability to do something bad, the way they do that is they either have a piece of software that exercises the vulnerability, or there are a series of actions that they take.
+They do this.
+They do that.
+They do the other thing.
+Bang.
+The vulnerability now has been usable.
+Either that code that allows them to make use of the vulnerability or the series of steps that allows them to make use of the vulnerability is often referred to as being an exploit.
+Now, in that case, it is not absolutely the case that exploit in this sense means anybody's ever done anything bad with it.
+They have a piece of code that could, but they may or may not have used it.
+Typically, they have.
+Okay.
+Another very, very important concept in computer security and general operating system security in particular is trust.
+This is really very, very important.
+And it's a simple concept as a concept, but it has tremendously difficult implications.
+And the concept is just that there are different parties out there, and you would do things for some of those parties, and you would be happy doing things for some of those parties.
+If they ask you to do it, you would be happy to do it.
+And on the other hand, if someone else asked you to do exactly the same thing because you do not trust them, you would not do what they asked.
+Now, this is a concept that is familiar to us from childhood, from our earliest days as children.
+You know, if your mother says, go over there when you are six years old, you probably go over there because you trust your mother to give you good advice, to tell you to do things you should do.
+If some stranger says, go over here, you probably don't do that because you don't trust them.
+This is something we're all very familiar with.
+We work with trust without even thinking about it in our daily lives.
+But we also have to work with trust in computer systems.
+And things get complicated when we talk about using trust in computer systems.
+Now, in a computer, when you get down to the brass tacks, it's all zeros and ones.
+Zeros and ones that express data values.
+Zeros and ones that encode the instructions you wish to perform.
+It's all a bunch of bits.
+So, if you say, I'm going to have trust be a very important concept in the security of my system, my computer system, that ultimately means you have to express trust in bits.
+There have to be a set of bits.
+And one set of bits indicates a certain degree of trust and a different set of bits indicates some other degree of trust.
+How do you do that?
+Well, I mean, they're bits.
+But how do you decide how the bit should be set and what the bits mean?
+And then there's the higher level question of, okay, I've got some way in which I express trust in a data format.
+Why?
+Why is that a good way to do it?
+Why does that actually have anything to do with whether particular security policies should or should not be implemented?
+Another issue that you have is that almost always when we are working in a computer system, we are working through software.
+There's a piece of software either on our machine or perhaps on somebody else's machine that is working with us.
+If it's on our machine, it is performing system calls and doing things of that nature.
+Perhaps if we're sharing memory, it's writing into our shared memory or reading from our shared memory.
+On the other hand, if it's a remote machine and there's a piece of software over there, messages are coming in, messages are going out across the network, arriving at our computer, leaving our computer.
+Especially in that case, when we're talking about we're working remotely, how do you know who's over there?
+Who is it who's sending those messages?
+Who is it who's getting your messages?
+Is it who you think it is?
+Is it somebody you should be trusting or is it somebody you shouldn't be trusting?
+Unless you know the identity of whoever it is who you're dealing with, how can you possibly make a decision about trust?
+You can't.
+Another issue we run into is what if trust is situational.
+So, for example, you could say, you know, we've got a bunch of employees at our company.
+We have some automated locking mechanism that opens and closes the doors at our company.
+And our employees should be able to get into the building because they work for us.
+We trust them.
+And they should be able to leave the building.
+But on the other hand, other people should not.
+Well, that's simple enough.
+But what if you also say, you know, our people should be working here during some fairly ordinary business hours.
+We don't want people coming in at 2 a.m. in the morning.
+Well, in that case, you trust them fine if it's 10 a.m. and you don't trust them if it's 2 a.m. to enter the building.
+There are many, many other conditions that say this trust is situational.
+Under these conditions, we trust.
+Under those conditions, we don't.
+So, then you're going to have to say, well, in addition to knowing who I'm dealing with and the encoding of whether I should or should not trust them, you also have to know, are the conditions proper?
+What are the conditions so I can decide what degree of trust I should be applying to this request?
+And then there's also the issue of changing of trust.
+The chances are pretty good that in many cases, things that encode trust are going to encode trust for a significant period of time, like who can access a file?
+You probably set that up at some point, and you may never change it.
+Or if you do change it, it's probably going to be quite a while before you change it, which means that for quite a while, it's going to be sitting in some persistent form of data.
+There's going to be some representation of the trust, which is going to be saved somewhere.
+And if you change how much you trust somebody, you say, oh, this guy no longer works for the company.
+We don't trust him anymore.
+Well, then you're going to have to do something that changes the encoding of who the person is, why you trust them, what they can access, or whatever.
+And you have to make sure that does get changed, because it's sitting out there in a persistent form somewhere.
+If you don't change it, you are still applying the old version of trust to the new situation where it shouldn't be applied.
+Now, in particular, the operating system.
+I'm writing an application.
+Should I trust my operating system?
+Well, you don't have a whole lot of choice.
+You have to trust your operating system.
+You perform a system call, and you assume that the operating system is going to do what you ask it to do, if you're allowed to do that.
+If the operating system chooses to do something else, you don't have a lot of control over that.
+It's going to do what it's going to do.
+You may be able to see that what you wanted to have happen didn't happen.
+But you may not even know that.
+The operating system may have told you, yes, what you asked me to do, I did it.
+But it didn't.
+What can you do about that?
+You really can't do much of anything.
+This is because when we are talking about the actual operating system, not a virtual machine operating system, the actual operating system controls the hardware.
+It tells the hardware, read the following block off the flash drive, send the following message, move the following page of data into the following page frame, etc., etc., etc.
+If it doesn't do those things right, you're kind of out of luck.
+You can't get to the hardware in most other ways.
+It controls how your processes are handled.
+It can kill your process any time it chooses to.
+It controls what I.O. gets performed on any of the peripheral devices on the computer.
+So effectively, if the operating system is out to get you, you're out of luck.
+You are gotten.
+There's nothing you can do about that.
+Now, this has two implications.
+The first is that if you compromise, if somebody can compromise an operating system, if they can find an exploitable vulnerability in an operating system, they gain a tremendous amount of power, maybe over one particular computer, maybe over everybody who is running that version of that operating system.
+That's one implication.
+The other implication is if you say, gee, I don't trust this operating system for whatever I regard as being a good reason.
+Well, what should you do about that?
+Change operating systems.
+What do you change operating systems to?
+Well, if you're running Windows and you decide you don't trust Microsoft, you can change to Linux.
+If then you decide you don't trust Linus Torvalds and his compatriots, then you can change to Mac OS.
+And if you decide you don't trust the people at Apple either.
+You don't trust any of these groups.
+Well, they're kind of out of luck.
+That's kind of it.
+Those are your choices.
+Maybe you can go to Android, but of course, ultimately, they have Linux underneath.
+So, and what if you don't trust Google?
+You're going to have to trust somebody.
+Okay.
+Now, let's start talking about, in more practical terms, what we do about security issues in an operating system.
+We'll talk about authentication and authorization.
+So, generally speaking, what's going to happen is an application is going to make a system call and it's going to ask the operating system to do something.
+That may be on its own behalf.
+It may be in conjunction with another process, another machine, whatever.
+So, it matters who is doing the asking.
+If you have a file that belongs to Fred and Jane isn't supposed to read the file and Jane says, I want to read the file, then the operating system should not let Jane read the file.
+That's the security policy.
+Now, in order to determine that, gee, this is Jane asking to read the file, we need to know this is Jane asking to read the file.
+It isn't Bill.
+It isn't Fred.
+It isn't somebody else.
+It's Jane.
+We got to know who we are working with at the operating system level.
+Who is asking us to do something?
+Who is asking us to perform this system call?
+Who is asking us to send this message?
+Who is asking us to deliver this message?
+Because we're only going to allow certain parties to do certain things, such as read files.
+So, we have to know who we're dealing with.
+We, the operating system, we have to know who we are dealing with.
+Who is it who's asking us to do this work?
+That question, how do we determine who this is, is the issue of authentication.
+Authentication is all about saying, who is this party?
+Typically, because the party is going to request the ability to do something, and we got to know who they are before we can determine if they should be able to do it.
+Now, once we know who somebody is to whatever degree of certainty is required, we know it is Joan, for example, who is trying to open the file that she shouldn't be able to open.
+Then, we have to determine, oh, she shouldn't be able to open it.
+That's a question of authorization.
+It's not authentication.
+Joan is Joan is Joan.
+Joan can do some things.
+Joan can't do other things.
+Once we know that it's Joan who is doing the asking, we then have to say, well, given what Joan is asking to do under these circumstances, should she be permitted to do so, or should she not be permitted to do so?
+That process is called authorization.
+Authorization and authentication are two different things.
+Just because both words begin with AU doesn't mean they're the same thing at all.
+As a rule, in order to perform proper authorization in the computer system, you have to have already performed proper authentication.
+Bad authentication, bad authorization.
+So, let's talk about how you do good authentication.
+So, authentication is, of course, about whether or not somebody is who they claim to be, so you can determine what they should and should not be able to do.
+So, how we're talking here about the operating system.
+So, that's what we're talking about.
+When you're talking about a human being, there are other ways we do authentication.
+We do this all the time without thinking about it.
+But when we are talking about an operating system, we've got a computer.
+The computer is sitting there running code.
+Part of the code is the operating system.
+Another part of the code is perhaps a process.
+The process asks to do something.
+The operating system must determine the identity of the process in some manner.
+How?
+Now, this is, as I said, a very old problem.
+This is a problem that goes back long, long before there was human history.
+I mean, even back in the days of the cavemen or whatever, there were things you would do for members of your tribe, and you wouldn't do it if somebody was not a member of your tribe.
+So, when a caveman came up to you and asked to do something, asked you to do something for them, you determined whether they were or were not a member of your tribe.
+And you did it if they were, and you didn't if you were.
+And this continues to this day.
+You know, your mother asked you, bring home a gallon of milk from the market after work.
+You probably bring home a gallon of milk from the market after work.
+A complete stranger walks up to you and says, bring home a gallon of milk after work, and you probably ignore them.
+Why? Because one of them you had authenticated as your mother, and the other, you didn't know who the hell they were.
+So, how do we do this in the real world?
+Forget about computers for the moment.
+How do we authenticate things in the real world, people and other things?
+Well, one of the ways we do it is by recognition.
+I see your face, you see my face.
+I know who you are because I recognize your face.
+Or I recognize your voice.
+Or I recognize the way you walk.
+Or whatever it may be.
+There's something about you that I recognize.
+I know what this particular person looks like.
+And thus, I do things for them on that basis.
+But this doesn't always work.
+So, for example, you're driving along and you make an illegal right turn.
+Too bad.
+There's a policeman right behind you, and he pulls you over.
+Now, the policeman is going to want to give you a ticket because you made an illegal right turn.
+But, of course, the ticket should be written out to whoever the person was who actually made the illegal right turn, not to some random person.
+So, the policeman needs to know who you are.
+Chances are pretty good, if you live in Los Angeles, for example, that when the policeman pulls you over, you've never seen the policeman before, and he's never seen you before.
+So, somehow or other, he has to figure out who you are.
+How?
+Credentials.
+He says, show me your driver's license.
+The driver's license not only proves that you are permitted to drive, but it also provides a strong authentication element.
+It says on there who you are.
+It's got your picture on there.
+So, the policeman can say, okay, you're Bill Jones, because that's what your driver's license says.
+That's why he believes you're Bill Jones.
+That's why Bill Jones gets written up for a traffic ticket.
+Now, these still aren't the only ways of doing things.
+So, one way you can do it is by, another way you can do it is by authentication from knowledge.
+I know something.
+If I want to prove who I am, I tell you this secret that I know.
+So, you know, for example, we can have a club, and you've got a clubhouse, and you don't get to get into the clubhouse unless you tell the doorman the secret word.
+You tell the doorman the secret word.
+He doesn't know who you are.
+He's never seen you before.
+He doesn't see a card saying this is what your name is.
+It's just that you knew the secret word, so you get in.
+That's authentication by knowledge.
+You are proven to be somebody who is permitted to do something because of a fact or a piece of information that you know.
+Once in a while, in the real world, we identify by location.
+So, those of you who have driver's licenses have probably, at some point, visited the Department of Motor Vehicles, the DMV, to get your driver's license.
+What did you do when you went to the Department of Motor Vehicles?
+Well, you got into this building, and there were a bunch of desks and so forth, and you saw a line, and you got in the line at the end of the line, because there's a sign saying, line up here to get your driver's license.
+You got to the front of the line, and there was somebody standing behind the counter, and you told them a bunch of things about yourself, so you could get a proper driver's license, and you perhaps paid them some money, because maybe there was a fee associated with your driver's license, and you expected to get a driver's license.
+Why on earth did you believe that?
+The only people who should be able to give out driver's licenses are people who work for the DMV.
+Why did you believe that that person you were talking to, who you gave money, was actually a DMV employee?
+Well, he was standing behind the counter at the DMV building.
+That's why you believe that.
+That location authenticated him.
+Now, these are all ways that we provide authentication in real-world interactions, one person to another.
+But they all have cyber analogs, things that you can do in computer systems that are kind of like this, that allow us to authenticate.
+Now, if we are going to use a computer to authenticate, which is what we're talking about when we're talking about operating system authentication, then we're going to have to deal with the characteristics of computers as opposed to the characteristics of human beings.
+AI to the contrary.
+Computers are not as smart as people.
+They aren't as flexible as people.
+So, what this means in particular is that you're going to somehow or other say, when I ask the computer to do something on my behalf, you are going to do something that authenticates yourself to the computer.
+Some set of steps.
+These have to be well-defined.
+Interactions with computers of any kind are well-defined.
+You have a program you're on.
+It's got instructions.
+You do what's in the instructions.
+They may be complicated instructions.
+There may be many paths through the instructions.
+But they have been very well-defined.
+Same thing is going to be true for whatever you do to authenticate yourself to the computer.
+Also, there are certain things that people are pretty good at.
+And computers aren't good at all of those.
+So, facial recognition.
+Computers are getting better at facial recognition.
+But still, they are not anywhere near perfect.
+We still hear about cases where a computer's facial recognition system has been fooled by a fairly simple mask or by somebody holding up a photo of whoever it is they want to claim to be, which would never work if you were talking to a person.
+But computers can be fooled this way because this is just not one of the things they're good at.
+They're getting better, but they aren't that good at it yet.
+Now, on the other hand, there are things that computers are good at that people are, as a rule, not very good at at all.
+In particular, computers can do computations very, very, very fast and perfectly accurately.
+They do not make mistakes when you say multiply these two numbers.
+If you tell a computer multiply these two numbers and the numbers are 18 digits long each, when you get that result coming out, it's certain, almost certain to be the right number.
+So, what this means is that we could use some fairly complex mathematical operations to authenticate in an operating system, which would be ridiculous to try to use in human interactions, even if in principle they could be used.
+Now, another issue, of course, is that in many cases what we are going to end up authenticating, when we are talking about an operating system authenticating something, doesn't actually tie to any particular human being.
+It's got an identity.
+Like, it's that computer over there.
+Or it's somebody who works for the following company.
+Or, you know, a computer that runs in the following company under their control.
+But it may not have a human identity.
+Now, if you don't have a human identity, you don't, for example, have a face.
+So, you can't do facial recognition on a server.
+You're going to have to do something else.
+There's going to have to be some way that is not related to those characteristics of the thing being authenticated as a human being.
+Now, ultimately, we are going to have to have identities.
+There's going to have to be some data format that says this is an identity, an authenticatable identity.
+We'll take some steps to determine if this is the right identity to determine what identity it is.
+But there will be a data structure that says this is the identity.
+Typically, in most operating systems, the way we do that is we say there is a number, an integer.
+This integer represents a known user ID, a known user.
+Often, in many cases, this known user is a person.
+So, this person, Bill Smith, is user number 753, for example.
+Okay.
+So, as we've said before in other classes, computers and software like to work with numbers, not with strings, not with other kinds of data.
+So, ultimately, since there's no good reason not to use numbers for this purpose, we will translate identities for authentication purposes down into a number, typically an integer.
+All right.
+Now, in particular, almost all of the things that go on in a computer, leaving aside the operating system's own activities and interrupts and things of that nature, almost all of them are initiated by processes.
+Some process is running.
+It makes a system call, or it does something that requires attention from the operating system.
+Now, exactly what happens when it makes the system call or requires attention may be determined by its identity.
+So, Joan wanted to read the file.
+We have to determine when she performs the read system call, is Joan allowed to read that file?
+So, we have to say, okay, we'll get the user identity that represents Joan, the integer that I've been talking about.
+And that's what we'll use to determine if this user, Joan, happens to be able to read the file.
+Okay.
+Now, every process has associated with it in a typical operating system some user identity.
+What user identity?
+Most commonly, it's the user identity of whoever started the process.
+How do they start the process?
+Well, we talked about that in the process lecture weeks ago.
+Depending on what operating system you're working on, Windows, for example, you would use create process.
+One of your processes would make the create process system call.
+In Linux-style systems, you would have done a fork from one of your processes.
+Now, what that meant is there's some process that created this other process.
+We will usually inherit the identity of the creating process.
+So, if process X belonged to Bill and it did a create process of process Y, process Y also belongs to Bill.
+Obviously, there are going to have to be some situations where that's not what happens, where the new process gets another identity or we change the identity of an existing process.
+But, generally speaking, that's what happens.
+So, what that means is whenever I make a system call from my process, tagged with the system call or associated with the system call is my process descriptor.
+One element that is going to be this ID.
+Okay.
+Now, this does actually have an implication.
+I mean, you may say, well, of course that's what you do.
+But it has an implication, which is not always the best possible implication.
+This implication is that if there are 73 different processes running on this computer all belonging to user Ryer, then every one of those 73 processes has the complete permissions, the complete abilities, privileges of user Ryer.
+As all the other 72, they all get to do the same thing.
+This has drawbacks, serious security drawbacks.
+However, we have inherited this mechanism from old, old, old operating systems, and it lives on in all the popular operating systems.
+This is how we do it.
+Now, that's perfectly all right.
+But what you might ask yourself, okay, fine.
+I log into a server computer.
+I'm logging in remotely.
+Don't worry about the remote issue for the moment.
+But I'm logging into the server computer.
+I didn't have any processes running on that server computer before I logged in.
+Soon, assuming I'm allowed to log in, I will have a process running there.
+So clearly, somebody created that process that I've got, and that somebody wasn't me.
+So that process cannot possibly have inherited the identity of whatever process or whatever other code in the operating system created that process.
+I didn't have any processes running, so there's nothing, nobody can inherit my identity.
+Okay, so clearly there's going to be a mechanism by which we can say we are going to create a process, and we are going to tag it with a new identity, not the identity of whatever process created it.
+Okay, now that implies that now we have to figure out what identity should we tag it with.
+We have to bootstrap OS authentication.
+So how do we do that?
+Well, you've all done this with login processes.
+When you log into a system, you provide a user ID and a password, most commonly, and then you get a process running on that system, assuming you're allowed to log in, and it's running under your identity.
+All right, so that's great, but it cannot have inherited the identity of whoever was creating it, whether it be another process or a special operating system code.
+It has to have set a new identity.
+It has to know what identity to set it to.
+The mechanism for setting a new identity we can talk about in a moment, but how do you know which one?
+How do you know that it should be user Reier as opposed to user Joan or user Bill or one of the other users on the system?
+Well, there are a number of mechanisms we can use for this purpose, some of which you are very familiar with.
+Passwords.
+You all know about passwords.
+You've probably been using passwords since you were able to work with a computer independently on your own, probably from childhood.
+Okay, now, we've talked about the various mechanisms by which we authenticate in the real world and the categories of those mechanisms.
+By recognition, by providing credentials, by providing what you know.
+Passwords are an example of authentication by what you know.
+You know the password for user Reier.
+You can pretend to be user Reier.
+If somebody doesn't know the password for user Reier, they can't pretend to be user Reier.
+They try to log in.
+They don't provide the right password.
+The password, of course, is a secret word or a secret string.
+And whenever you try to log into the system, as you know, I'm telling you things you already know, you provide the password to the system.
+And the system checks to see if you provided the correct password.
+Now, if you think about this for a moment, you can then say, all right, well, I'm going to provide a password.
+I'm going to type in some string, which may or may not be the correct password for me.
+How does the system know if it is or is not the correct password?
+Well, the very, very obvious way of doing this is to say, well, the system has a copy of the correct password for each of the users who might log in.
+So for user Reier, it has a copy of user Reier's password.
+For user Joan, it's got a copy of user Joan's password.
+And so on and so forth.
+And then, as I type in a password claiming to be user Reier, it would compare character for character whether I'm providing the right string.
+And if I'm not, it would not let me log in as user Reier.
+That turns out to have some serious security disadvantages.
+So what we typically do instead is we say, well, you know, I don't really need to authenticate somebody's password that they have provided to me on a login attempt.
+I don't really need to know what their password should be.
+I just need to be able to verify what they gave me is or is not the right password.
+How could I do that?
+Well, I could take the string that they have given me, the password they've provided on login, and I could run it through a hash function.
+Now, if I have stored the hash of what their proper password is, not the password itself, but the hash of the password, I can compare the hash I have stored to the hash of what was just typed into the computer when the guy tried to log in.
+Do they match?
+Assuming they match, then we can say, okay, probably the right password.
+If you understand hashing functions, you should know that this is not guaranteed.
+Hashing functions do not hash arbitrary strings to totally unique numbers, as a rule.
+So, there's some slop there.
+But if we have a good enough hash function, long enough passwords, and so on, it's not too likely that hash collisions are going to cause us a problem.
+Storing the hash on the computer to determine if the right password has been typed in is a much better option than storing the password.
+Why?
+Well, if I store the password, I got a copy of the password.
+If somebody is able to break into my system and read the copies of the password that I've got for all of my users, now I have all their passwords.
+And I can log into the system pretending to be them.
+The break-in that I got may not have given me that much power.
+It may only have given me access to the password file, for example.
+But once I have their passwords, now I can pretend to be them.
+If, on the other hand, I steal their hashes, the hashes of their password, what good does that do me?
+A good hash function is not readily reversible.
+Typing in their hash when I try to log into them as the password, that's not going to help because the system's going to hash the hash, and that's not going to come off the same thing.
+So this is a much better option.
+At any rate, whatever comparison mechanism you use, somebody types in the password, you compare it to what you have stored that is indicative of the correct password, and either they match or they don't.
+If they do match, then you have a process created for them, and then you use some mechanism to change the identity of that process from whatever it was when you created it to the identity of whoever tried to log in.
+Now, passwords are problematic.
+We've known that passwords are problematic since the 1960s, and we still use them.
+But they are problematic.
+What are the problems with passwords?
+Well, they have to be unguessable.
+Now, I have never had a system where I logged in and my password for account Ryer was Ryer.
+But there are people who do that kind of thing.
+The nice thing about that as a password is you probably remember it.
+The not-so-nice thing about the password is, boy, is it easy to guess.
+We have to have passwords that cannot be guessed.
+And it's not just, you know, my name.
+It can't be 12345.
+It can't be the word P-A-S-S-W-O-R-R-D.
+It can't be anything that somebody can guess.
+But on the other hand, I have to remember it.
+I, the human being trying to log in, must remember what my password was.
+Chances are pretty good that, like me, most of you at some point or other have forgotten the password.
+And then you've had issues with logging in.
+Now, another issue, of course, is that in most modern systems, while we may have something like this laptop computer I use or your tablet or your smartphone or whatever, the actual work that is being done is not being done on that device.
+You have logged in.
+You have logged in to a remote computer, a website, or some other remote server.
+And you are interacting with them.
+And you've provided the password to them.
+When I say you've provided the password to a remote machine, what that implies is you have sent a message across the network containing the password.
+Now, if you're not careful, anybody who is able to intercept that message and read that message now knows your password.
+This has been a serious problem in the not terribly distant past.
+And if you're not careful, it can still be a problem right now.
+Another issue with passwords is typically a password is of certain length.
+There were years, many times, years ago, where passwords were limited to six characters, then to eight characters.
+Many systems still have limits of relatively short passwords, say 12 characters or something.
+There's an issue with that.
+The issue is brute force attacks.
+Now, it is wonderful that our computers have gotten to be so very, very, very fast.
+But from a security perspective, this does have a downside.
+This means that under some circumstances, you can test many, many, many different passwords very, very quickly.
+If I can test as the attacker all of the passwords for user Joan, because they're short, eight characters, let's say, and I test every single possible eight-character password, sooner or later, one of them is going to be right.
+And if nothing else is being done, then I can say, ah, this one, Swordfish, turned out to be user Joan's password.
+Now I can log in as user Joan.
+Okay, this is not good.
+Because of all of these problems and a few other related problems, in the security community, we generally regard passwords as being an outdated technology.
+They are not what you should be using anymore.
+But they are what we are using to this very day.
+Probably every single one of us types in a password at least once a day when we are interacting with a computer.
+So what should we do?
+Now, you guys are going to be building computer systems in the future, probably many of you.
+And some of them may require you to allow people to log into your system.
+What are you going to do?
+You could be using passwords.
+There's a pretty good chance you will be using passwords.
+What can you do to get the best, most secure possible use out of passwords?
+Well, the National Institute of Standards and Technologies, a U.S. government agency, has for many years been providing advice on computer security issues.
+One area they provide advice on is how you use passwords, how you build systems with passwords, how as an individual person you use a password.
+They used to have a set of advice about passwords.
+They've changed that set of advice in more recent years.
+So here is the list of things they used to have and the things they currently have.
+The ones that are in dark color are the ones that are current.
+The ones that have been grayed out, they used to say do this, but they don't say this anymore.
+So one thing they say is passwords should be sufficiently long.
+One character passwords are useless because brute force attacks on one character passwords are real easy.
+They have to be very, very long.
+And as technology has improved, as computers have gotten faster and faster, the length that is sufficiently secure to protect against brute force attacks has gotten longer and longer and longer.
+It used to be the case that they said, well, part of the way we're going to deal with this is say your password has to have non-alphabetic characters in it.
+And many, many years ago, it used to be the case that you could only use the letters A through Z and maybe even case was not significant.
+So it didn't matter if it was upper or lower case.
+In that case, for every position in the password, eight characters, there are only, in English, 26 possibilities.
+When you add the numbers and when you add special symbols, you can more or less double the number of possible things, which increases, of course, the cost of a brute force attack.
+So they used to say use non-alphabetic characters in your passwords.
+The problem with that is people generally get to choose their own passwords.
+And in most cases, having a non-alphabetic character in the middle of the password makes it a good deal less memorable.
+So what did people do if they were required to use a non-alphabetic character, if you had to include a number, if you had to include a special symbol?
+You probably put it in the first or last location in the password.
+And what did you put there?
+You probably put one of the numbers.
+And if you didn't put one of the numbers, you probably put one of the more popular special symbols.
+It turned out that since you were not arbitrarily putting these kinds of things anywhere in the middle of the word that you were choosing as your password, you weren't really gaining that much on brute force attacks.
+Attackers figure out this is what people do, and they tried those things.
+So it is now no longer regarded as being necessarily all that beneficial to use non-alphabetic characters.
+Probably worth the trouble, but it's not very, very important.
+It's not really going to protect you.
+The key issue is they have to be unguessable.
+You cannot be able to guess the password.
+So it's not a good idea to say my password is the name of my first family pet because somewhere out on Facebook or Instagram or whatever, you've got a picture saying, here is my beloved Fluffy, my first puppy.
+That'll get found, and they'll check Fluffy to see if that's your password.
+It used to be the case that people said, change your password every month.
+Now, the reason this was going to be helpful, they said, is because, well, people are doing brute force attacks on your password.
+They're trying all of these things.
+That's going to take them a long time.
+If you change the password every month, then the chances are pretty good that by the time they've gone through the brute force attack and guessed your old password, you've switched to a new password.
+And now they'll have to start all over again.
+Well, for most brute force attacks, a month isn't going to help very much.
+Further, if you've ever worked with one of these systems where you were required to change your password every month or every three months, what did you do?
+Well, you chose some password.
+You know, XYZ, let's say, bad password.
+But let's say you chose XYZ as your first password.
+Month passes, you have to choose another password.
+What's the next password you choose?
+XYZ1.
+Another month passes.
+What's the next password you choose?
+XYZ2 and so on and so forth.
+People did things that legally were within the rules they had to work with.
+They changed the password.
+It wasn't a password they've used in the recent past, but it was very, very much like a password they used in the recent past.
+And as a result of that, you really were not gaining much benefit from changing the passwords.
+The thinking is that it's really better to have one long, unguessable password that you keep than to have a bunch of passwords that are all closely related to each other.
+Once you have one of those guests, all of the rest of them fall apart.
+That's not as good.
+Another piece of advice, though, that is still in effect is that you should not write down your passwords.
+Do not write them on slips of paper.
+In particular, do not write them on slips of paper that people can actually see.
+Every so often, about once every few years, you'll get a picture of some office where a bunch of workers at the White House are working on something, and you'll see their computer screens.
+And attached to some of those computer screens will be Post-its.
+And on some of those Post-its will be written the password of the user who works with that computer.
+Now, that picture got published on the front page of the Washington Post.
+That is no longer a secret password.
+That is now a password that everybody knows.
+Now, of course, this is a really obvious case.
+But even if you just have it in your desk drawer, let's say, then if somebody can come through the office and open up your desk drawer and get that piece of paper, they have your password.
+If you keep it in your wallet, somebody steals your wallet, they have your password.
+So, generally speaking, you should not write down your passwords.
+If you don't write down your passwords, of course, you better remember them.
+Another thing you should not do is you should not share your passwords.
+You should not give your password to your husband or your wife.
+You should not allow your children to know what your passwords are.
+Anybody you give the password to can now pretend to be you, which is not good in and of itself.
+But even if you trust them, there's another issue here.
+Now there are two people or three people or six people who know your password.
+If any one of them is incautious, isn't careful about handling your password, then some seventh party who you don't want to have it is going to lure in your password.
+Now, they could do that from you.
+But if it's just you, you are the only, if you're the only one who knows it, you're the only one who could divulge it.
+And if you are careful, you don't have to worry about what the other five people are doing, whether they are careful or not.
+So these things are, generally speaking, the full set of things you want to get out of your use of passwords are kind of hard to make people work with.
+So it's very hard to achieve all of this simultaneously.
+So passwords are an outdated technology.
+What could we use instead?
+Well, one thing we've used in the past and that is used in somewhat different ways currently are challenge response systems.
+What's that?
+Well, this is another thing where you are authenticating by what you know, kind of.
+So effectively, a challenge response system says, okay, you claim your user awryer.
+Answer the following question that user awryer should be able to answer.
+Did you give me the right answer?
+Now, a bad challenge response system is something like the security questions that some websites make you answer.
+You forgot your password.
+What's the security question?
+What was the first rock concert you ever went to?
+What was the elementary school that you attended while you were growing up or something like that?
+Now, these are terrible because they're asking you questions that, of course, you have to know the answer to because if you don't know the answer to, you're not going to be able to authenticate yourself.
+You have to remember the answer.
+But also, they're the kind of things, kind of information that people are typically able to get about you if they try hard enough.
+And in fact, you may not even have to try very hard.
+They could look at your Facebook page or Instagram account, and they can get a whole lot of information about you, including the answers to some of your challenge response questions.
+Excuse me.
+I have to stop for just a moment here.
+Okay.
+So, regardless of exactly what question gets asked, though, the expectation is that the proper party, the party who is claiming to have a particular identity, can answer it correctly.
+Now, if you use the same question every time, then that's essentially a password.
+If you have half a dozen questions, then you've got sort of half a dozen passwords.
+And once people have figured out the half a dozen passwords, they know what the next question is going to be.
+And since usually you do not prevent somebody from ever logging in if they once answer incorrectly, if they answer one of the questions incorrectly, you'll probably move on to the second question or the third question.
+So, if they figure out any of your questions, you're out of luck.
+In order for a challenge response system to be safe, you must ask a different challenge every time.
+A different question gets asked every time somebody tries to authenticate themselves, requiring a different answer every time.
+Generally speaking, this is not practical for people.
+So, what do we do instead with challenge response systems?
+Typically, we back it up with hardware.
+So, what we do is we say the challenge is going to go not directly to the human being.
+It's going to go to a piece of hardware that we expect that human being to have in his possession.
+We have now changed the way we're doing authentication if this is how we do challenge response.
+Instead of being based as on authentication on what you know, you have a secret, tell me the secret.
+But instead, we're basing it on authentication on what you have.
+You have a particular smartphone.
+You have a particular security token, a particular dongle or something like that.
+Okay.
+So, if you just have the device, maybe that's enough.
+So, effectively, when you go to an ATM, for example, and you plug in your card to the ATM, the mere fact that you have that card is, usually in conjunction with a password, enough to identify as having responded to the challenge.
+Okay.
+So, sometimes mere possession of the device, whatever it is, is enough.
+Sometimes that's not going to be quite enough.
+Sometimes what's going to happen in better challenge response systems, the ones we tend to use in modern situations, is whoever you're trying to log into, whatever server you're trying to access, will send a number.
+Typically, some long number to your device.
+You are expected to have the device.
+That device will then perform a function on that number.
+That function will be specific to that device.
+It will then respond with the result of applying the function to the challenge.
+That's its response.
+The response is going to be different every time because the challenge will be a different number every time.
+So, listening in to the old responses to the challenge is not going to be helpful because the next time somebody tries to log in, it'll be a different challenge.
+As long as the attacker cannot deduce how to create the proper response to the challenge, this can be pretty safe.
+So, this is done with smart cards.
+You know, that's nowadays, an ATM card isn't just a card with a magnetic strip on it.
+It's got a chip on it, which does some of these functions.
+And it's done with things like your smartphone.
+Your smartphone, of course, is an entire computer.
+It's got complete computational capabilities in it.
+So, we can have an app that runs in the smartphone and you can send the number to that app and that app can perform the processing on that number that is specific to your smartphone.
+Send the response back and whoever it is that you are authenticating yourself to can know that this is or is not the right response.
+You guys are doing this at UCLA all the time.
+This is how the Duo system works.
+So, challenge responses that are based on things like secret words or security questions, those are not very good at all.
+Those are very poor security mechanisms.
+If you say it's based on what you have, you've got a smart card, you've got your smartphone, whatever it may be, and a challenge gets sent to that and a computed response gets sent back.
+Well, then, you don't have that problem, but you do have the problem that you have to have the device.
+If you don't have that thing, you cannot authenticate yourself to whoever it is you're trying to log into.
+So, if you lose the smart card, you lose your smartphone, you cannot log into your remote site because the challenge goes to something you no longer have control over.
+And if you're not careful, whoever got hold of your smartphone, they stole it from you, for example, may be able to pose as you, which isn't good either.
+If you're not careful about how you do this, then you have the same problem with challenges across the network that you would have with passwords.
+So, if it's a few security questions, this is really terrible.
+Even if you can't guess what the guy's security questions is because he's been careful about not using information that's public.
+If you're able to sniff the response to his security question from the message he sent back to the website asking the security question, then he can answer the security question.
+Not because he figured out who your pet was when you were a kid, but because he saw that you answered Fluffy the last time that question got asked.
+Now, this is not nearly as much of a problem, the sniffing, for these smart card or smartphone versions of challenge response because every challenge is different.
+Every response is different.
+Sniffing the old challenge and the old response, usually, if you've done it right, is not going to help with the new challenge.
+Okay.
+Now, these aren't the only ways that we can authenticate somebody who is trying to interact with our operating system.
+We can use biometrics.
+What are biometrics?
+Biometrics, as the bio prefix indicates, relate to biology.
+They relate to who a person actually is in a biological sense, to characteristics of the physical being of that person.
+So, facial recognition, fingerprint recognition, retinal scans, voice prints, all kinds of other things that are related to who we actually are.
+Different people have different characteristics.
+So, we can use those different characteristics to say, this is user Joan because this is user Joan's fingerprint.
+That isn't user Joan because that isn't user Joan's fingerprint.
+That's a biometric form of authentication.
+Okay.
+If we're going to do this, how?
+How do we actually brass tacks get this done in an operating system?
+Well, let's say it's a fingerprint.
+We have fingerprint readers on a number of machines.
+The one I'm using here has a fingerprint reader.
+What do you do when you want to authenticate with your fingerprint?
+Well, you put your finger down on the fingerprint reader.
+And if it's the right fingerprint, it's supposed to authenticate you.
+Mechanically speaking, what's going on there?
+Well, the fingerprint reader is a peripheral device.
+It is a piece of hardware.
+What does it do?
+It has got some capability through electromagnetic mechanisms or whatever to detect the various ridges and troughs on your finger.
+And it then is going to do something with those.
+Well, what's it going to do?
+Got to say this is the right fingerprint or this isn't the right fingerprint.
+So it's going to obviously take whatever information it got from putting your finger on the fingerprint reader and it is going to compare it to something else.
+Now, what is that something else?
+Something else had better be representative of what your fingerprint was really like.
+So the computer system that you're trying to log into using this biometric is going to save some kind of copy of what your fingerprint is like.
+As always, copies of things in computer systems are bits.
+So the copy of what your fingerprint looks like is a collection of bits.
+Okay.
+And further, when you put your finger on the fingerprint reader and it gets information about what your fingerprint looks like, it's going to convert that into a bunch of bits.
+And then what it would presumably do, you would expect if you weren't thinking carefully about this kind of thing, is it would do a bit-for-bit comparison between what it read off the fingerprint reader and what it stored as being your true fingerprint.
+Okay.
+Can't do that.
+Why not?
+Because biometric characteristics and the measurement of biometric characteristics has a high degree of variability.
+Another, facial recognition.
+Okay.
+Now, people's faces change over time.
+People's faces change because of circumstance.
+You know, somebody has a black eye.
+Their face looks different than when they didn't have the black eye.
+They're still the same person.
+Chances are you still recognize your brother when he has a black eye, even though he has a black eye and didn't see him before, since he got the black eye.
+But you still recognize that it's him.
+Okay.
+Now, if we did a bit-for-bit comparison of a picture that a computer had taken of a face and converted into a digital format, and we compared that to what we'd saved, clearly over time it would differ.
+But it's worse than that, because let's say that you had your face a few degrees to the right when you had this facial recognition done originally.
+Unless, when you try to authenticate yourself to the system, your face is a few degrees to the right, exactly the same number of degrees to the right.
+The bit-for-bit representation of the picture it just took of your face is not going to be the same as the one that's on the computer.
+And it's not just the angle of your face, up, down, did you blink.
+Is the light the same as it was before?
+Not just the same intensity and from the same directions, but is it the same color of light?
+There are just all of these different characteristics of what we would see in the low-level bit-for-bit representation of a fingerprint, of a picture of a face, of the sound of a voice.
+They're all somewhat different.
+So, what we're going to have to do is say we can't do a bit-for-bit comparison of what we've saved versus what we just measured.
+We're going to have to do something else.
+We're going to have to do some kind of comparison that is not perfect match.
+It's got to have some kind of approximate match close enough.
+So, why is biometric authentication not always the answer to our problem here, to our authentication issue?
+Well, first, it requires some very special hardware.
+There are some exceptions to that, you know, typing patterns.
+It is also the case that some kinds of hardware that are useful for biometric authentication have become very, very common.
+So, pretty much all smartphones are going to have a camera.
+You can take pictures with any smartphone.
+So, any biometric that relates on taking a picture, you can do that.
+Some things have fingerprint readers, like my computer here.
+Others don't.
+My smartphone doesn't.
+Most computers nowadays, at least those used by people, have microphones.
+So, you can do voice recognition, for example.
+But there are other things that require very specialized hardware.
+Retinal scans.
+Yes, you can take a picture of somebody's retina with your smartphone.
+But to do a really high quality retinal scan, you need a much better camera than that and very special characteristics of lighting and orientation and so on and so forth.
+It's also the case, of course, that, as we said, physical characteristics vary.
+And some of them vary quite a lot.
+Voice, for example, can vary quite a lot depending on whether you have a cold or not.
+If you've been shouting a lot lately, your voice may be hoarse, in which case it may not match what's been stored as being your proper voice.
+Further, biometrics can really only be used for people.
+You probably can use them for your dog and cat, if you really needed to authenticate your dog or your cat.
+But you cannot use it for a program.
+You cannot really use it for a computer.
+So, if you're trying to authenticate those sorts of things, especially remotely, you're going to have a problem.
+Any kind of biometric authentication, in fact, that's remote, is going to be problematic.
+Why?
+Well, because what's happening with the biometric?
+The picture got taken in your face.
+You ran through some software that converted whatever the camera saw and converted it into a bunch of bits.
+So, you got a picture representing your face that's a bunch of bits.
+Let's say it's you.
+It really is you.
+And so, that gets compared to what's stored.
+And yes, yes, that's a match.
+Now, anybody who had a copy of that bunch of bits that represent your proper picture, the one that is a match, they can then, if they are on a remote machine and they're told, take a picture of yourself so I can authenticate you and send me the picture, they can just take that bunch of bits and put it into messages.
+They do not have to take any pictures at all.
+They got the bunch of bits already.
+So, if something is coming across a network, you really can't be sure.
+There are possibilities, even when you're talking about a picture taken on a computer, that still, something could get in the way if somebody corrupted the device driver.
+If somebody is able to put in a bad version of the software that is analyzing what is seen by the camera and creating the picture of the face, whatever it may be, they may be able to interfere with what was actually in front of the camera and produce something else, a set of bits that don't represent what's in front of the camera, but do represent what the attacker wants to authenticate with.
+So, that's something you have to be wary of with authentication and biometrics.
+But even if you're careful about those things, you run into a particular characteristic problem with many biometrics.
+False positives and false negatives.
+False positives and false negatives are failures in biometric authentication.
+You tried to do authentication and you made a mistake.
+Why do they occur?
+Well, let's talk about false positives first.
+Somebody walked up to the computer, claimed to be Peter Reier.
+It wasn't Peter Reier.
+It wasn't me.
+It was Bill Smith.
+Bill Smith claimed to be Peter Reier.
+And it took a picture or whatever.
+It took a fingerprint.
+It listened to his voice, whatever it may be.
+And it said, yeah, yeah, that's Peter Reier.
+Well, it wasn't me.
+And we'll assume for the moment that there was no funny business in inserting a bitmap of my face into the system.
+It's just that the picture was improperly identified as being me when it wasn't me at all.
+Okay.
+Now, that happened probably because whatever I'm doing to say, well, these two pictures, the one I've saved and the one I just took, they're kind of sort of alike.
+I've been too generous about making a match.
+I've been saying, well, they aren't exactly alike, but they're close enough.
+Not close enough.
+Now, the effect of a false positive is bad because it means somebody who isn't me can pretend to be me, which is definitely against the purpose of authentication.
+Now, we also have false negatives, which is another issue.
+So, I walk up to my computer and I say, I am Peter Reier.
+Please log me in.
+And it takes a picture of my face and it really is me.
+And it really took a picture of my face.
+And it really took the binary representation of that picture that had just taken my face.
+And it really compared it to what was really a binary representation of what my face looked like.
+And it said, nah, that's not Peter Reier.
+Well, why?
+Well, because of all of those issues that were related to measuring a biometric.
+What was the lighting?
+What was the angle of my head?
+Did I shave yesterday?
+Whatever it may be.
+I was too picky.
+So, if I am not picky enough, somebody can pretend to be me.
+If I'm too picky, I can't be identified as myself.
+So, these are both bad.
+Now, remember, of course, this is an issue particularly for remote authentication.
+He's on a computer over there.
+He wants to authenticate himself to my computer.
+How do I know that what I see coming in on my computer where I'm going to do the authentication actually represents the biometric of the person who is sitting over there at that computer?
+There may not even be a person sitting over there at that computer.
+Just a program sending some bits pretending there's a person there.
+How can I know that?
+That gets very problematic across networks.
+Okay.
+Now, the various mechanisms we've talked about for authentication so far have one thing in common.
+They all have weak points.
+There are problems with all of them.
+Problems with passwords.
+Problems with child response.
+Problems with biometrics.
+So, over the course of time, people who work in the field of computer security have said, how do we deal with the fact that none of these mechanisms for authentication are perfect?
+Well, why don't we try using more than one mechanism to perform each authentication?
+Let's use multiple mechanisms of different types to authenticate people who are trying to prove their identity to the operating.
+system.
+This is called multi-factor authentication.
+Most commonly, it's two-factor authentication.
+It could be more than two.
+You could have three or four or five-factor authentication.
+Usually, you want to have very, very separate authentication mechanisms.
+So, for example, perhaps a password and a biometric or a password and a smart card or some combination where the bad points of one of the mechanisms are matched by strong points of the other mechanism.
+So, both of them have to fail in order for authentication not to be performed properly.
+So, this is what we prefer to do in authentication.
+If you guys end up building systems after you graduate from your programs and you have to do authentication, you should be thinking about building into your systems multi-factor authentication.
+Okay.
+Now, that's all I intend to say about authentication.
+We're now going to move on to the authorization question.
+How do we authorize?
+We know who somebody is.
+They want to do something.
+They made a system call.
+They said, open this file for a write.
+Should they or shouldn't they be allowed to do this?
+That, of course, is a question of authorization.
+In the context of operating systems, the process of authorization is usually referred to as access control.
+Do you allow some party, some process typically, to access some resource in the way it wishes to perform that access?
+Now, given that you are accessing all of the resources of the computer system through system calls, pretty much, the operating system will get the opportunity to make a decision.
+Yes, no.
+It can do it one way or it cannot do it that way.
+And this means that there is a moment when the system call is made, but before the system call has been actually responded to by the operating system, there is a moment at which we can check a security policy and say, should I do this?
+Should I perform the action related to the system call or should I not based on what the security policy tells me?
+All right.
+Now, the actual mechanisms we use at that stage are called access control mechanisms, and these are fundamental to operating system security.
+So how do we do it?
+Well, it turns out we have two options.
+Really, only two options.
+Nobody else has thought of a third that's actually different than these two.
+First, access control lists.
+These are referred to as ACLs in the computer security terminology.
+All right.
+What's an access control list?
+Well, you're trying to protect something.
+Files are a very common example.
+I've got 50,000 files in my computer system.
+Let's maintain a list associated with each file.
+On that list will be entries.
+Each entry will say the following party, the following identity, the following user ID is permitted to do the following things to this file.
+He may open it for read, but he may not open it for write.
+He may open it for read and write.
+He may create a file with this name.
+He can delete the file, whatever it may be.
+Okay.
+So this list in the full strength of access control list would say for every user in the system, every possible user, for every possible action, can the user do that or not do that?
+If it turns out you have 50,000 files and 200 users, you would have 50,000 lists with 200 users on each list.
+And if there are half a dozen things that they could do to the file, each of those entries on each of those lists would have yes or no for those half dozen things.
+That would be full access control lists.
+Now, if you have that kind of thing, then it becomes pretty easy to perform the authorization operation.
+We've done the authentication already.
+We know who's asking.
+Bill Smith is asking.
+We then say Bill Smith wants to open file foo for write.
+Let's go to the access control list associated with file foo.
+Let's go down to the entry for Bill Smith.
+Here's the entry for Bill Smith.
+Does it say he can open the file for write?
+Yes or no?
+If the answer is yes, we go ahead and we open it.
+If the answer is no, we return an error.
+Pretty simple idea.
+And this has been around for a long time.
+The early Unix systems back in the 1970s had a form of access control list for protecting files.
+Now, it turns out that Linux still has these.
+They use pretty much the same thing that was built for Unix in the 1970s, with only a few minor wrinkles added, a few little changes.
+So how did they do it back then?
+Well, they said, okay, fine.
+We're going to have a bunch of files.
+For every single file, there will be an access control list of some form.
+And what are we going to do with the access control list?
+Where are we going to keep our access control lists?
+Well, we have a per file permanently stored entity, the file descriptor, which is the inode, sitting out there on the disk.
+Let's put the access control list in the inode.
+Now, back in the 1970s, they didn't have a whole lot of storage space.
+That was very much at a premium.
+So the inodes that they were storing on disk for every file were of a fixed size, and it wasn't big.
+They didn't have room for a whole lot of stuff.
+They had those pointers, for example, that we talked about in the file system lecture, but they only had room for 13 of those.
+How much room do they have for an access control list?
+Well, in principle, you can say, well, that access control list could be very short if there's only two users on the system, but it could be very long if there are 200.
+They couldn't afford anything of that nature.
+They didn't have nearly enough space for that.
+And they didn't want to set up a separate set of data structures that contain these big, long access control lists.
+So what did they do?
+They said, well, let's have an abbreviated form of it.
+Let's say that there are three subjects.
+Subjects are things that can do stuff in access control.
+A subject is allowed to open.
+A subject is allowed to read.
+A subject is allowed to write.
+Whatever it may be.
+And then there are objects.
+Objects are the things they can do things to.
+So the subjects in Unix access control list would presumably be something like users, and the objects would be the files.
+Great.
+And then within each one, for each subject and each object in the list, you'd say this is what they can do.
+So how much space did they have?
+Well, when they set this thing up, they said, how much space can we afford to devote to our access control list?
+Nine bits.
+You can't do much with nine bits.
+But they figured out something relatively clever they could do with nine bits.
+Every file was going to have an owner.
+There would be some user who owned that file, most commonly the user who created the file.
+Okay.
+Let's use three of the bits for the user.
+Now, the user probably had people who he worked with, people who were doing the same kind of thing he was doing, and probably he trusted them, wanted them to be able to do certain things that possibly other users on the system shouldn't be able to do.
+So let's say that we have an idea called a group.
+The group is all these other people who you're working with.
+They're all members of the group.
+We'll set aside three bits for the group.
+And then what are we going to use the other three bits for?
+Everybody else.
+So either you can set access controls up for yourself, or for members of your group, or for everybody in the world.
+Now, for each of those possibilities, there are three bits.
+Total of nine bits.
+What are we going to do with three bits?
+Well, three bits gives us three yes or no questions.
+So one could be for read.
+One could be for write.
+And what about the third one?
+How about for execute?
+Maybe you can read a file, but you can't execute the file because the file's an executable, and we're going to let you look at the executable, but we're not going to let you execute it.
+Okay.
+That makes sense.
+Now, of course, there are certain files that you can't execute.
+You can't execute a directory.
+So what are you going to do about that?
+You could waste the bit, but there's also something else you do with directories.
+You change to directories.
+So maybe we could say you're allowed to change to the directory if that bit is set, and you can't change into that directory if it isn't.
+You can't make it your current working directory.
+And maybe for a few other special types of files, we'll have some special meanings here.
+So basically, we're going to have three modes, three entities, three subjects, three modes of access, and each file will have these three bits.
+So, and that's what we do, actually, in modern Unix systems.
+And since so much has been built on top of Unix or as an outgrowth of Unix, you know, so for all of Linux, Mac OS, Android, all those things ultimately are working with this Unix model down at the bottom.
+It lives on, and it is still there to this day.
+When you do an LS minus L and you see that read, write, execute, you're seeing benign bits.
+Okay, so what's good and what's bad about access control lists?
+Not just this particular Unix, Linux form of access control list, but the general concept of an access control list.
+One thing that's really good about it is it's easy to figure out who can access a resource and in what ways they can access it.
+You go to wherever you store the access control list for the resource and you just look in the list.
+And that says, at this moment, here's who can access it and here's how they can access it.
+It's also easy to revoke or change permissions if you have the ability to take a look at this list.
+Alter the list.
+You don't want somebody to be able to read your file?
+Remove read permission from whatever in the access control list is related to that subject, that particular party you don't want reading.
+There are downsides to access control lists.
+It's very hard to figure out what a particular subject, such as a user on your system, can access.
+So let's say you found out that one of the people who you had working on your system was an evil guy and he was doing terrible things.
+And he's put some bad code and other bad stuff on your system.
+And you want to say, well, where could he have put stuff?
+Well, he could have put stuff anywhere where he can write.
+Where can he write?
+There are 50,000 files on my system.
+Which of the 50,000 files could he write to?
+The only way to check that with access control list is to check the access control list for each of the 50,000 files individually.
+So that's kind of a pain in the butt.
+Also, of course, if you are working remotely and you cannot gain access to the object's descriptor, the inode for a file, for example, you can't change the access permissions to that even locally.
+So as I said, there are actually two ways to do access control in operating systems.
+Access control list is one of them.
+If you do not like the characteristics of access control list, well, then you have another option.
+That option, which is going to be less familiar to most of you, is called a capability.
+Now, in some senses, you're quite familiar with capabilities.
+So you're going to go to a movie theater and you're going to go see a movie and it's a multiplex and there are 15 screens showing 15 different theaters.
+You have a ticket that gets you into one of those.
+It doesn't get you into the other 14.
+That ticket is effectively a capability.
+You probably carry around in your pocket or in your purse a set of keys.
+Each key, each hardware key that you've got, each piece of metal that you've got on that key chain opens up some door.
+You plug, you put in the door, you turn the key, you get in.
+If you have the key, you get in the door.
+If you don't have the key, you probably can't get in the door because it's locked and you don't have the key, unless, of course, you can pick the lock.
+That, too, is a form of a capability.
+Capabilities are essentially tokens.
+And the ownership of that token allows you to get access of some form to some particular item.
+So, in order for capabilities to work in a computer system, what are we going to do?
+Each entity, like each process, will have a set of data items that specify, this is what I can access.
+I can read this file.
+I can write that file.
+I can execute that file.
+It's like a set of tickets, like having a whole bunch of tickets that allow you to do different things, or a whole bunch of keys that allow you to get through different doors.
+If you want to do something with an object in this system, then, in order to do it, I want to read that file, you present the capability that says, I'm allowed to read that file.
+And then you can read the file.
+The mere possession of this capability is sufficient to give you access to that particular object.
+It doesn't give you access to other objects, just to that one.
+And it doesn't mean that anybody else, including your other processes, have that capability.
+So, they may not be able to access that object.
+But if you have it, you can access the object.
+So, in practical terms, what is a capability?
+It's a data structure, which means, like all the other data structures in computers, it's just a bunch of bits.
+And mere possession of the bunch of bits is enough to grant you access, which has a troubling implication for security purposes.
+If you have access to the bunch of bits, you can make a copy of the bunch of bits.
+Anybody can make copies of bits.
+You can, in fact, create a set of bits out of nothing.
+You don't have access to the bunch of bits, but you can figure out what they should be.
+So, you just create a copy of them, and you say, look, I've got a capability.
+If you're going to try to use capabilities to provide security in a computer system, that better not happen.
+So, they cannot be forgeable.
+You cannot create arbitrary capabilities of your own.
+We can't prevent anybody from creating a set of bits of a particular value.
+We do not have, in computer systems, in modern computer systems, the ability to say, you can't have that bit pattern.
+So, what do we do?
+The solution we typically use, if we're going to use capabilities, is we say, anybody who might forge a capability, such as a user or a process, they can't have the capability themselves.
+Instead, some trusted party must hold the capability for them.
+Who do we trust?
+We trust the operating system.
+So, for example, if we were using capabilities to control what a process could access, one of the things we'd have associated with that process descriptor in the operating system would be its set of capabilities.
+So, we store them in the operating system.
+The user cannot get those capabilities themselves.
+They can't make copies of them.
+They can't give them to other processes.
+They can't add one to their process arbitrarily.
+They may be able to get more capabilities, but they would have to do something that gives them the, indeed, correct right to have that capability.
+So, as long as the operating system is the only entity that has them, that seems safe.
+And, obviously, there are going to be some issues with distributed systems here.
+So, what's good and what's bad about capabilities?
+Well, you remember it was hard when we had that dishonest employee who we just fired and wanted to figure out what he corrupted.
+It's hard to figure out what he could have corrupted, which of the 50,000 files he could corrupt.
+We'd have to look at the access control list for all 50,000 files.
+Easier with capabilities.
+Somewhere we've got information about what are the capabilities this guy had.
+We're probably going to store these persistently somewhere, you know, the capabilities for user of Fred.
+Go to his capabilities for user of Fred and say, this is everything he's got.
+That's what he could have touched.
+Under some circumstances, capabilities are faster than access control list.
+Not always.
+What's really great about capabilities is we get an easy model for transfer of privilege.
+So, with access control list, I'm running a process.
+So, I've got my access control list.
+It's for my identity, for user Wrier.
+I can access anything user Wrier is allowed to access in whatever mode it says I can access it.
+I download a piece of code from the internet.
+And I want to run the piece of code, but I don't fully trust the piece of code.
+What can I do?
+Well, the standard thing I could do is I start up a process and I run the piece of code.
+What privileges does that process have?
+Well, the piece of code is probably running under identity Wrier.
+What privileges does it have?
+All of the privileges I have.
+So, if it turns out that is an evil piece of code, it could go and delete all my files because I can delete all my files.
+That's not so good.
+With capabilities, we can do something better.
+So, I, of course, have capabilities that would allow me to delete all my files.
+I download this piece of code and I say, well, I'd like to run this piece of code, but I don't trust it.
+I know it needs to do the following things.
+It needs to look at this file.
+It needs to read that file.
+It needs to send this message across the network, whatever.
+I will give it a set of capabilities.
+Not my full set of capabilities.
+Not everything I'm capable of doing, but a subset.
+The ones that are not going to be harmful if it turns out that it behaves badly.
+I'll give it those.
+Now, that code is going to start running and as long as it behaves well, it'll have the capabilities it needs to do what it legitimately should do.
+If, on the other hand, it says I'm going to delete all of user writer's files, it's not going to have the capabilities to do that because I didn't give them to it.
+This is a really neat way of giving limited privileges to a process that is running for my benefit.
+And it's very hard to do with access control lists.
+Now, of course, there are downsides to capabilities as well.
+It's very hard to determine who can access an object because we no longer have this list that shows who can access the object.
+We'd have to go around to everybody's capabilities.
+And depending on how we've done capabilities, where are the capabilities?
+Maybe there are ways of storing the capabilities off machine.
+In which case, how do we find out that somebody might, by going to another machine, get the capability to access this file?
+That would be very difficult.
+Revocation turns out to be rather a difficult problem.
+We're not going to get into the details there.
+And in a network environment, we're now saying, okay, the capability is a bunch of bits.
+The bunch of bits is over on that machine.
+Somebody on that machine sends over a bunch of bits.
+Was it the actual capability or did somebody forge it?
+Well, typically, the only way we're going to be able to prevent that is by using cryptographic methods.
+We'll talk about cryptography later in this class.
+Briefly, it will be expensive and we'll have to be very careful.
+Okay, so what do we actually do in operating systems to perform access control?
+Because we're going to do it all the time.
+Well, typically, many operating systems use a little bit of access control list and a little bit of capabilities.
+And sometimes they switch back and forth for control to the same resource, like the same file.
+So, for example, in the Linux system, when you do an F open on a file, it's going to use an access control list, that 9-bit access control list, to determine if you're allowed to open the file for, for example, read.
+But once you have done that, once the file is open, you will have a file descriptor.
+Associated with that file descriptor will be a mode of access, read.
+You opened it for read, you didn't open it for write.
+So, this file descriptor says you can read this file.
+And this file descriptor will be attached to your process.
+So then, when my process says I would like to read this file, we do not go back to the access control list and say, can you read the file?
+Instead, what we do is we say, well, you've got a process descriptor.
+You've got a file descriptor for this.
+Does the file descriptor permit read?
+Yes, it does.
+That effectively has become a capability for that file.
+We used access control to determine if you could open it.
+We're going to use capabilities to determine if your ongoing behavior is or is not allowed.
+So, the in-memory descriptor, file descriptor here, is essentially a capability.
+Now, we need to enforce access to anything we want to protect in the operating system.
+And we are going to effectively say that a lot of these resources are going to be associated with a piece of hardware, like your file systems out there on a flash drive.
+So, since the operating system is the only entity that has direct access, typically, to these hardware resources, we can say you've got to go through the operating system in order to get to the files, for example.
+So, what do you do?
+You're running a process.
+You're running a program.
+You want to open a file.
+The code in the program performs an open call of some form.
+That's a system call.
+The operating system will now use its access control mechanisms to say yes or no.
+And you may get it directly in some cases.
+Now, for example, we've talked in the file system lectures about having memory mapped files, where you say, I'm going to map this file into my memory.
+Well, what that means is you've effectively said the following memory locations represent, like, you know, the hundredth word of the file, the 7,000th word of the file, and so on.
+And from that point onward, after you've memory mapped the file, the way your process accesses that information is it just says, I want to see what's in word 500.
+I want to see what's in word 7,000, et cetera.
+Now, in that case, you're no longer making a system call to get to that stuff.
+Instead, you are just doing a memory access.
+Well, at that point, you are not going to be using access control through the operating system anymore.
+Okay.
+One more topic that we're going to talk about in this lecture that is very important for providing security in operating systems is cryptography.
+Now, generally speaking, a lot of what we want to do in security of computer systems is keep secrets.
+We've talked about some of those secrets, like the password.
+Password's a secret.
+There are a lot of other secrets we want to keep.
+How do you keep secrets?
+Now, keeping secrets is a millennia-old problem in human affairs.
+Long before anybody thought of computers, we were worried about secrets.
+We have the secret plan.
+We have our secret knowledge.
+We don't want other people to know our secrets.
+And it's still very common.
+You know, if you have a secret crush on somebody, maybe you don't want everybody to know that you have a crush on them.
+Okay.
+So there are secrets we wish to keep.
+How do we keep secrets in the real world?
+Well, one way we keep the secret is we don't tell anybody.
+We keep the secret to ourself.
+But another way we've done this in the past in human affairs is to say, well, let's write the secret down, but let's write it down in a form where when you look at it, it doesn't look like the secret.
+It looks like something else.
+And unless you know some special mechanism, you cannot look at what we've written down and tell that it's the secret.
+This is how diplomacy has been done for eons.
+You know, this is stuff they were doing back in the Roman Empire 2,000 years ago.
+And to some extent, it's still done that way today.
+Generally speaking, to keep a secret, either you have to keep the information away from the people you don't want to know the secret, or you have to make sure they can only see it in a form they can't understand.
+Cryptography is how we're going to achieve that second effect.
+Now, usually, of course, it's not just the case that we want to convert our secret, whatever the actual secret is, into something incomprehensible.
+Most frequently, we need to convert it back again.
+Under some circumstance, we need to take what appears to be incomprehensible and derive the original secret.
+So, we're dealing, as I keep saying, with computers.
+Computers deal with everything in bits.
+It's all bit patterns.
+So, clearly, if we're going to do cryptography in a computer, what are we going to do?
+We're going to take some information that is one bit pattern.
+We're going to do something to that information to convert it to a different bit pattern.
+If we want to be able to get back the secret, the original bit pattern, we're going to have another way in which we take the converted version and we reverse the process or do something that converts it back to the original secret.
+Okay.
+This is done with a process that's called cryptography.
+Cryptography is not new.
+It is not something that we were doing just when we invented computers.
+Long predates computers.
+So, because it long predates computers, people had been thinking deeply about cryptography for a long time before computers were created.
+So, there's an entire set of terminology, usually in mathematically oriented terms, that is used in conjunction with cryptography.
+Most frequently, people who write about cryptography write about it in the terms of saying, I am sending a message.
+I have a sender.
+I have a receiver.
+The message goes from the sender to the receiver.
+It is possible that somebody else will intercept or get a copy of that message.
+I, the sender, want to do something to the message that converts it into a form that only the receiver will be able to understand.
+So, if we're going to do things this way, if this is how we're going to describe what's happening, then the sender is S and the receiver is R.
+Now, as we go through things, you'll see that we don't always have a true sender and a true receiver in terms of messages when we are using cryptography in computer systems.
+But, this is the way we describe it mathematically speaking.
+Now, there are two operations, two kinds of operations we perform in cryptography.
+Encryption.
+We've got a secret.
+We are going to convert the secret into something that is only comprehensible to the intended receiver.
+Then there's decryption.
+This is the reverse process.
+The intended receiver is able to convert the altered form of our secret back into the original secret.
+So, if we have a system, an overall system that performs both the encryption and the decryption, we call that a crypto system.
+And the rules for performing the transformation, for converting the secret into something else, converting the something else back into the secret, those rules are typically called a cipher.
+Okay, more terminology.
+Lots of terminology here.
+Plain text and ciphertext.
+Plain text is the original form of the message we wish to protect.
+When we are talking about ways of describing forms of cryptography, plain text is referred to as P.
+So, for example, there are some plain text.
+Transfer $100 to my savings account.
+Maybe this is a message I'm going to send to my bank.
+I want this to be kept secret.
+Okay, I will convert it to ciphertext, the encrypted form of the message.
+In our terminology, ciphertext is referred to frequently as C.
+There is some ciphertext.
+This is an encrypted form of that message.
+It is a crappy encrypted form of that message, but it's an encrypted form of that message.
+Okay, now, another very, very important element of cryptography used in computer systems is the key.
+Practically all cryptographic algorithms use a key.
+The key is used to perform encryption and to perform decryption.
+The key is referred to as K.
+Most times, depending on exactly how you're doing things, the key is a secret.
+Okay, if you have the key, then you can decrypt an encrypted message very, very easily.
+If you don't have the key and it's a good crypto system, you should not be able to decrypt the message that has been encrypted very easily at all.
+It should be very, very hard.
+So, you might say, well, how's this help?
+I had a secret.
+I didn't want anybody to know what the secret was, so I encrypted the secret.
+Now, in order for my friend who needs to know what my secret is, in order for him to read it, he's got to have another secret.
+Okay, so instead of having to keep my secret secret, I've got to keep the key secret.
+How's that better?
+Well, most commonly, the message is relatively long and the key is relatively short.
+So, you've reduced the problem from keeping a long secret to keeping a short secret.
+Further, in many cases, you can reuse the key.
+There are issues with reusing the keys, but in many cases, you could.
+In which case, you can say, I've got 12,000 messages.
+I need to keep all 12,000 secret.
+I have one key.
+I need to keep one key secret, and I can then use the cryptography in that one key to protect the 12,000 messages.
+As long as the key is secret, all 12,000 messages are protected.
+That's the thinking behind this.
+Okay, now, more terminology.
+So, we have an algorithm.
+We're working in computers.
+We use algorithms.
+That does the encryption.
+We'll call that algorithm E.
+So, the way that this is going to work is E is an algorithm that will take two inputs.
+The plain text, the secret we wish to keep.
+And the key, the other secret we are using to keep the plain text secret.
+That's going to produce the ciphertext.
+So, it's going to convert that, transfer $100 to my savings account to that random collection of letters and numbers.
+Okay.
+Now, of course, in most cases, we want to be able to reverse this process and extract the plain text.
+We have a decryption algorithm that performs that.
+We'll call that algorithm D.
+So, the decryption algorithm also has a key.
+Now, for many, many, many years, for millennia, in fact, people said, well, the key is the same for both.
+Obviously, you use one key to decrypt.
+You use the same key as encrypting.
+Not really true, it turns out.
+So, but there is a key.
+There's a key associated with the encryption algorithm, a key associated with the decryption algorithm.
+Maybe the same, maybe different.
+And we'll talk about that.
+When you combine together these two algorithms, the encryption and the decryption, you've got a crypto system.
+Now, crypto systems are either symmetric or asymmetric.
+We'll talk about symmetric ones first.
+This is classically.
+And by classically, we mean for thousands of years.
+How cryptography was performed.
+Use key to encrypt.
+So, you run the encryption algorithm, the key K, and the plain text to get the cipher text.
+You have a decryption algorithm.
+You take the cipher text, the key K, same key, and the decryption algorithm, you get the plain text.
+So, basically, as you can see in the third bullet item here, if you do the encryption, take the result, drop it into the decryption with the key, out pops it what you started with.
+It is not necessarily the case that E and D are the same algorithms.
+This all depends on how you set up your crypto system.
+The symmetry we're talking about here is not in the symmetry of the encryption and decryption algorithms.
+They could be quite different.
+The symmetry is in the use of the key.
+Encryption and decryption use the same key.
+That is the element that is symmetric here.
+Okay.
+So, what are the advantages of this approach?
+Remember, there's another approach which we'll get to.
+What's good things about this approach, the symmetric approach?
+Well, encryption and authentication are performed in a single operation.
+We've talked about authentication before.
+We said, well, gee, you know, authentication is proving that somebody is who they, they claim to be.
+We can use cryptography for that purpose.
+So, what we can basically do is say, well, if I get a message that supposedly came from Bill and Bill and I share a key, K, I can decrypt that message, which is in an encrypted form from Bill.
+And if it decrypts properly, if it comes out to what I should be seeing, then I know that Bill created that message.
+Nobody else could have because only Bill and I know that key.
+Now, I've protected the secrecy of that message by doing the encryption, but I've also gained authentication of the message by doing the encryption.
+I know what the secret was because it decrypted properly.
+I know who created it because it was decrypted properly with a key that only Bill and I share.
+That's one advantage of symmetric cryptosystems.
+A second advantage is that, a very practical advantage, there are well-known, trusted symmetric cryptosystems that are, relatively speaking, a lot faster than the other option, the asymmetric ones.
+Also, of course, we don't have to have any centralized authority.
+Bill and I can agree on what our key is.
+We don't have to have any third party involved in agreeing on what the key is.
+It turns out in practice that is difficult.
+There are disadvantages here.
+What if I don't want to have authentication and encryption in one operation?
+So, for example, one thing I might want to do with encryption is I might want to say, okay, we're working at a contract.
+You and I are working at a contract and, you know, we've got all these terms of the contract.
+How will we sign the contract when we're only working electronically?
+I never am in the same place as you are.
+We do not move paper back and forth so there aren't paper signatures on this.
+How do we sign this electronically?
+We can do it with cryptography.
+How would we do that?
+Well, Bill and I are working on the contract.
+We've agreed on the terms.
+Bill says, I will now sign the contract.
+How do I sign the contract?
+I will encrypt the contract with the key that we agree upon.
+And then I can look at what he said and say, oh, good.
+Bill has agreed to this because he encrypted the contract.
+I decrypted.
+It comes out with the terms I expected, the terms I'd agreed on.
+Fine.
+Okay.
+Later on, Bill decides he doesn't want to follow through on the contract.
+I can take this to a judge and say, look, Bill gave me this contract in encrypted form.
+This was the key.
+We decrypt the contract.
+See, he's supposed to do the following things and he won't do them.
+Enforce the contract for me, please, Mr. Judge.
+Unfortunately, what Bill is going to do if we use that approach is Bill is going to say, now, wait a minute, Mr. Judge.
+I didn't create that encrypted version of the contract.
+I never agreed to those terms.
+You know, there were other terms I wanted.
+That wasn't the set of terms I agreed to.
+And the judge will say, but look, it was encrypted with the key that only you and Peter know.
+And Bill said, well, yes, but I didn't encrypt it.
+And Peter could have.
+He knows the key.
+He could have encrypted it.
+He just wanted me to be forced to accept these terms that I don't want to accept.
+So he encrypted it and he's taken it to you and said, look, look, look, Bill signed it.
+When Bill didn't.
+How would the judge know?
+Okay.
+This makes it hard to do non-repudiation.
+Non-repudiation is where you are unable to claim that you didn't agree to something.
+I agreed to the contract.
+Can you prove you agreed to the contract?
+With symmetric cryptography, it becomes difficult.
+Key distribution can also be a problem.
+You're going to need a lot of keys for this purpose.
+Nonetheless, most cryptography that is performed in the internet today is performed with symmetric cryptography in terms of the bulk of the cryptography.
+And what do we use for that purpose?
+Well, we used to use something called DES, the data encryption standard.
+This was developed in the 1980s.
+And it was a standard set up by the US government.
+And pretty much everybody around the world, except, you know, diplomatic corps, militaries, and so on.
+Everybody else pretty much used it.
+It's still somewhat used, but it's not really used anymore because it is too weak a cipher.
+By weak, we mean it is too easy to crack.
+We won't worry for the moment on how, but it's too easy.
+We shouldn't be using DES.
+It was known many, many years ago that DES was eventually going to be too weak.
+It was okay when it was created, but the march of time caught up with it.
+We needed something else.
+So the US government worked out another standard, the advanced encryption standard, AES.
+And this is our current encryption standard.
+And this is very, very, very widely used.
+But these aren't the only symmetric ciphers out there.
+There are many of them.
+Blowfish, for example, is the name of another symmetric cipher.
+And there are a lot of others.
+Okay.
+So whenever you're talking about a cipher, it could be that it is a bad cipher.
+A cipher in which it is too easy for the attacker to take the encrypted version of the data and derive the decrypted version of the data.
+We don't want to have those kinds of flaws in the cipher.
+There are a number of ciphers developed over the years that have had those kinds of flaws, and we don't use them for that reason.
+So let's say you don't have that kind of flaw.
+But you have an attacker who wants to crack a symmetric cipher.
+How?
+Well, there's a key.
+Now, as with all things in computer systems, the key is a data structure.
+It is a set of bits.
+In particular, for particular ciphers, it's almost always a set of bits of one fixed size.
+For DES, 56 bits.
+For AES, it could be either 128 or 256.
+It's not 200.
+It's not 96.
+It's 128 or it's 256.
+Okay.
+So there weren't actually any serious flaws with DES.
+So why is it not a safe cipher?
+56-bit keys.
+How many possible keys are there?
+2 to the 56.
+Now, 2 to the 56 sounds to you and me like a big number, but to a modern computer, it sounds like nothing.
+2 to the 56 is nothing.
+You can try 2 to the 56 possibilities, running them through the rules for DES for each possible key.
+And within a matter of minutes or less, you will have tried every one of them.
+And one of them is the right one, and it will produce the decrypted version, the plain text version of what you're trying to get at, even though nobody ever told you the key, even though nobody ever gave you any special information that helped you derive the key other than the fact that it was 56 bits long.
+So this is bad.
+You don't want your cipher to be subject to brute force attacks.
+That's why we went to AES, not because of other flaws in DES, but because of brute force attacks.
+So 56-bit keys are too short.
+128-bit keys, that's a little bit more than twice as many bits in the key as 256.
+Is that twice as good?
+No, it's a lot better than that, because this is something where we're doing exponentiation.
+There are now 2 to the 128 keys.
+That's a whole lot of keys.
+And if you don't like that, 2 to the 256 keys, that's an immense number of keys.
+Generally speaking, nobody tries brute force attacks on AES.
+Okay, now there's another form of cryptography that is very important as well that is different.
+Remember, the symmetric cryptography was symmetric in the key.
+So we have asymmetric cryptography.
+Where is the asymmetry here?
+We'll see that in a moment.
+Asymmetric cryptography is often called public key cryptography, PK.
+Anytime you're talking about cryptography or about computer security and you see the abbreviation PK, that means public key.
+That means you're doing this.
+What's this?
+Well, again, you have encryption and you have decryption.
+You have plain text, you have ciphertext.
+The way that this works is you have an encryption algorithm, E, and you have your plain text, P, and you have a key, K sub E, which is the encryption key.
+You use K sub E and the plain text through the encryption algorithm.
+Out pops the ciphertext, C.
+Now, if you were doing symmetric cryptography, you'd use the same key to decrypt.
+If you're doing asymmetric cryptography, you do not use the same key to decrypt.
+Use a different key.
+So you would take the ciphertext that you just created, the other key, run that pair of things through the decryption algorithm, and out would pop the same plain text you started with.
+K sub E and K sub D are not the same key.
+That's where things are asymmetric.
+Now, in typical asymmetric cryptosystems, part of the benefit we're going to get from these is that you could use either key to perform the encryption.
+Whichever key you use to perform the encryption, you've got to use the other key to perform the decryption.
+So you can use K sub E to encrypt, in which case you use K sub D to decrypt.
+You could use K sub D to encrypt, in which case you use K sub E to decrypt.
+So how does this actually work? What are we going to do with this?
+Well, obviously there's got to be some relationship between K E and K D.
+And there is.
+So when you create a pair of keys, you create them as a pair of keys, and they're created together.
+With symmetric cryptography, you could just generate a random number of the appropriate length, a random 128-bit numbers.
+There's my AES key.
+You can't do that with public key cryptography.
+With public key cryptography, you have to run an algorithm that creates these keys.
+Now, typically what we do if we're going to do this asymmetric public key cryptography is we run our algorithm.
+We've got two keys.
+One of them, we created these two keys.
+One of them we are going to keep secret for ourselves.
+We will never tell anybody what that key is.
+The other key, on the other hand, that second key related to the first one, we're going to tell everybody in the world that this is our other key.
+This is our public key.
+We want everybody in the world to know what our public key is.
+We want nobody else in the world to know what our private key is.
+Okay.
+So, we want to send an encrypted message where only the receiver is going to be able to read the message.
+What do we do?
+We take our secret message, we encrypt it with that guy's public key, and we send it to him.
+Now, if you encrypt with the public key, you can only decrypt properly with the private key.
+Who knows the private key?
+He knows the private key.
+If he's done things properly, he's never told anyone else's private key.
+So, he is the only party who can decrypt that message.
+Great.
+We've got secrecy.
+Now, one thing you might say if you think about that for a moment is, but what about authenticity?
+You know, how does he know who sent this message?
+Well, how can he know?
+Everybody in the world knows his public key because he told it to everybody.
+So, anybody could have encrypted the message with his public key and sent it to him.
+Only he can decrypt it, but he can't know who sent it.
+Anybody could have sent it.
+So, how do I make sure that I can prove to somebody that I sent this message?
+It came from me and not from somebody else.
+A very important thing in many computer security issues.
+So, what do I do?
+Well, what do I know that nobody else knows?
+I know my private key.
+And I can encrypt with either key.
+So, if I encrypt the message with my private key and I send it to my partner, how can he decrypt it?
+He's got to use my public key.
+He knows my public key.
+Everybody knows my public key.
+So, he can decrypt it.
+And then he can say, who could have created this message?
+Well, it decrypted properly with the public key.
+Therefore, it must have been encrypted with the private key that matches the public key.
+This is Peter's public key.
+Therefore, it must have been encrypted with Peter's private key.
+Therefore, since Peter never told anybody his private key, this message came from Peter and from nobody else.
+Okay.
+Now, this means that in that case of, for example, that signed contract where you take it to the judge that we talked about a few minutes ago, if I have signed the contract or my friend Bill has signed the contract with Bill's private key and I got the encrypted copy of that, I can check to see if Bill signed it.
+I know Bill's public key.
+And if Bill then reneges on the contract and I go to the judge, I provide the private, the encrypted copy of the contract to the judge and say, hey, Bill signed this.
+He signed this with his private key.
+The judge knows the public key because everybody knows the public key.
+The judge decrypts it and says, yes, this is the contract.
+Bill says, no, no, no, no, no.
+I never signed that contract.
+Somebody else, maybe Peter signed that contract.
+I would then say, I can't sign that contract.
+I couldn't have created that message.
+I don't know Bill's private key.
+Therefore, I could not encrypt with Bill's private key.
+Therefore, it would not decrypt properly with Bill's public key.
+Bill must have signed it.
+Okay.
+Now, this is great.
+This turns out to be vitally important for many things we're going to do in the internet for security purposes.
+But what this does mean is that if I think I'm signing a contract with Bill, and let's say Bill at the moment, let's say it's Joan instead.
+Joan is honest.
+Bill wasn't honest.
+But Joan is honest.
+And I think I'm going to sign a contract with Joan.
+And I'm negotiating the contract with Joan.
+And I'm using, I know Joan's, I think I know Joan's public key because somebody told me this is Joan's public key.
+But what if it isn't really Joan's public key?
+It's actually Bill's public key.
+He's pretending to be Joan.
+So he signs the contract with his private key saying, hey, this is a contract signed by Joan.
+Check Joan's public key to see if this is really the contract.
+Now, I don't have Joan's real public key.
+I've got Bill's public key, and I think it's Joan's.
+So I decrypt with what I think is Joan's public key.
+And look, the contract is signed.
+Well, unfortunately, the contract has actually been signed by Bill.
+And the reason I was deceived was because I did not have the right public key for Joan.
+I hadn't properly identified whose public key this is.
+This is a serious problem for using public key cryptography in something like the internet.
+If I cannot get a trustworthy version of somebody's public key, I cannot properly use asymmetric cryptography.
+I can't authenticate with it.
+How am I going to do that?
+Well, I have to have a high degree of assurance that whatever key I've been given, supposed to be Joan's public key, really belongs to Joan and doesn't belong to some evil guy like Bill.
+How do I do that?
+Well, one way of doing that, the classic way of doing that, classic in the sense of this is what people suggested 40 years ago, is to have a key distribution infrastructure.
+This is where you set up a whole lot of computers all around the world that work together in some trustworthy fashion.
+And when I want to get somebody's public key, I go to the key distribution infrastructure.
+And in some method, I get that from this trustworthy authority.
+They tell me this is Joan's key and I believe him.
+That isn't very workable, it turns out, in the real world when we're talking about internet scale.
+What do we do instead?
+We use certificates.
+We'll talk about those later.
+Both certificates and key distribution infrastructures are problematic.
+They both have serious, serious problems.
+And these problems, of course, are going to be related to, among other things, do I know for a fact that this public key belongs to who I think it belongs to?
+Okay, now how do public key algorithms work?
+How do they do this encryption and decryption using two different keys?
+Generally speaking, they have been created using a problem, a known problem, a well-understood problem in mathematics.
+One such problem is factoring very large numbers.
+Got a really, really big number.
+What are two factors that, when multiplied together, will produce that very big number?
+Now, we know precisely how to do that.
+We know how to get the factors of these numbers.
+For very large numbers, it's very expensive.
+It's very, very, very computationally expensive to figure out what the factors are.
+So, what we can do is we can create a relationship between two keys that is based to some extent on being able to factor numbers.
+If you could factor a big number, you could derive the other key.
+You know the public key, you could derive the private key because you can factor big numbers.
+I'm not going to go into how exactly you would do that.
+But that's the kind of thing we're talking about.
+There are other kinds of mathematical problems that are used instead of this one.
+Properties of elliptic curves being one example.
+So, basically, this means that we are going to not really bother if we are an attacker doing a brute force attack on the key.
+We know the public key.
+Everybody knows the public key.
+Therefore, if we can use our knowledge of the public key to derive the private key, then we know the private key and we know everything.
+So, that's going to depend on how complex this mathematical problem is and what the methods are by which we solve the mathematical problem.
+The algorithm, for example, by which we factor large numbers.
+It does have the implication as well that it's kind of expensive to choose these key pairs.
+So, despite these issues, public key cryptography is very, very, very widely used.
+And one example of that, which we use all the time, is RSA.
+It stands for Rivas, Shamir, and Edelman.
+They were the three cryptographers who created this algorithm.
+Very, very popular.
+It's built into your computers.
+You're using it in various different ways all the time without even knowing that you're doing so.
+Now, RSA has some issues, in particular issues related to quantum computing.
+But, at any rate, it's got some issues.
+And people have been looking at other alternatives in favor of RSA.
+One alternative they looked at is, as I already mentioned, elliptic curves, where you derive the public and private key based on properties of particular elliptic curves.
+This also tends to be somewhat faster than RSA, but it's not quite as widely used, not quite as studied.
+But it is available.
+It's probably available on your computer if you choose to use it.
+You'd have to actually go to some trouble to use it.
+Okay, so how secure are our public key systems?
+Now, remember, we're not going to do a brute force attack on them.
+And the ones we're talking about do not have other flaws in them.
+The ability to crack a public key system is based on deriving the private key.
+How hard is that?
+Well, RSA is sort of kind of based on the problem of factoring very large numbers.
+So back in 2009, nearly 20 years ago, a 768-bit RSA key was successfully factored.
+That meant that they got the private key, and they did it relatively quickly.
+But that was 20 years ago, more or less.
+It has been felt since then that because we keep getting faster and faster and faster computers, and we get better ways to divide up problems so you can run things in parallel, you need to have bigger keys.
+So, in particular, 10 years ago, Google said, for the future, we're going to have to go to 2048-bit keys.
+Now, remember, the big key for AES, the one that there is no hope of anyone doing a brute force attack on, was 256 bits.
+The RSA keys used by Google are 2048 bits, practically 10 times as big.
+And as time goes by and things get faster, you're going to need longer and longer and longer keys.
+And moreover, quantum cryptography is going to kill RSA and maybe elliptic curve cryptography for reasons we won't get into here.
+Now, this wouldn't be a big deal if it were not for the fact that encrypting and decrypting using these algorithms, the cost, the performance cost, how much computation do you need to do to do encryption, is based largely on how big the key is.
+Bigger key, more expensive.
+Gets to be very, very expensive with very, very big keys.
+So, what do we do?
+How do we actually make use of our cryptographic options in the actual internet today?
+Well, we actually use both.
+We use a combination of asymmetric and symmetric cryptography to protect our communications.
+Effectively, what we do, the problem with symmetric cryptography is you've got to have a shared key.
+The sender and the receiver have to have a key.
+We presume they don't start with a key.
+How do we get them a key?
+We can use asymmetric cryptography to bootstrap that.
+Effectively, the asymmetric cryptography will say, here, here's how you get a key between the two of you, and here's how you know that you are talking to the right person.
+I am talking to Joan.
+Joan is talking to me.
+Joan and I share a key K that can be used for symmetric cryptography.
+So, this is effectively called creating a session key.
+The reason we call it a session key is because proper security says that, no, no, no, you don't want to use that same key K for 10,000 different communications, for 10,000 different documents.
+For every communication, every remote login, every Zoom call, every other form of communication across the network that is sort of session-based, let's have a different key.
+So, in order to have a different key, we have to have some mechanism to get the key between the sender and receiver, and that will be called a session key once we have delivered it.
+So, we use RSA or another public key algorithm or something related to those to create the session key.
+And then, once we have the session key set up between the sender and receiver, we switch from encrypting with asymmetric cryptography, which is very expensive, to communicating with symmetric cryptography.
+Now, the presumption is that the amount of communication we need to set up that session key is relatively short.
+Not many messages, not many bits.
+Therefore, we can pay that expensive cost for a little bit of time at the very beginning.
+Then, we switch to the much cheaper symmetric cryptography.
+So, this is kind of sort of what we do.
+It isn't really what we do, but it's close.
+So, we have Alice and we have Bob.
+In all papers about cryptography, Alice and Bob are always the sender and receiver.
+It's always Alice.
+It's always Bob.
+Alice always wants to talk to Bob.
+Bob always wants to talk to Alice.
+Okay.
+So, here are Alice and Bob.
+Alice will have her own public-private key pair.
+So, she's got an encryption key and a decryption key.
+Bob has his own public-private key pair.
+He's got an encryption key and a decryption key.
+Somehow or other, we've gotten Alice's public key to Bob and we've gotten Bob's public key to Alice.
+Alice says, I'd like to talk to Bob.
+We need a new session key.
+She randomly generates a new 128-bit AES key.
+K-sub-S, let's call it.
+What does she do?
+She wants to get that key to Bob, but she can't communicate directly to Bob.
+She can't walk over to his office.
+He's in another continent.
+Bob, when he gets this key, needs to make sure it really did come from Alice and it isn't some evil attacker trying to pretend to be Alice.
+So, what does Alice do?
+Well, first thing she does is she encrypts the key, K-sub-S, with asymmetric cryptography using Bob's public key.
+She knows Bob's public key.
+That produces C.
+But we're not done yet.
+This is going to have an advantage because Bob will be able to decrypt this.
+So, it'll be secret.
+Nobody but Bob will be able to decrypt that to convert C back into K-sub-S.
+But this is not going to help Bob know that this message actually came from Alice.
+It could have come from anybody because everybody knows Bob's public key.
+So, Alice performs a second cryptographic operation.
+She takes the result of the first cryptographic operation, C, and she encrypts it with her private key, K-sub-E-A.
+And that produces M, the message she's actually going to send.
+Now, only Alice could have created this.
+Nobody else could have created that message because only Alice knows her private key.
+So, she sends M over to Bob.
+Bob gets M.
+Okay, Bob says, fine.
+This appears to be a key exchange, setting up a session key between me and Alice.
+Okay, I think Alice sent this, but I'm not positive.
+I have to check that.
+What do I do?
+Well, first, Bob decrypts with Alice's public key.
+He knows Alice's public key.
+Everybody knows Alice's public key.
+So, Bob is able to decrypt that and not pop C.
+Now, C is still an encrypted piece of data, but he knows what should be in here is a session key, K-sub-E-S, that has been encrypted with his public key.
+To decrypt something encrypted with his public key, he needs to decrypt with his private key, which fortunately he knows and only he knows.
+So, he decrypts it with his private key and out pops K-sub-E-A.
+So, they now share a session key.
+Now, actually, this is trash.
+This is a bad way to do things.
+This has all kinds of security problems that have been developed.
+But at some level, conceptually, it shows you what you need to get done here in order to set up a session key between Alice and Bob.
+Okay.
+Now, we will be talking a bit more about computer security in the distributed system context a few lectures down the line.
+But that's all we have to say for today.
+So, in conclusion, security is really important in modern computing systems.
+We have terrible, terrible problems if we are not careful about our security.
+The operating system is critical to security because it is at the base of what's happening in our computation.
+We are basing the security of what happens on our computer by trusting our operating system to do the things it should be doing and not do the things it shouldn't.
+How does the operating system know what it should do?
+Well, it needs to, of course, perform its own operations properly.
+But it is performing operations on behalf of processes.
+It needs to know the identity of the process that is asking to have something done.
+So, we use authentication mechanisms for the operating system to get confidence in the identity of each process.
+Then, we use authorization mechanisms based on access control that determine for any particular operation that a process wishes to perform, such as opening a file, whether we should allow it or not, by determining, is this authenticated user allowed to perform the operation?
+Open, in this case.
+They wish to perform on the object, the particular file, for the particular type of operation, read, or are they not allowed to do that?
+And then, finally, while we haven't gone into many of the uses of it yet, cryptography is a very critical tool for operating system security.
+Certainly, in distributed systems, but even in single machine systems, we rely very, very heavily on cryptography to achieve many of the important security effects to allow us to implement the security policies with protection mechanisms.
+Thank you.
