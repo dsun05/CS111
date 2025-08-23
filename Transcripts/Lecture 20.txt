@@ -1,0 +1,1362 @@
+﻿For our final class of the quarter, we're going to finish up some more material on distributed systems, and in particular, we're going to discuss the very important topic of how do you access data that is not on your machine in a distributed system.
+So, we'll first talk about the generalities of what it means to have data on other machines and the ones you're actually working on that your process is running on. We'll then talk about how do we build a system that is going to allow us to access that data in a reasonable fashion.
+And then we'll talk specifically about certain challenges that we tend to see in providing access to remote data, performance challenges, security challenges, reliability and availability challenges, scalability challenges.
+So, basic problem in a very simple case is the following.
+So, you got client A attached by the network to the internet.
+You got machine X attached by some local area network to the internet.
+Client A has decided that she needs access to data item D, some kind of data that isn't on her own machine, and in particular, data item D is sitting over on machine X.
+Okay?
+So, how do we go about providing the data that is in data item D over to client A?
+Ideally, we'd like it to be as if that data were sitting on client A's own machine because her programs, the processes she's running, her experience with how she works with data is all going to be based primarily on using data that's on her own machine.
+So, if we could provide her with that level of access to this remote data, it would be a lot easier for her programs to work, for her interactive sessions with the keyboard and so forth to work, basically for her to use the remote data.
+So, what we're trying to provide in order to achieve that goal, in order to make it easy for this user to work with remote data, are certain properties.
+Transparency is one of them.
+Now, transparency has different meanings in different contexts.
+In the context of distributed systems, transparency means that the distributed system looks very, very much, ideally perfectly, like a system that's on your own machine.
+So, we'd then like to say, if we have a whole lot of data scattered across many, many machines in our distributed system, and we have a whole lot of users scattered across many, many machines on our distributed systems, it should look to all of the users on all of the machines like all of the data is the same as if we're local on their own machine.
+That's an ideal we'd like to achieve.
+It should be the case that if a client is working from a laptop in their home or from a desktop machine in their office or is somewhere in a coffee shop and is just trying to access the data from their smartphone, three totally different devices, three different networking situations, it should appear exactly the same in each case.
+The data should be the same bit for bit.
+The method of accessing the data ideally would be the same.
+Now, of course, we also want to get good performance.
+Each client sitting out there is going to access some remote data.
+We want them to have the impression that their access to the remote data is at the same speed as accessing stuff that's on their very own machine, on their local flash drive, for instance.
+From the other perspective, we're probably going to have machines that store data that a lot of clients want to see.
+And we'd like it to be the case that we can support all of the clients from these file server data server machines, regardless of how many there are.
+So as more and more and more clients ask for a data item, we want not to suffer any performance hits on the machine that's hosting that data item.
+Cost.
+Ideally, we'd like to be able to say we would like to build machines, server machines, that store lots and lots of data for us.
+And if we build machines that are specifically designed for that purpose and that make their data available to the other machines in the distributed system, we would expect that we could build a specialized machine that would be able to store data at a cheaper per bit cost than scattering it across all of the ordinary machines.
+So we'd like that to be the case if we can manage that.
+At least we'd like it to be the same cost as storing the data on our own machine in terms of how many dollars we are spending.
+Preferably, it would be cheaper.
+Also, there's the issue of administration.
+If we have a big office with 10,000 people working in our enterprise system and we're going to provide a whole lot of data for them on a whole lot of servers, or they're going to share all of the data they have on their 10,000 personal machines, we'd like it to be the case that our system administrators never have to worry about that issue at all.
+That's just taken care of.
+Nobody has to spend their time and thus none of the company's money on making that all work, ideally.
+And of course, we want correctness.
+You know, if you are accessing a remote data item, we want you to get the right bits.
+We'd like to get a very high capacity.
+We'd like to be able to say, well, since we have 10,000 machines out there, wouldn't it be nice if the total amount of data available to our users is at least 10,000 times as much as if they only had their own machine?
+Because they can access the data, presumably, on all those other machines, thus increasing the total storage capacity of our enterprise.
+That would be nice.
+Also, of course, one of the advantages we like to see from distributed systems when we can is high availability, that the failure of one machine is not going to cause a problem for any of the other machines.
+So, ideally, for the purpose of accessing remote data, we'd like to make sure that failures never cause it to become impossible to access a piece of remote data that we need.
+Okay.
+So, what are the challenges we're going to face trying to meet these goals as best we can?
+Well, of course, first of all, there's the fact that ultimately all of the data is going to be stored on some machine's local storage device, on a flash drive, hard disk drive, something of that nature.
+And, clearly, there are going to be costs to getting to the data on that device, wherever it may happen to be.
+The storage device itself will have a performance cost.
+The operating system on that machine will have a cost of working with that storage device.
+There are going to be issues of providing consistency on local machines.
+We talked about that in some previous classes.
+And, of course, there are security issues, as we discussed in previous classes, about accessing data even when it's just on the local machine.
+And none of those problems are going to go away.
+They are still there.
+We still have to deal with those.
+But now we're also introducing new problems based on the fact that our overall storage solution is now not, I've got this one device attached to my computer.
+But in addition to that device attached to my computer, there are all of these other places on the network where data might be stored and where I might want to get it from.
+Now, of course, all those other places are accessible by network, as always.
+And whenever we say we're going to use the network, then we're going to buy into certain issues related to networking that are, to some extent, unavoidable.
+Issues of extra delay.
+Issues of limitations of capacity.
+Issues of loss of messages or corruption of messages or security problems.
+So, all of the networking that we're going to have to do in this system is going to lead to those kinds of problems.
+Now, also, we discussed in a previous class on distributed systems that there's going to be an issue with consistency and achieving consensus on anything in a distributed system.
+One thing we might want to achieve consensus on is a bunch of people are updating this file that's stored over there on some machine.
+What is the correct value for the bits in that file?
+That's a consensus issue.
+And there are ways we're going to have to meet that consensus issue.
+There are other issues related to this, such as there's a device that's on a remote machine.
+We might want to reach consensus from everybody in the distributed system.
+Is that device actually available right now so we can get data off of that device?
+Or is it not available?
+We certainly would not want it to be the case if we can avoid it, that some of the participants in the distributed system say, oh, sure, I can read that data.
+And other participants say, no, no, no, that machine must be down.
+That data isn't available to anybody.
+We'd like to have to deal with some of those kinds of issues.
+Of course, there's also the issue of partial failure.
+If you have the 10,000 machines in your enterprise, chances are good at any given moment that one or more of them is not working, has failed.
+And at least that's going to happen fairly frequently.
+And that means that part of what you got, part of the data that you were perhaps sharing among the other 9,999 nodes, becomes unavailable either permanently or temporarily.
+So you're going to want to be able to deal with those partial failure issues.
+In many distributed systems, we do not have uniform trust between all of the different computers.
+Some of them do not trust the other computers in a full sense.
+To some extent, they probably have some degree of trust because they're working with them.
+They're part of a distributed system.
+But the trust may not be complete.
+And this may relate to what we are willing and not willing to do with data in the system.
+Will we make this data available to that remote party or not?
+And there are security issues related to that as well.
+So we're going to have to solve all of those problems in whatever solution we come up with for accessing remote data in a distributed system.
+Now, there's a very important decision that we have to make pretty much at the beginning on how we're going to go about making this remote data available to users.
+And this is effectively an interface decision.
+How does a program or how does a human user access the data that's on another machine?
+Do they access it exactly in the same way that they would locally, which usually means they use a file system to do that?
+Or do they do something that isn't like using the file system?
+You don't do an open.
+You don't do a read system call or whatever when it's a remote file.
+You do something else.
+Well, you know, that's a choice.
+And it may even be the right choice in many circumstances.
+But that does mean that you're going to require the programs that try to access remote data to do things in a different way when they're trying to get to the remote data versus getting to the local data.
+Similarly, for the human users.
+So it sounds like you'd really like it to be the same, that you'd like remote data to be accessed thus using the file system interface that you use to access local data in most cases.
+But there are issues with that as well.
+That may not be the right solution always.
+So whatever data access solution for remote data that we choose, it's going to have certain characteristics that help us understand how it's going to behave.
+First, there is going to be the question of APIs and transparencies.
+What is it that a user or a process does to get a piece of data that is not on the local machine that's somewhere else?
+And does their form of accessing that remote data, even if it's via a different API, have essentially the same properties as the local.
+So maybe there's a different call to open the remote file, but it opens a remote file.
+A different call to read the remote file, but it reads the remote file.
+Or alternately, you can't write the remote data, no matter what, you can't write the remote data.
+That's different.
+So is the mechanism, the API and the services offered for remote data access very, very much like what you use locally, or is it different?
+Then, of course, there are issues of performance.
+Is the remote data available as quickly or apparently as quickly or close to as quickly as the local data?
+Or does it take a whole lot longer?
+Is it as reliable as the local data?
+Or is it not?
+Is it going to be the case that you can synchronize access to the remote data just the way you do for local data?
+So if you have three processes that are writing to a file on a local machine, then there is a guarantee made by the operating system about what is going to happen when each of them performs writes on pieces of that file.
+Each of them will see consistent states, if you have the right model in your file system, of course.
+Will that model also prevail if instead of having three processes accessing one file on their local machine, if instead you have three processes on three different machines accessing a remote file on a fourth machine?
+Will everyone always see the same state of that file as writes occur, or are they not going to see the same state of the file?
+Then, of course, there's the architectural issue.
+How are you going to integrate the remote data access mechanism, the code you run, in order to access the remote data into your overall system?
+Is it going to be part of the operating system?
+Is it going to be its very own independent server type of process?
+Is it going to be something else?
+Well, you have to choose that.
+Generally speaking, of course, if we're talking about accessing remote data, we are implying that we're going to use networking, which means there's going to be network protocols that are used to access the remote data.
+Also, it's going to be the case that in order to access a piece of remote data, there is a certain amount of work that has to be done, just as there is a certain amount of work that has to be done to access a local piece of data.
+To access a local piece of data, then pretty clearly the local side is going to do all the work.
+To access a remote piece of data, then presumably the local side is going to do some of the work and the remote side is going to do other parts of the work.
+And there are choices about how you divide up those responsibilities.
+Who does what?
+Now, a very, very big decision that is typically made is to say, if we want to provide any form of remote data access at all, we're going to provide remote data access to files.
+The data in question will be a file.
+It won't be a database record.
+It won't be a block on a remote storage device.
+It won't be just a stream of bytes that gets somehow created and sent out from the remote site.
+We're talking about files.
+Now, that is not the only choice that you could make.
+And, of course, if you have something that is a distributed database system, probably you're going to be dealing with records, not with files.
+And there are certain types of storage systems where what you do is you say, I'm making devices that are kept physically on the server available.
+And you access the device by blocks.
+But normally, most commonly, the solution that we use is to say, it's going to be a file.
+We are going to access files locally.
+Just a moment here.
+Now, usually when we are providing a remote piece of data as if it were a file, file to a local site, it's actually the case that the data in question is an actual file on that remote machine.
+We store it as a file on the remote machine.
+We make it available as a file to the local machine.
+Generally speaking, it's the same file.
+It's stored somewhere else.
+Bit for bit, the values in the file are the same as we are going to make available to the local machine if it asks for this file.
+If it says open the file, it will see the same bits, assuming it's allowed to open the file and read the file, as if that file had been opened on the machine that actually stores it.
+Usually, that's what we're going to do.
+Again, we don't have to do it that way.
+There are other options.
+But that's typically what we do.
+Generally, though, that does not necessarily mean that mechanically what's going to happen to get to that file is going to be the same in the remote case, the remote access case, as it is in the local access case.
+There's probably going to be a lot of things that are done somewhat differently.
+All right, now, given that we're going to limit ourselves to discussing how do we access remote files, what architectures are available to us to do this?
+And there are a number of them developed and are in use.
+There's remote file transfer, remote file access, distributed file systems, and the cloud model.
+And we'll talk a little bit more about each of these.
+First, remote file transfer.
+This was kind of the very first thing people did when networks were first created.
+You had a file over there.
+You want to use it over here.
+What do you do?
+You go over there, make a copy of the file, bring it over here.
+Okay, so this is how, in early systems, you would have some form of remote access to a file.
+You wouldn't open a remote file and access it across the network block by block or whatever.
+You would instead make a copy of the entire file to your local machine, and you'd access the local copy.
+Usually, when we do this kind of thing, and we still do this kind of thing fairly frequently, you would bring the whole file to your local machine.
+And we're going to do this kind of thing.
+The file would still reside on the file.
+And we're going to do this kind of thing.
+We're going to do this kind of thing.
+And we're going to do this kind of thing.
+But you're not actually connecting your local copy in any ongoing way to the remote file.
+So in particular, if the remote file has some particular state, some bit values, and you, at some time, make a copy of that file to your local machine, then at a later time, there's an update to the remote copy to the true copy of the file, chances are there's nothing that is going to happen to your local copy.
+It's not going to receive the update.
+It is not going to be informed, in many cases, that the update occurred at all.
+So that means that you've made a copy of the file at a particular moment in time.
+If you want to get the update, you'll have to make another copy of the file at some time after the update has occurred.
+Okay.
+Now, frequently, if you're allowing remote access to this file, you can get a copy locally.
+And perhaps you can even write your local copy.
+But you typically, in most cases, cannot write the remote copy from your machine.
+Only somebody on the remote machine typically is allowed to write that copy when we're doing this particular kind of file access.
+So an early example of this was called FTP.
+FTP stood for File Transfer Protocol.
+It was built specifically in the early days of the Internet to allow files to be copied back and forth across computers.
+And other examples would be World Wide Web file downloads.
+You know, you've all downloaded files from the World Wide Web, probably.
+This is pretty much what you're doing in most cases.
+Whenever you get a software update on some application or your operating system, what that really means, typically, is you are copying a file from some remote server that has stored a file version of the update to your machine.
+Then you make use of the copy of the update file on your machine to update the application or the operating system in question.
+There are sites that provide version control of software so that people working through the sites can all look at potential updates to software that is being created.
+GitHub is an example of this.
+Effectively, when you get some files from GitHub because you want to work on a software project, you will get complete copies of the file.
+Now, GitHub is a bit different than the others.
+Unlike some of the others, it does allow update of remote files in various ways.
+So this isn't an impossible thing to do.
+But only special cases such as GitHub tend to do this.
+General cases such as you click on the link and it comes down across your web browser doesn't happen that way.
+Now, what's good about this kind of approach for remote data access?
+Well, it's very simple.
+You're always moving a complete file.
+So you always know exactly what you're doing.
+When the moment comes and you say, I am getting access to that remote file, you know that unless there's a failure, you're going to get the complete file.
+And you're probably not going to do anything with it until the file has been completely downloaded.
+Not always.
+Sometimes you can actually start getting access to it while the download is in progress.
+Another advantage here is we can forget about all those consistency issues.
+Don't worry about the consistency between the remote copy and the local copy.
+Your local copy will reflect the state of the file at the moment that you requested the transfer.
+Any changes you make to your remote copy, they have nothing to do with your local copy.
+If you make changes to your local copy, they have nothing to do with the remote copy.
+They will not be propagated with the remote copy.
+If the remote copy changes after your update has started, usually a good system is going to say, well, you get the old copy.
+You started getting the old bits.
+You're going to get all the rest of the old bits.
+That's all you're going to get.
+If you want the new version of the file with the new updates, you're going to have to request another download.
+It's as if it were a totally different file.
+So once you have downloaded the file, of course, it's local.
+You now have a local copy of it.
+It's a local file for all practical purposes.
+So then your performance is going to be the performance you would achieve for any local file, typically.
+During the download, of course, either you're not going to be able to do anything at all with the file while the download is occurring, or in some cases, you can start working with the parts of the file you've already seen, but you can't do everything with the file because you don't have all the bits yet.
+One nice thing about this, from the point of view of whoever is hosting the remote file that perhaps a lot of users wish to obtain for their own computers, is it's got a very good scaling model.
+You are not going to have to worry too much about updates to the file because you're going to provide copies of the file in a single consistent state.
+So you can use a horizontal scaling system to do this.
+You can have, as we discussed in previous classes on distributed systems, this horizontal scaling model where you have a farm of servers and they're all doing the same thing.
+In this case, the same thing they're doing is providing you a copy of the remote file.
+He gets a copy, you get a copy, he gets a copy, you get a copy.
+Each of those downloads of the file can be serviced by a different server, making it very easy to scale a service.
+Downsides.
+Well, you're not really getting actual file system operations.
+You don't open the remote file and start working with the remote file.
+You don't read the remote file.
+You don't write the remote file.
+If there's any locking possibilities, you can't lock the remote file.
+So this means that typically you have a special thing you do to get a file this way.
+You click on a button, you run a special application, something like that.
+And that means you can't access remote data in the same way you would within a program under ordinary circumstances when the data is in a local file.
+And this may mean that it's harder to do program development.
+If you have files that get remote updates, if you do have something like GitHub, then you're going to run into a situation where you say, okay, I have some copy of those files up there.
+Somebody else, not necessarily the site that does a permanent storage, has performed updates on them.
+Maybe their updates have been propagated.
+Maybe they have only been partially propagated.
+We'll have to do something in the system to make that work.
+So that can be difficult to manage, particularly if there are multiple sites that can all perform updates on the remote site.
+With something like GitHub, you have a model of how this is supposed to work, that each user who has downloaded a copy of the files representing the software project, if they make changes, they're making sort of their own set of changes.
+Not making changes that are going to be interlaced arbitrarily with changes that other people are making in real time.
+If you don't have that kind of model, it gets very, very complicated.
+Generally speaking, these systems tend not to have much or any support for update propagation, by which I mean I've downloaded the file.
+The file was changed on the remote server that hosts it.
+I don't get a new copy of the file.
+I don't get a copy of the changed bits unless I specifically ask.
+And I may not even be told, typically I'm not told, that there was any change.
+If I want to find out if there was a change, I'll have to do something to check.
+In a few cases, there are separate systems, not part of the file system, that are intended to help with this problem.
+So, for example, for software downloads, when you're going to do an update of an application on your system, you may have a piece of software that, separate really from the file system, is going to send your machine a notification saying, this particular application has been updated, there is an update file available, you might want to go get it.
+Or maybe it'll even push it to you automatically, depending on the system.
+Another approach is to try to make the access to this remote data, to the remote files, appear a whole lot more like access to a local file.
+Remote file access says, there's a file over there, I want to treat that file as if it were over here.
+I want to be able to write code in my program that opens that file, that performs read operations on 100 bytes of that file, that writes the following 17 bytes of the file, that closes the file, and so forth.
+And ideally, I'd like those to be exactly the same calls that I would make if the file were on my local machine.
+I want it to be the F open, I want it to do the read, the write, etc.
+I want to use the same interface that I use for local reads and writes and other file operations.
+Of course, typically, I'm going to be in a situation where there might be multiple parties who are working with this remote file, by which I mean multiple processes on multiple different computers, perhaps simultaneously, certainly serially.
+And that means I'm going to have to be able to have that remote copy accessible by many, many different machines using this interface.
+I'm going to have issues of performance, availability, reliability, and scalability, because, of course, if this is the model that I am using, I want to hide as many of the difficulties of distributed systems from the people who are using this remote file access mechanism as I possibly can.
+So how do I do it?
+How do I typically build this?
+Well, as I hope you remember from our file system lectures, The way we manage file systems in modern computing systems, modern operating systems, is we have this plug-in model.
+There's the VFS, which says this is the general set of file operations, and then you can plug individual file systems, multiple file systems on the same computer, into that interface.
+Each of the plug-ins must support the full set of operations that the VFS provides.
+So you can have things that are like a log-structured file system, or you can have things that are like a FAT file system, or you can have things that are like a Unix FAST file system, or whatever it may be, and they can all coexist on the same computer, and programs can access files in any of those file systems using the same set of system calls.
+So we did that by having plug-ins.
+We'll do the same thing here.
+We want, of course, if we're using this model of access for remote data, to say you access remote data by making file system calls, which means you make calls that can be translated directly into VFS operations.
+Okay.
+So we're going to have to support the VFS operations anyway.
+Why don't we just say, let's have a plug-in that will sit below the VFS layer, and that will provide our remote file system.
+Now, of course, the files in question, the files we're trying to get to, aren't on our machine.
+They're on a remote machine, which implies we'll have to use networking to get to those files, to get the data out of those files onto our own computer.
+So our plug-in is not going to be something that goes out to a storage device locally and looks up blocks and so on.
+Instead, it's probably going to be something that is primarily involved in formatting messages.
+It's going to set up messages.
+It's going to send messages.
+And on the other side, of course, the server side, the people who are hosting these files, the people who make the files available to other sites, they're probably going to be receiving a bunch of messages related to, give me this file.
+I want to open that file.
+I want to read this file.
+I want to delete that file, whatever it may be.
+So there's going to be something that sits over there just waiting for these messages to come in.
+And when it gets the messages coming in, what's it going to do?
+Well, it's probably going to have a local file system, something like ext3, that is going to go out to the storage device that is kept on this machine, that's going to look up the file in question, and is going to perform whatever operations are necessary to deal with the remote request.
+And then it's going to probably take the results of that and send it back via messages.
+Now, note that this whole approach is a little bit like RPC.
+This should remind you somewhat of RPC.
+In RPC, it was procedure calls that we were translating from something that looked local into something that was a bunch of messages going back and forth.
+Here, it's not procedure calls.
+It's file system operations.
+But again, we translate the file system operations into messages that go back and forth.
+Let's say we have a remote file system client on our machine, and there's a remote file system server on the other machine, and we wish to access a file on the other machine.
+What's going to happen?
+On our machine, we'll have a process that wants to get to the file that's over there.
+It's going to make some kind of call, probably exactly the same call as it would make if it were on the local machine.
+It's going to make an open call.
+All right.
+That open call is then going to, of course, be translated down to the VFS.
+The VFS will figure out for this particular file that the guy wants to open, it should go to the remote file system, which is a plug-in.
+So it'll go down to the plug-in.
+Now, from the VFS's point of view, this is just another plug-in.
+It doesn't care what's happening at this point.
+The plug-in is probably going to take that request, an open request, for example, and it is going to translate it into one or more messages.
+It's going to send those messages across the network, probably using a socket that has been prearranged, perhaps setting up a socket for this particular communication, whatever.
+And that set of messages is going to then go across to the server.
+The server is going to receive those messages.
+So then what's going to happen?
+Well, the server gets the messages.
+It's going to say, oh, look, here is a message that is related to the file system that I am providing, the files that I am making available to a bunch of sites on other computers.
+Well, this one seems to want to open the following file.
+Right.
+Well, if I have that file, if that file is openable, I will look it up using my own local file system, something that's an ordinary file system that accesses a storage device like a flash drive.
+And I will try to do an open on that particular file.
+Whatever I get back, successful open, unsuccessful open, whatever it may be, I will send the message back across the network.
+I, the server will send the message back across the network to the client.
+And in particular, to the client's machines, file system plugin that represents the remote file system.
+It'll be sitting there waiting for that.
+It expected to hear something from me.
+When it hears something from me, it will then say, oh, OK, I had a request to open file foo.
+Here's a response saying file foo has been opened.
+I will then report to my local process.
+File foo is open.
+So going back to our diagram from many lectures ago of what file systems look like, this is more or less what's going on.
+We have all of this other stuff, the virtual file system layer, just as before.
+Local file systems, the CDFS, the DOSFS, the UNIXFS, that are all accessing files stored on local devices, flash drives, hard disk drives, whatever they may be.
+But then we also have this yellow file system that has been plugged in, the one marked remote file system, which is right there.
+OK, now that one is going to say this is not a local file.
+This is not something that I particularly store.
+In fact, I know for a fact that it's stored over there on that server.
+Therefore, I have to communicate to that server.
+Probably I have set up a socket between myself and that server.
+I'm going to send messages down that socket using the normal socket IO operations.
+And they're going to go through the whole networking stack and through the network interface card.
+And they're going to go across the network to that machine.
+And with luck, they'll be delivered intact to that machine in a timely fashion.
+That machine will then receive them on their network interface.
+They're going to then move up through the networking stack, through the socket code.
+And they'll say, what do I do with this particular message that has been delivered to me?
+And the answer will be, well, it goes to this remote file system server, a daemon process sitting over here on the server machine.
+That daemon process will say, in order to satisfy the request embedded in this message, I've got to go and get a file.
+I'll go through my file system.
+It goes through its own VFS layer down to a plug-in, in this case, perhaps ext3.
+And then it's going to go through block IO to see if it's cached already and so forth.
+And down to the disk driver.
+And eventually, it's going to get that information.
+It'll all go back the other direction to respond to the remote file system saying, here's what you asked for, which in turn goes up through the VFS layer, through the file IO, and to the process that requested the open, the read, the write, whatever it may be.
+Okay.
+Now, in order for this to work, of course, the local file system has to know where to look for remote files.
+You know, there's millions of machines out there.
+You want to open the following file.
+Which one of the million machines is it on?
+Now, normally, this is done by having some kind of prearrangement.
+Usually, a system administrator will have set things up on your computer to say, if you're looking for this set of remote files, I've got something set up in a special little table that is used by the operating system to say, when somebody wants to get to a particular set of files, here's where they are, and that will indicate they're over there.
+So, that's going to mean that probably under most circumstances, if there's a file foo that's stored remotely, I expect file foo to always be stored on the same remote computer.
+If not, I'm going to have to do something that is going to update the fact on my local machine to say, oh, it's not on computer X, it's on computer Y.
+And if it keeps going back and forth, I'm going to have to keep changing that.
+Or, at any rate, I'm going to have to do something to figure out where is it now.
+So, this could be problematic if there are a lot of failures.
+There are ways of doing failover, which we'll talk about a little bit later.
+But it can be problematic.
+So, generally speaking, if this is the way I'm going to provide remote data access, remote file access, what's good, what's bad?
+Well, a good thing about it is that from the point of view of the programmer and from the point of view of the user, the human user on the machine that is trying to get access to these files, it looks very much like local access.
+It's got good functional encapsulation as well, by which we mean you can easily figure out on each side, on the client side and on the server side, who should be doing what.
+It's also pretty good at multi-client file sharing because you have a centralized point at which you can determine should I give access to this file or not.
+It's at the server.
+The server can, if necessary, if it wants to, if the code has been set up that way, keep records on who is accessing this file, which of the many possible clients on other machines might be accessing this file, and it can behave accordingly.
+You can get, if you do this right, under the right circumstances, pretty good performance out of this, and it can even be pretty robust.
+A disadvantage is you have to do this in the operating system.
+Now, with the remote file download, the transfer of files, that didn't actually have to be in the operating system at all.
+You didn't need operating system code to do that.
+You could write applications that did that.
+Here, you really can't do that because you're going to have this thing that plugs into the file system, into the VFS layer.
+It's going to be part of the operating system.
+And it can be quite complex to get this right, both on the client side and the server side.
+The code is not necessarily as simple as you might think.
+Nonetheless, this is the way that we typically do provide remote access to files in enterprise systems.
+You have those 10,000 machines, and they're accessing files on servers, and they're accessing files on each other's machines.
+This is the way we ordinarily do it.
+Now, we can go a step further.
+We can go into what are called distributed file systems.
+This is a lot like remote file systems in the sense that when you write your code to say, I'm accessing this file, you don't worry about whether it's local or remote.
+But it takes it further.
+Effectively, it says you got 10,000 machines.
+They all have some storage on them.
+All the storage that stores files on all the machines, that's all part of one big file system.
+It's one immense file system.
+We don't have to have special servers that do special things running special demons.
+Everybody is able to make their files available to everybody else.
+Okay.
+Now, that is, from the perspective of people who need to use such a system, a very, very nice thing to be able to do.
+Especially if you can make it work without them doing any work on their own.
+If they don't sit down in front of the computer and all of the files on 10,000 machines are potentially available to them.
+It's really nice.
+There's only one way of getting to any file.
+And you can get to any file, literally any file at all.
+In many cases, it's possible when you're running this kind of thing to say, I'm going to have multiple copies of a file stored on different machines.
+Or, I'm going to have the files move around from machine to machine as I feel is best.
+That's possible in these systems as well.
+We're not going to go into the architecture of these systems very much for a reason we'll discuss in a moment.
+What's good and bad about them?
+What's good is you get excellent transparency of files.
+It really is very, very friendly to users in this sense.
+If you do it right, you can get really high reliability and availability.
+And even if you have multiple users using the same file, there are ways in which you can make sure that everything comes out correct.
+All of the rights are visible to everybody at all the times, etc., etc., etc.
+It comes at a cost, however.
+And that cost is complexity.
+This is an extremely complex system.
+You have to solve a whole lot of tough problems.
+Now, you remember from a previous lecture in distributed systems when we were talking about synchronization and consensus, you're going to have to solve a bunch of synchronization and consensus issues.
+And you're going to have to solve them in pretty general ways, not in a very specialized way.
+With the individual servers keeping a copy of a file, you knew that you had what amounted to.
+You've already done a leader election algorithm on that case.
+Whoever stores the file is the leader.
+Fine.
+Leader's gone.
+That's a simple answer, too.
+There is no file.
+Unless you were able to say, I've got a backup of that, then he automatically becomes the leader.
+Simple.
+Here, you can't do that.
+You're going to have to have a much, much more complex protocol for figuring out, well, are there multiple copies of this file located in different places?
+And which one should be the copy that we are going to be synchronizing on and so forth?
+Generally speaking, this is going to result in higher overheads.
+You're going to spend more time doing system-type operations to maintain the consistency and correctness of this kind of file system.
+As a result of this, while these have been built in the past and these have been run in the past, we actually, for some years at UCLA, ran exactly that kind of systems called LOCUS.
+They aren't really used very much anymore because they're just too complex.
+Now, a variant that we see nowadays in the cloud computing environment is that we have, in the cloud computing environment, remember, these vast number of machines sitting in a warehouse.
+And a bunch of clients have come to us and said, I want to rent 50 machines.
+I want to rent 1,000 machines.
+I want to rent two machines.
+And I want to do this with my 50.
+I want to do that with my 1,000.
+I want to do the other thing with my two.
+So, and we're providing whatever they ask for.
+Now, in terms of what they've asked for, it may be implicit in what they've asked for, what model they want to have for remote data access.
+Anything from none to a full distributed file system.
+And, you know, try to do whatever we can do.
+But we are going to have to do something down at the implementation level to make whatever they say they wanted appear to actually be the case.
+Because, remember, what we're really doing is we're taking the supposed 50 or supposed 1,000 or supposed two machines that we've given these people, and we're scattering them across many, many, many of the machines within our cloud environment.
+And some machines may have one virtual machine.
+Some may have several.
+Now, we need to hide, as the cloud provider, these mismatches.
+And that's going to require some file system activity.
+So, let's say our client wants 20 machines.
+He's contracted for 20 machines.
+Five of his machines will be NFS servers.
+NFS is one of these remote file access protocols.
+So, the other 15 machines are going to be accessing files on the five NFS servers.
+They're going to be going there all the time to get data.
+And NFS supports write operations as well.
+It supports deleting files and creating files on the servers and so forth.
+So, the five servers are going to be doing that kind of thing all the time on behalf of the 15 machines.
+And, of course, maybe, because NFS is not a distributed file system.
+It only says this particular set of files are part of the remotely accessible files.
+This set are not.
+We're going to have some local storage on all 20 of our machines, including the five NFS servers.
+Okay.
+Now, the cloud provider is in the business not of saying, I'm giving you 20 machines.
+You ask for 20 machines, I'm giving you 20 machines.
+He's in the business of giving you virtual machines which have the properties, the performance characteristics necessary for you to meet your requirements.
+So, that may mean that what he's going to do is he's going to say, I'm going to give you four physical machines.
+I'm going to put a bunch of virtual machines on four physical machines.
+Because, after all, you've got a fairly low load at the moment.
+You don't need 20 machines.
+I'll make more money by having 16 of the machines servicing another client.
+And you'll be just as happy because you're getting all the service you need.
+On the other hand, if it turns out that you are busy as could be and 20 machines are really required, required the full physical capabilities of 20 of the machines in the cloud environment, well, maybe there'll be virtual machines set up on 20 physical machines.
+And this is going to have implications for where the data is stored.
+Because, presumably, in most cases, the cloud provider is going to want to store the data associated with a virtual machine on the same physical machine.
+You don't have to.
+You could actually say, I'll have other machines that store the data.
+You can do that.
+But, you know, you're going to have performance issues and consistency issues and things like that if you do.
+So, chances are you're going to want to have the data stored with the virtual machine in the same physical location.
+Which may mean if you have only four physical machines hosting 20 virtual machines, Well, then you're going to have some of them storing data for multiple virtual machines.
+And chances are pretty good that access to that data by other virtual machines on the same physical machine will be faster than accessing the data on the other virtual machines that are on other physical machines.
+And you have to think about, will that be acceptable according to the terms of this guy's service contract?
+It can get complicated.
+So, effectively, you're going to have to make sure that all of the NFS clients, wherever you put them, you know, you may have equally divided the NFS clients and the servers among a set of physical machines.
+You may have had all of the NFS servers on one physical machine.
+You could have done it a lot of different ways.
+And you're going to have to provide good service for all of them, at least acceptable service according to the terms of the contract.
+Okay.
+So, now let's talk about some of the problems that we are likely to face if we are providing this kind of remote file access.
+Or actually, for that matter, any form of remote data access.
+Many of these problems are not specific to files.
+So, if it doesn't perform well enough, then any of the other characteristics that you've got are kind of irrelevant.
+Because if it's too slow to get to that data that is remote, people are not going to try to get to the data that's remote.
+And you don't get any benefit from having the remote data access.
+But we're going to discuss this in the file system context because the problems tend to arise just as much in that context as in any other.
+So, what are the problems that we see?
+Well, there's problems related to storage devices.
+Storage devices have their own performance issues.
+There's the issue of how do we get good performance from read operations?
+How do we get good performance from write operations?
+And how about remote file systems?
+We've got special characteristics of remote file systems that may have their own performance issues.
+So, the basic performance issue is this again.
+So, we've got the client.
+We've got the server.
+We've got the file F.
+Client says, I would like to read 100 bytes from file F into buffer, which is a local piece of data in its own data area of this process.
+Clearly, what's going to happen is in a remote file operation, we're going to transfer some form of this system call across the network to machine X.
+Machine X is then going to find file F, find the block containing 100 bytes of file F.
+And it's going to move something, maybe the full block, maybe 100 bytes, maybe something else, across the client A.
+Now, clearly, there are going to be some performance questions here.
+Client A issued the read message.
+There's going to be time required for the read message to go across the internet and be received by machine X.
+Once it gets to machine X, machine X is going to have to say, ah, this is a read operation.
+Its daemon is going to have to say, fine, that means I have to perform a read operation for this remote file system in the following way.
+So I'm going to have to go to that storage device.
+I'm going to have to fetch that block.
+There'll be a delay for that.
+Then, having gotten the block, I'm going to have to, at machine X, format up this data into a message, which is going to go back to the client.
+And that's going to take network delays.
+And then, of course, even if this had been a local file on client A's own machine, there would have been all kinds of overheads associated with getting that 100 bytes.
+Context switches, et cetera, et cetera, et cetera.
+We've talked about all of those in previous classes.
+So we haven't gotten rid of any of that.
+We've just added a bunch of other performance questions.
+So in particular, there are a lot of networking issues here.
+Now, what are the networking issues that relate to performance of these remote file systems?
+Well, there are bandwidth limitations.
+Every client is able to move a certain amount of data on and off his machine in a unit time because he's got a network card that has certain capacities.
+And there may be contention with other processes on the same machine also trying to make use of the network.
+The server has the same issue.
+The server has a network card that connects him to the network.
+He can move a certain amount of data in, a certain amount of data out across that network card in a unit time.
+If the load on the server is too great, if too many people are asking for a whole lot of data from that server, it's not going to be able to keep up because it's just not got the bandwidth.
+Then, of course, there are delay implications.
+So it takes time for a message to go from the client to the server machine.
+How long?
+Depends a lot on a lot of characteristics, a lot of issues that are not under the control of either the client or the server.
+It depends on issues of network topology.
+It depends on issues of load in the network.
+It depends on the characteristic of the particular kinds of network links you are crossing.
+Is it a Wi-Fi link?
+Is it a wired link?
+There are all kinds of issues that you don't have any control over.
+But there will be delays.
+You can be sure of that.
+There certainly will be delays.
+Now, it may be the case that you want to have some degree of reliability of message delivery.
+The way we get reliable message delivery is not that we turn on a bit in the message saying this is delivered reliably.
+Instead, what we do is we say, well, we get an acknowledgement.
+When the message gets delivered, an acknowledgement message is sent back saying, I got that message.
+So that's how we get reliability.
+But if you want to wait to be sure that your message was received, then you have to wait for the acknowledgement to come back, which means first the message has to go across the network.
+That takes one delay.
+Then the acknowledgement has to come back.
+The acknowledgement is just another message.
+That's the second delay.
+Now, the reason you might care about acknowledgements is you might have a lossy network, a network that tends to drop packets every so often.
+If a packet is dropped, of course, it doesn't get delivered.
+If it doesn't get delivered, whatever was supposed to happen on the basis of that packet doesn't happen.
+Therefore, you may have to resend the packet when that happens.
+And this can only really be done effectively if you have some degree of acknowledgements to know whether you should or should not.
+send a request to perform the message again.
+And that means you're going to have more delays.
+So, let's talk about reads in particular.
+Normally, in most file operations, there's a lot more reads and writes.
+So, reads are very important.
+And what are we doing when we're doing a read of a file across the network?
+We're reading a remote file.
+Well, first, our client application performs a system call that says, I'd like to read the file.
+Then we go through the operating system, through the file system, down into the remote file system plug-in, and it formats up a message, which contains the read request effectively.
+That message gets sent across the network.
+We incur whatever networking delays we incur.
+It gets to the other side.
+The server receives it.
+Now, probably what's going to happen then is it's going to be delivered to a daemon process on the server side.
+The daemon process is going to say, okay, this is a read request.
+It's going to have to figure out what are you trying to read.
+Once it's figured out what you're trying to read, it's going to issue a local system call to say, go out to the device that stores the file in question and go read those 100 bytes, the block containing those 100 bytes you're supposed to read.
+Great.
+I got it.
+Now, you have it on the server machine, but you need to get it to the client machine.
+To get it to the client machine, the server will format up a message and will send that message back across the network.
+More network delays.
+Eventually, it arrives at the client machine on a good day, and the client will then say, okay, this message is in response to my request to read those 100 bytes.
+Therefore, I need to put data that represents the 100 bytes that were to be read into the buffer that was supposed to contain them, just as if I'd gotten it off of my own local disk.
+And then I go back to the process with a context switch, and it gets used its 100 bytes.
+Now, there are a lot of opportunities here for optimization, which is a nice way of saying that there are a lot of places where things can be slow unless we're careful.
+So, caching is really the most common way that we perform optimizations to increase the speed of reading of data from anything, whether it be from a local device or from a remote server.
+So, we're going to cache.
+There are questions on exactly what do we cache and exactly where do we cache it.
+We could, of course, also use read ahead instead of just caching.
+We could say, let's read ahead.
+Now, the problem with that is that everything that we request is going to involve network messages.
+And formatting up network messages, dealing with network messages, dealing with the responses is significantly more expensive than going to a local device and reading an extra block of data off the local device.
+So, if we do read ahead and we are wrong, we will have spent a lot more time, a lot more overhead on doing the read ahead than if it had been on a local file.
+On the other hand, the benefits are higher because you will be starting on something long, long, long before you need it, which means there's a high probability that you will be able to get it to somebody faster than you would have.
+A lot faster than you would have, avoiding what appear to be network delays because you've already done all that work before the guy even asked.
+Now, who does the read ahead?
+One thing you can do is you can say, well, the client does the read ahead.
+The client says he's opened FileFoo.
+He's read the first eight blocks of FileFoo.
+Now, he asks for blocks that have not been explicitly requested by the client yet.
+You could do it there.
+Another thing you could do is you could do it at the server.
+The server could say, well, that machine over there asked me for block zero, block one, block two, block three, block four of the file.
+I think he's going to ask for blocks five, six, and seven, and eight.
+Why don't I just create those blocks, get those blocks off the disk, and either catch them locally or send them off to him even though he hasn't asked for them?
+In which case, the guy on the sending end, the client, had better be prepared to deal with incoming blocks of data from the remote file system that he didn't ask for.
+So, we can cache in two places in this kind of system, on the client side or on the server side.
+Now, if we cache on the client side, we're probably going to put the cache data in the block I.O. cache, which means we're probably going to cache blocks, which means we're probably going to send and receive blocks from the server.
+The server isn't going to give us the 100 bytes, it's going to give us the block containing the 100 bytes.
+Then we'll cache the block containing the 100 bytes in the block I.O. cache on the client.
+If the client then asks for the next 100 bytes that are in the same block, then we don't have to go back to the server.
+And this means we don't have to create new messages, which means in the first place, we don't have the delays associated with those messages.
+In the second place, it means we've reduced network traffic.
+Less messages sent by our own computer, less messages handled by our local area network, less load on the server.
+That's great.
+So that's a very useful thing to do.
+But we can also cache on the server side.
+So this is going to be very, very much like single machine caching.
+You probably might as well do it.
+You probably will almost automatically do it.
+So what's going to happen here is if you have one client who requests the first block of file foo, in addition to sending him the first block of file foo, then on the server side, in the server's block I.O. cache, you're going to have the first block of file foo cached for some period of time.
+If it turns out that some other site, some other site also requests file foo, not the same machine at all, well, then at least we have saved the cost of going to the disk to get that first block of file foo, because it's already sitting in our cache.
+This is not going to help us with networking.
+The network delays are still going to be the case.
+That second guy who wanted foo still has to create a message, send us the message, wait for our response.
+But it will reduce the costs of doing the I.O. on the server side if we cache successfully.
+Now, there is an issue if we're going to do client-side caching with cache consistency, and we'll talk about that in a bit.
+Now, of course, you don't have to choose.
+You don't have to say, well, I'll do client-side caching, and you'll do server-side caching, but we won't do the other.
+You can do both, and you typically do.
+Now, one thing you can do that is done differently in different remote file systems is you can either say, I'm going to cache blocks, or I'm going to cache files.
+Most commonly, this is done in the context of client-side caching.
+What does the client cache?
+Now, the obvious thing to do is say, well, it's just like getting stuff off of a disk.
+Instead of getting it off a disk, you're getting it off a network, but you get a block in.
+Cache the block.
+You can do that.
+That is block caching.
+However, in many cases, what people tend to do in their applications is they read a whole file.
+They work with the entire file.
+Maybe not instantly, but the whole purpose of their application is to go through that file and do various things with the date of the file.
+In which case, they are going to get the whole file sooner or later.
+It may be more efficient.
+It probably is more efficient to say, well, let's just give them the whole file.
+They will have a copy of that file sitting on their computer cached as soon as they've asked for the first byte of that file.
+Maybe even when they just ask for the open of the file.
+There are systems like AFS that do this.
+This is precisely how they work.
+And their argument is, well, in the first place, you're probably going to get all of that data.
+In the second place, this is effectively a form of read ahead.
+We are going to avoid the network latency for most of your file operations once you've started working with a file by making sure that by the time you get to those operations, by the time you say, I want to read the third block of the file, we've already cached the whole file on your own local system.
+Therefore, we don't have to go across the network to get that third block.
+You've got all the blocks of the file.
+Now, typically, what you're going to do if this is the kind of system that you're going to work with is not use the block I.O. cache for this.
+You're instead going to say, I am going to set up some separate area on one of my local storage devices, which is going to cache entire files.
+So if I open the remote file foo, the entire remote file foo will get sent down to me by the server that's hosting it.
+I will create a temporary copy of the remote file foo in this special area on my storage device that's a caching area, and I will work with the cached version of that.
+And I don't have to wait for the entire file to be delivered.
+You know, if the guy asks for 100 bytes of file foo, I'm going to get the whole megabyte of file foo.
+But if I get the first block first, I can give him the 100 bytes instantly.
+And as long as I'm staying ahead, as long as I have already got the blocks of the file that the process is asking for, I'm not going to have to have further delays for networking.
+That's going to be happening in the background.
+So AFS, for example, does that.
+But doing block caching is also very common.
+So NFS, the network file system I referred to earlier, does block caching.
+And many other remote file systems do block caching.
+And typically, if they're going to do block caching, they say, well, you know, I already got a perfectly good cache.
+I got the block I.O. cache.
+Why don't I do my block caching just in the block I.O. cache?
+And they probably will.
+Okay.
+That's reads.
+How about writes?
+Well, if I'm doing a remote file system, then when I'm accessing something, a remote file foo over there, and I'm writing to the remote file foo, I expect that the content of the remote file foo is going to get updated as I do my writes.
+I expect that if some third party at another machine opens file foo, and they start reading file foo, they're going to see my writes.
+That's what I expect.
+Of course, if I write a bunch of stuff to file foo, I close the file, I open it up again, I expect to see my writes.
+Great.
+Well, if something simple is going on, I open file foo, I write file foo, I close file foo, that's all that's happening with file foo at the moment.
+Then later, some other guy opens file foo.
+It's not that hard to achieve the desired effect.
+But what if I have opened file foo for write, and somebody else has opened file foo for read, and he's caching a bunch of blocks of file foo, and I'm writing into file foo, and maybe I'm writing into the areas that he's cached.
+Worse, what if we both open the file for write, which is permitted, why not?
+If we both open the file for write, I'm issuing writes, he's issuing writes.
+Maybe we are issuing writes to exactly the same range of bytes in the file.
+What's the result going to be?
+That's kind of a tricky issue.
+Now, in particular, in many cases, as we've discussed when we're talking about file systems, when you do writes, you don't say, I am writing a megabyte of data.
+You say, I'm going to write the following 128-byte record.
+Then I'm going to write another 128-byte record after I've done some computation.
+I'll do more computation.
+I'll write a third 128-byte record.
+Now, if we are going to send those writes to the remote machine, then every time we issue a write, whether it be for one byte or for a megabyte, we're going to format up some messages.
+There's going to be a cost for traversing the network.
+And that cost is large.
+The cost is much, much larger than doing something with our own local device, probably.
+And moreover, we really do kind of want to make sure that these writes get across the network and get committed at the server.
+We want that to happen.
+So we're going to need acknowledgments.
+More delay.
+So what are we going to do?
+Well, we can cache for writes.
+We do this already in a local file system.
+We already cached writes in a local file system.
+Why not here?
+Well, there are two choices that are commonly used.
+One is called the write-back cache.
+This means, okay, we're going to cache the writes.
+So you wrote 128 bytes.
+We've already cached the block that that 128 bytes would be written into.
+We're going to put your 128 bytes into your cache copy.
+We're not probably going to instantly send a message across the network.
+You'll write another 128 bytes.
+Well, we've got your cache copy.
+We're going to put that 128 bytes into your cache copy and so on.
+If you happen to read the area that you just wrote, we're going to read your cache copy.
+So you're going to see the writes that you did, which is pleasant because you thought you wrote and look, you did write.
+Here it is.
+But on the other hand, we have not yet sent anything back to the server.
+Therefore, the server does not have a copy of your 128 bytes, 256 bytes, however many bytes, until we send back the cache block with the writes in it.
+So typically, after we've done a few writes, perhaps filled a block, perhaps waited long enough, we are then going to say, okay, here's a block of data that has to be sent back to that server across the network.
+He will do the writes.
+Now, this has a consistency model called local read after write, meaning I wrote into the first 100 bytes of Foo.
+I read the first 100 bytes of Foo.
+Joy, I see the 100 bytes I wrote.
+Isn't that wonderful?
+I'm not guaranteed, though, that anyone else at any other site sees those 100 bytes.
+I am guaranteed that if there's a second process at my site that is trying to look at that file and look at those 100 bytes, he sees the 100 bytes because the block is in the block.io cache shared by all the processes.
+So great.
+Everybody local sees the writes.
+Remote people, maybe they do, maybe they don't.
+Now, another thing we can do is we can say, this has this, you know, this other model, this write-back cache has the unpleasant characteristic that I'm really not sure what's happening with other sites.
+I'm not sure what the server has seen and not seen.
+I'm not sure what third sites that are reading the same file from the same server, what they've seen and what they haven't seen.
+I don't know.
+Well, we can do something about that.
+It may not be exactly what you'd want, but there's something we can do that at least has a high degree of understandability and consistency.
+This basically says, if I open a file for write, a remote file open for write in this file system, I can write and I can write and I can write.
+But only my local site will see the effect of those writes until I close or until I offer, issue a sync call saying, make sure the writes get there.
+At that point, before I get back from my close or my sync call, I will, the system will make sure that my writes have gotten to the remote site, to that remote server, and they are definitely there.
+Now, what this means is if I'm doing a whole lot of writes and I just write, write, write, write, write, write on this remote file that I've opened, it's all going to be local performance.
+Everything is going to happen locally.
+So it's going to happen at the same speed as if I had been writing locally.
+And in fact, probably at cache speed, because probably I'm going to be writing to cache copies blocks.
+And if I turn out, I'm going to delete the file.
+Well, that's great.
+I never sent anything across the network.
+At worst, I'm going to say, I don't have to do any network activity until I reach the close point, which in addition to delaying the costs of the network activity has the advantage of saying, I know precisely when I get consistency from at another site, when the server will actually see the updates from that point onward.
+From when I get back from that close, I know the server has my updates.
+Other people looking at the server after that moment will see the updates.
+And I can be sure of that, all of my updates.
+So this is great.
+But on the other hand, it means that if I have a file open with a very long running process and I'm writing that file because I've got a lot of work to do, it may be that I've written for an hour on end and other people in that hour have been fiddling around with that file in all kinds of ways.
+Even if they're just reading the file, they haven't seen any of the updates I made in the last hour.
+I may be a bit surprised about that.
+So generally speaking, the writeback cache has possible problems with remote consistency if multiple people are using a file that's being written.
+So what could we do?
+Well, we're going to have to do some caching because if we don't do caching, we're going to get terrible performance.
+Also, caching helps us with scalability.
+We reduce the load on the server.
+We reduce the load on the network by saying not every operation that you're performing requires us to go across the network even though the file is remote.
+In a single writer system, it's relatively easy because essentially all the writes go through the cache.
+That's fine.
+If there are multiple parties who are all writing the same file at the same time, well, none of them are on the server probably.
+Most of them are not on the same client machines.
+They're all on different client machines.
+So each of them is independently caching stuff.
+So what do I do if one of those caches is updated?
+In the full file case, I know what I do.
+Nothing's going to happen until I close.
+You then run into the problem of, well, I got three people who are all writing the file.
+One is writing the file.
+Two is writing the file.
+Three is writing the file.
+After they've all finished and after they've all closed the file, what's in the file?
+You have to have an answer to that question.
+But at any rate, what about the writeback cache?
+I cache a block.
+Eventually, I write the content of that block back to the server after perhaps several updates or enough time has passed.
+When?
+When's that happen?
+And moreover, okay, now the server has seen it.
+But client one, two, and three, they're all using the file.
+Some may be for read.
+Some may be for write.
+And I just wrote a part of the file.
+Those other clients are caching like crazy, just like I am.
+They may have cached copies of blocks that I just updated.
+What's going to happen for them?
+Are they going to see the updates or are they not?
+If they were running on my machine, if one, two, and three were all on the same machine, even if it was a remote file, they would see my updates.
+But we're on three different machines in addition to the server.
+Who sees the updates?
+When do they see them?
+Well, there are various approaches to achieving cache consistency.
+That basically says we've got these three or however many different processes running on different machines, each of which is doing caching.
+How do we ensure that what they see in their individual caches on their different machines are consistent?
+Well, we have to have a model saying this is what they should see.
+One model is to say, yeah, you know, some of the blocks in your cache, they may be outdated.
+It may be the server has already seen updates to those blocks and you don't know about them.
+Well, one thing we can do is say you get the cache only for a certain amount of time.
+You get the cache for one second, for example.
+After one second, even though you may be actively using that block of data, we're throwing away the cache copy, which means if you want to get that block of data again, you're going to have to go back to the server.
+If it happens that the server has an updated version of that data that you haven't seen yet, you'll get the copy that is updated.
+Now, there was maybe a period of time, a second or so, where you might have been working with an old copy of the data.
+Well, that's too bad, but at least we've ensured that sooner or later you see a copy of the data.
+You hope you didn't miss any writes.
+Did you? Well, maybe you didn't.
+Maybe you didn't.
+Another thing you can do is you can say, okay, I've got a cache copy of this block of file foo, and it may well be that other remote sites are accessing foo through the same server and they may be writing that file and I don't know for sure.
+This is block 12 of file foo.
+Before I get to use my cache copy of block 12 for file foo, I could go and ask the server, hey, has block 12 of file foo been updated since you gave me the cache copy I've got?
+And it will say yes or no.
+And if it says yes, it's been updated, we invalidate my cache, we get the new copy of the block.
+If it says no, I go ahead and use the copy of the block.
+This is unfortunate because in order to determine if I can use my cache copy, I have to pay a full network round trip cost.
+Plus there's record keeping.
+Another thing you could do is you could say, well, let's only allow one writer at a time.
+Yes, I know multiple processes are permitted by access permissions to write this file, but we're going to make things a little bit easier for ourselves by only having one writer at a time.
+This doesn't solve the consistency issue of, you know, you're caching a block, somebody else wrote it because one writer may have been the one who wrote it.
+But it does at least solve the issue of saying there's a particular record in file foo.
+One updated that record in one way, two updated that record in the other way.
+They both updated in their cache copy.
+Who wins?
+An unpleasant issue.
+So that's something where, you know, okay, well, we're gonna have to do something about that.
+But generally speaking, only allowing one writer at a time may result in it being impossible to get good parallelism in systems where multiple parties need to write a file.
+And it may well be that they are writing different parts of the file, so there isn't any consistency issue.
+And you have said, because I'm worried about a consistency issue that doesn't actually exist, I am going to prevent the parallelism, which isn't good.
+Another thing you can do is change notifications.
+Now, what this is going to do is say, okay, people are writing to this file.
+Maybe multiple people are all writing to this file.
+I, the server, know that there are eight people out there, all of whom have this file open for write.
+I've given them cache copies of all kinds of stuff, all kinds of bits and pieces of the file.
+Sooner or later, one of the eight comes back and says, here is an update to block three of the file.
+Now, what I can do at this point is I can say, aha, there may be problems with other people caching block three of that file.
+At the very least, even if there's no consistency issue here, nobody's read block three, nobody's written block three since the update occurred.
+I still better tell them that their cache copy of block three is no good anymore.
+So I will send a notification to them saying, get rid of that cache copy of block three of file foo, because what you got ain't good anymore.
+And if they decide they need that block again, they'll come back and they'll ask and they'll get the most recent copy of the block.
+Now, if it were the case that we were being very, very, very aggressive about writes, we're not doing this write caching.
+Whenever a write occurs to a file we have open remotely, we do not acknowledge that the write has succeeded until we've sent the write to the server and the server has responded to us.
+And then we say, ah, you're right, continue.
+Then, if we also did change notifications, we wouldn't have the problem of two people writing to the same area of the same file at the same time and what's the consistency result.
+However, we're probably not going to run into that more beneficial approach because we can't afford not to cache writes.
+So this is usually the chosen solution.
+Most remote file systems provide some variant of this solution.
+Okay, now let's talk about another issue after the performance issues, security issues.
+So what are the major issues here?
+Well, of course, we're going to be moving pieces of files back and forth across the network all the time.
+And we want to make sure that we maintain privacy and integrity of that data, the content of the file.
+Fine, encrypted.
+You know, set up TLS sockets, move everything via TLS sockets.
+Probably you're not going to run into a problem with bad things happening on the network.
+They're leaving aside availability.
+Okay, another issue is that guy over there on that remote machine says he wants to open file Foo.
+User Bill is allowed to open file Foo.
+He claims to be user Bill.
+Is he user Bill?
+I, the server, who store file Foo and know about user Bill, if it were on my own machine, I could use my own authentication mechanisms to say, yes, this request came from user Bill.
+But it's not.
+It's that machine over there.
+Do I trust that machine's authentication or not?
+So we'll talk about that.
+There are various approaches there.
+And then there's the question of, well, do I trust that other site at all?
+There's a site over there.
+Should I trust that other site?
+What would I trust him to do?
+Under what circumstances do I trust him?
+Related to files.
+First, the authentication approaches.
+Well, one authentication approach is blow it off.
+No authentication.
+This implies that anybody who can get to the computer that stores this file can ask for a copy of the file and can do things with the file.
+So you get anonymous access.
+You don't even try to figure out who it is.
+You just say, fine, do whatever you want.
+Depending, this may be an acceptable result.
+This has sometimes been the case when we've had these file download type things.
+You don't really care who it is who's downloading the file.
+They're just getting a copy.
+If you don't have issues with the secrecy of the copy of the data in that file, well, maybe it's okay.
+Another approach is peer-to-peer, where each machine, the client or the server, makes some kind of agreement on how they're going to do authentication.
+Another approach is that you have some special machine that is involved in the overall distributed system that does authentication for you.
+And then there are things where you say, I'm going to authenticate for an entire domain.
+We'll talk about each of these.
+The peer-to-peer approach is to say, well, the peer-to-peer approach, usually I say, every one of my partners in the distributed system, which in the case of the remote file system means all of the clients, all of the file servers, they're all peers.
+They all trust each other.
+So anything that one of their peers tells them related to accessing remote files, they're going to believe.
+This means that the client can do the authentication.
+So, got file foo.
+Bill should be able to open file foo for read.
+It's file foo is stored on a server.
+A client says, open file foo.
+How do we know that it is Bill who is opening file foo?
+Well, the client has to authenticate the user process, actually, that requests the open file foo.
+It has to say, yes, this is Bill.
+Now, given that it says, yes, this is Bill, it then will be able to open file foo because the server will say, hey, you have checked this.
+You have determined that this is indeed Bill.
+I trust you.
+Therefore, if you want to open this file, even though Bill is only allowed to open it, I presume that it's Bill over there who's trying to get it.
+Go for it.
+Here it is.
+Now, this does imply that you have to sort of have everybody in the system know about all of the possible users.
+Because each client machine must be able to authenticate any user.
+And it also means that you have to trust every single one of the client machines to be able to do authentication properly.
+This is a very common solution.
+Basic NFS systems, we've talked about NFS briefly before, tend to do this kind of thing.
+Now, there are advantages here, which is it's a lot simpler to implement.
+You don't have to do a whole lot of work in the distributed system in order to make this operate properly.
+The disadvantage is, well, it's not always the case that it is wise to trust all remote machines to do authentication.
+It doesn't work as well in a heterogeneous environment where, for example, you have some Windows machines and some Linux machines.
+Because they have different notions of identity.
+You know, user Bill on a Linux machine may not be user Bill on the Windows machine, for example.
+And having a big universal registry somewhere where everybody can look up who is user Bill.
+Even if you're a Linux machine and he works on a Windows machine, you could do that.
+There are systems that do that.
+But it doesn't scale very well.
+So another thing you can do is you can say, we, the servers, do not trust you, the clients.
+We don't think you're telling the truth here.
+We don't think you're going to do a good job of authenticating people.
+So you are going to have to, first of all, authenticate to me.
+So in this case, the client would authenticate to the server and say, I am this client.
+Here is my proof that I am this client.
+Let's set up a session.
+And perhaps you would have authentication of the individual processes, or at least the users belonging to individual processes.
+So if you have file Foo on the server accessible by user Bill, there's a process over on that client machine.
+When the client wanted to, when that process wanted to get access to file Foo, it would first have had to set up a session between the process and the server proving that it is Bill.
+And this would be something like login-based FTP and there are various other kinds of remote file systems that do this sort of thing.
+The process at the client side provides evidence to the server that it is who it claims to be.
+I am Bill.
+Here's the evidence.
+I am Bill.
+Here's my password.
+Here's my biometric.
+Here's my response to your challenge, whatever it may be.
+Now, this is also a fairly simple implementation because basically what happens is at some point, the server demands that a process, a remote process, provides authentication information.
+The remote process provides authentication information.
+If it provides the right information, fine.
+Then for a long period of time, perhaps the entire lifetime of a socket or whatever, we just believe it.
+We say, fine, we've done the authentication.
+We don't need to worry about that anymore.
+The server knows that everything coming in from this particular client is Bill.
+Authenticated is Bill.
+This has other problems, again, in heterogeneous environments where you're mixing Apple machines and Windows machines and Linux machines.
+Again, a universal registry isn't scalable to handle everybody in those environments.
+It does have the issue of not really allowing easy automatic failover if the server does.
+What do we mean by that?
+So let's say there's this file foo and we have a server that serves file foo.
+And because we want reliability, we also have a backup server.
+If the main server has failed, then the backup server can provide foo to all of the clients.
+Well, when somebody came to the main server and said, hi, I'm Bill.
+Let's prove I'm Bill.
+And he proved that he was Bill.
+When he started working with file foo, main server crashes.
+Okay, we'll switch over somehow or other to the backup server.
+But the backup server doesn't necessarily have any information that this client actually is Bill.
+You may have to go through the whole process all over again to say, okay, now we need to authenticate again to the new server.
+Another approach we can take is a domain authentication approach.
+This basically says, well, every client machine in our system, every server machine in our system will go to some trusted authentication server, a machine whose purpose is to handle authentication.
+And it will authenticate with the authentication server.
+And the only thing that it's going to trust is the authentication server.
+It trusts that the authentication, all machines trust the authentication server will do its job properly.
+So if the authentication server says, that's Bill, we believe it.
+It's not the case that every machine in the entire system has to properly prove that it's Bill.
+Instead, it's just going to have to say, fine, the authentication server has gotten the appropriate evidence that this is Bill.
+And it can then tell everybody that, yes, this is Bill.
+Okay.
+Typically, what would happen there is you would, when you came online, go to the authentication server, prove your identity, however that happens to be done using whatever authentication method you use.
+And you would be given some kind of data structure, an encrypted data structure, typically from the authentication server, proving your identity.
+You could then deliver this data structure to whoever you're communicating with and say, here, the authentication server has proven that I am who I claim to be.
+So this is actually quite a lot more complicated than that.
+But the general approach can be made to work.
+There's a system, fairly old system, called Kerberos that works this way.
+And this allows you to establish sessions.
+It allows you to set up keys that ensure that no third party is able to listen to your network communications and so on.
+Okay.
+Now, if you're doing any kind of distributed authentication, anything where some server, like in Kerberos, is providing the authentication, there are a couple of choices on what could be done.
+One thing that could be done is that the authentication server could say, here, I am going to give you a data structure that proves that you are bill.
+And that's all I know about it.
+I know your bill.
+I don't know what bill could do.
+I don't know what you want to do.
+I just know your bill.
+And I've proven that you are billed by authentication.
+I, the trusted server, have proven that.
+Here, you can take this information I'm giving you, this data structure I'm giving you, provide it to anybody you want to talk to in the distributed system.
+They will be able to verify that, yeah, the authentication server says your bill, let's go for it.
+Now, this means that the authentication server doesn't need to know about what anybody's able to access.
+It doesn't need to know what bill can do.
+It just needs to know who bill is.
+Another thing you can do, though, is you can say, let's work with capabilities.
+So, when you go to the authentication server, you say, hi, there, I'm bill, and you prove your bill.
+The authentication server, perhaps, would then not return a data structure saying your bill.
+Instead, it would return a series of tickets saying, bill can do this, A, bill can do B, bill can do C, bill can do D, where perhaps those are accessing different servers with different files.
+So, that's what you get.
+You don't get anything proving that you're bill.
+All that you get is something saying you can access A, B, C, and D.
+Then, having gotten that, you can go to A, machine A, and say, here's the ticket showing I can access it.
+It's a capability, as we discussed before.
+You go to machine B and say, I can access that.
+Now, what's kind of cool about this is that the people who you are communicating with, the servers you're communicating with, they don't really know who you are.
+They don't know your bill.
+They just know that it is okay for you to access the following thing.
+Why do they believe that?
+Because the trusted authentication server said you were allowed to access it.
+For this to work, of course, the trusted authentication server has to know about what everybody is allowed to do.
+And that may not be feasible in all circumstances.
+Now, both approaches have been used.
+So, generally speaking, if you're going to do an authorization operation later, after you have logged into this authentication server, then you probably want to go with credentials.
+Because you don't know what you're going to do.
+You maybe have millions of different things you could do.
+And each of them will depend on who you are.
+So, just have credentials proving who you are.
+On the other hand, if you know at the moment that you've logged into this system that there are a set of things you can do and that's all you'll ever need to do, then perhaps using capabilities is a good idea.
+Because then you have done your authorization, not just your authentication, but your authorization early.
+You've already done it at the moment that you logged in.
+You've got your complete set of things.
+You're ready to go.
+Okay.
+Now, another security issue here is, of course, should I trust those remote sites or should I not?
+Now, how do you decide whether you should trust the remote sites?
+Well, this can be based on administrative issues.
+So, for example, we are all members of Company X.
+All of our machines are sitting in the corporate headquarters of Company X.
+We have a set of trusted system administrators who have installed the software on these machines.
+They've set up firewalls.
+They've done all kinds of stuff to ensure that everything on these machines is trustworthy.
+Great.
+Then, okay, fine.
+We trust them.
+Another thing you can do is you can say, well, I don't quite trust them that much.
+Perhaps I can do something that will have one or a very small number of trusted machines determine the trustworthiness of the other machines.
+And sometimes I can do things cryptographically.
+So, generally speaking, one thing you should be aware of with cloud storage.
+Cloud storage is very popular nowadays.
+It has a lot of big advantages.
+If you store data in the cloud, then presumably whoever is running the cloud has access to your data.
+I mean, it's sitting on their machines.
+They may have policies saying they won't look at your data.
+They may have policies saying they're not going to run their data through their AI algorithms.
+But those are policies.
+They can.
+You can't prevent them.
+Well, if you're worried about that, store encrypted data.
+Encrypt the data.
+Store the encrypted version.
+Don't give them the keys.
+When you go to get your data from the cloud, you get back encrypted data.
+Then you decrypt.
+Other types of cryptographic solutions can be helpful in dealing with sites that you don't fully trust.
+Okay, let's move on to talk about reliability and availability issues in these remote file systems.
+What do we mean here by reliability and availability?
+Reliability is that you have a pretty high degree of assurance that the service works the way it's supposed to work.
+It's defined to work a particular way.
+You're sure it will.
+This gets to be very challenging in distributed systems because of those partial failures that we've talked about in previous classes.
+But you want to make sure that whenever you possibly can avoid it, you don't lose data because of failures.
+At worst, the data comes back after the failure has been fixed.
+And if you can't fix the failure, you should have a way of getting the data back despite the fact that that machine, that storage device has failed.
+Availability is a little different.
+That's having a high degree of assurance that if you go to look for a service, the service is there to be used.
+It's always available.
+This is different than reliability.
+With reliability, you can say, well, the data is there or the data isn't there.
+Here with availability, you'll say, the service is always there.
+Maybe the particular machine I worked with yesterday isn't there.
+It's on a different machine instead, but the service is still there.
+Generally speaking, we care about availability when we have reason to believe that some elements of our system are going to fail.
+In the face of the failure of those elements of the system, we want to make sure that something picks up the slack.
+Something performs the services that were being performed on the failed element so that overall, our system is still available to its users.
+Distributed systems can be good for this.
+If you design your distributed system in the right way, you can get a high degree of availability, which is really nice.
+Okay.
+Now here, of course, we're talking particularly about accessing remote files.
+There's reliability and availability issues more generally in distributed systems.
+We're not worrying about those for the moment.
+Just about accessing files.
+Okay.
+So how do we achieve reliability?
+We don't want to lose data.
+Somewhere there is a machine that has a storage device on it that stores file foo.
+We don't want to lose file foo.
+Now, the machine may fail.
+The storage device may fail.
+We may have a network failure that prevents us from ever getting to that machine again.
+Whatever.
+If there is no other copy of file foo anywhere, we've lost file foo.
+It's gone.
+We have failed to achieve reliability for that file.
+So the way we typically try to do that is to say, all right, we have another copy of that data of file foo somewhere.
+One way of doing that is to say we have two disks.
+One disk stores the live copy of file foo.
+The other is a backup of file foo.
+They're always in the same value.
+We've always written whenever we write file foo, we write it to both places.
+If the two disks are actually on different machines, then even the failure of a machine has not caused us to lose file foo.
+Even perhaps an earthquake where the first machine occurs that has destroyed everything in the office, including the machine and the storage device.
+Well, we still have file foo because the other machine was somewhere where the earthquake didn't occur.
+We have to, of course, have a way of switching between the different copies, the one we lost and the one we still have.
+So that's a possibility.
+Now, the very, it's not the worst thing to do, but better than nothing is simply to have a backup.
+We have somewhere a tape or another storage device that's put into a cabinet somewhere that has some version of file foo.
+And if the real live version of file foo fails, we can always go to the cabinet, pull out that device, plug it into a computer somewhere, restore file foo.
+That's not a great solution because it takes a lot of human effort, but it's better than nothing.
+Now, it is, of course, the case that many of the failures we see are not permanent failures.
+They're transient.
+The machine crashes.
+The machine will reboot.
+When the machine reboots, file foo stored on that machine will become available again.
+Now, if you wanted to achieve mere reliability, you cared less about availability.
+That may be okay.
+That may be all you need to do.
+Just make sure that, yeah, the machine comes back up and it makes file foo available.
+But if you have also done something to achieve availability, presumably while the machine crashed, there's a copy of file foo somewhere else.
+When that machine that crashed comes back up, what are you going to do?
+Foo is being served from some other place.
+Will you continue to serve foo from the other place or will you switch back to the one that just recovered?
+You have to decide what to do there.
+So, generally speaking, if we want to achieve high availability in terms of availability of files, we're going to have to have multiple copies of a file available somewhere.
+And if one of them, the one we're normally using, becomes unavailable, we're going to have to have some way of switching to the other one.
+The more automated it is, the less work that processes, machines, system administrators, users have to do to change from one copy, the one that failed, to the use of the other copy that's still available, the better.
+We want this to be as automatic as it possibly can be.
+Well, one thing we can do is, again, we can have two servers.
+One server is the server that serves file foo ordinarily.
+If everything's going well, all the requests for file foo go to that server.
+If that server fails, we will somehow or other switch over to the second server, and that server will get all the requests for file foo.
+Relatively easy to do if foo never changes.
+If foo changes, if somebody keeps writing to foo, we're going to have to make sure that, ideally, both copies of foo at the two different servers are identical.
+This leads to challenges of its own.
+But whatever is happening here, whether it's foo never changes even, I have a process on my machine.
+I've opened file foo on the original server because that's what normally happens, and everything's fine at the moment.
+And I've read 500 bytes of file foo.
+Great.
+That server fails.
+What we would like to have happen, ideally, is automatically I switch over to the other server without having to do another open, without having to do anything in my code that causes me to switch over.
+I've got an open version of file foo.
+It used to be open over here.
+Now it's going to be open over there.
+Now, of course, we then have the issue of saying, well, over there, they didn't know anything about the open at the first version, at the one that was a primary version that failed.
+Secondary version hasn't got any information about that.
+It just has file foo.
+I can open file foo with the secondary version, but when I read the next byte, I want to read byte 501.
+So we're going to have to restore some state.
+Also, you have to know that, oh, yes, I opened file foo for read.
+I did not open it for read right.
+That state also would have to be made available to the secondary server.
+And there may be other state as well that we want to have available to the secondary server.
+Things like cache consistency information.
+Well, you know, that's going to be difficult in some cases to create.
+But you try your best to make sure the secondary server is able to have the same state on failover that the failed primary had.
+Now, of course, there's that authentication issue.
+So I open file foo.
+I authenticate myself as bill to the primary server.
+It says, yeah, yeah, you're bill.
+Fine.
+You can open this file.
+We're going to do a failover.
+Well, that's going to cause the secondary server to have the file open.
+But in order to determine if it should do that, it has to know if I'm bill.
+It's going to have to get some proof that I'm bill.
+So we'll have to do something about authentication there.
+And if it was the case that I here was, let's say I have file foo open for write.
+So I've been writing to file foo.
+I send a request.
+It gets sent across the network.
+Let's say we're actually writing pretty aggressively.
+So we send out write messages pretty quickly.
+So I write, I write, I write.
+I've sent out one write message.
+I've sent out two write messages.
+I've sent out three write messages.
+I've sent out four write messages.
+And then suddenly I don't see file foo around anymore.
+And my automatic failover thing says, ah, that machine has failed.
+You need to go to the secondary server.
+If life is good, then my four messages, my four write messages that I sent to the primary server have all been received by the primary server before the failure.
+And the secondary server knows about all of them.
+In which case, fine, the secondary server has the bit for bit identical representation that I expect to see.
+I can just open and go ahead.
+But what happens if the first three messages got through to the primary server?
+It indeed propagated the updates to the secondary server.
+The fourth message got to the primary server.
+It performed the local updates.
+But before it managed to either acknowledge it to me or tell the secondary server, it crashed.
+So the secondary server doesn't have that for update.
+And I'm not sure if the primary does.
+It might or it might not.
+I never heard.
+So I'm going to switch over to the secondary server.
+What should happen?
+Well, if I have item potent operations, I could resend all four of those messages.
+I could say I'm not going to worry about what the primary server did and didn't tell the secondary server.
+I'm just going to do it all over again.
+Of course, I'd have to have saved those messages.
+Now, in the scenario I'm talking about, I didn't get an acknowledgement of that fourth message.
+That would mean that I really can't be sure about that one.
+So probably I have not forgotten about that fourth message.
+Maybe I forgot about the first three.
+I got acknowledgments of those.
+But I didn't get an acknowledgement on the fourth one.
+So maybe that one went through and maybe it didn't.
+So then when I switch over to the secondary server, we could automatically resend the fourth update to the secondary server.
+If the secondary server is able to treat this as an item potent operation, if that's the kind of thing I'm doing, which we're writing a block of data to a particular value, that's item potent.
+Then I don't have to worry about whether the secondary server did or did not hear about this update.
+I just have to do it all over again.
+Now, you know, this means when I say I have to do this, it has to do this.
+This all has to happen automatically.
+We can't expect users, processes, programmers to do this kind of thing for us.
+The programmers will.
+Of course, the people who are building the remote file system, those programmers will.
+But the programmers who are writing applications that use the remote file system, they must not be burdened with this kind of difficulty.
+So we have to build a remote file system that takes care of these things properly.
+All right.
+Now, of course, what we expect to have happen when we have this ability to do failover is we have to detect we need to do failover, that the primary has failed.
+So somebody's got to detect that.
+And then once they detect that, they have to figure out there is a secondary.
+Here is who the secondary is.
+Let's rebind to the secondary and start working there.
+One way of doing this is to say this is the client's responsibility.
+And again, we're talking here not about the process, the client process.
+We're talking about the client machine, its remote file system.
+It's going to have to say, OK, we have this remote file open for one of our processes.
+It's over there on machine 12.
+We think machine 12 has failed.
+We, the remote file system, will now take over the rebonding of the open file from node 12 to the backup that we happen to know is located on node 15.
+So we detect the failure of node 12.
+We reconnect to 15.
+We do everything necessary for the process that's using this file to now work with file with server 15 instead of 12, which is OK.
+I mean, this client does not know that it was working with 12 or 15.
+It was just accessing files.
+It was doing open, close, rewrite.
+That's one thing we can do.
+That requires every one of the clients to be able to figure out if failures have occurred or not.
+Another possibility is to say, well, if we're running a big, complicated distributed system here, why don't we have somebody whose job it is to watch what's happening in the distributed system, and in particular, to figure out if nodes have failed?
+So we have somebody who's doing health monitoring on all our nodes.
+And this health monitor in the scenario we're talking about notices that node 12 has failed.
+And it then says, OK, fine.
+Now, node 12 had a particular IP address.
+Messages that were destined for this server, this file service, went to node 12 because they went to that IP address.
+If I change node 15's IP address to what used to be node 12's IP address, then all of the messages that used to go to node 12 will now go to node 15 without any further fuss.
+But, of course, there is an issue here, which is node 15 was not node 12.
+Yeah, it's getting things at that IP address now.
+That's where the messages are going.
+But it may not have had all the state that node 12 had.
+Now, in terms of the clients, they don't care.
+They think everything's fine, provided, of course, node 15 has all the information about, for example, what blocks got written, what is the next byte you're going to read, et cetera, et cetera, et cetera.
+Having a stateless protocol that communicates between the client side and the server side of your remote file system will make this a lot more pleasant.
+You don't have to worry about whether somebody got a message or not, because you just resend the message if you need to.
+OK, let's talk a little bit about scalability in a distributed file system.
+It's uniformly the case that every piece of hardware that you work with, any kind of hardware you work with, CPU, RAM, flash drive, network, whatever, all of it has limitations.
+They can do a certain amount and they can do no more because that's what the hardware is capable of.
+So networks have a limited bandwidth.
+You can move this many bits per second.
+You can't move any more bits per second than that.
+Caches are of a particular size.
+You can cache five megabytes here.
+That's all we got in terms of cache space.
+CPUs can perform this many instructions per second.
+They can't perform more.
+Storage devices can store this many gigabytes, but they can't store twice as many gigabytes.
+Also, they can perform reads and writes of this many blocks per second, but no more than that.
+OK, now if you have a very small distributed system and there's not much work going on, the hardware limitations do not tend to be in and of themselves a problem, except perhaps on things like network latency.
+But if you have a high load on your system, you're going to run into these limitations.
+That means your system will not be scalable.
+It will work well at a low load, but as you get more and more and more load applied, sooner or later, you start hitting one of these hardware limits and things stop working well.
+So in particular, one of these limits is the network.
+Generally speaking, it's expensive in a performance sense to send a network message.
+The network card can send a certain number per second.
+The network medium, the wireless, the wire, whatever it may be, can carry a certain number of bits per second.
+Every time you deliver a message, work gets performed at the receiving end.
+Every time you send a message, work gets performed at the sending end, that work being a representation of CPU seconds.
+You do a certain number of instructions to send a message, a certain number of instructions to receive a message.
+And the client, whoever it is who was interested in this message being sent, is going to wait until all of that work has been done.
+It is therefore desirable from a scaling point of view to minimize how many messages each client sends per second.
+The more messages every client sends per second, the chattier they are, the more traffic you're going to cause, the more likely it is you're going to run into scaling problems as you add more and more and more clients to a system that otherwise has the same hardware.
+So how do we do that?
+How do we minimize the number of messages per second?
+Here's a place where caching will help us a lot.
+Because if you can work with a cached copy, you don't need to send a message.
+If you are going to do a rather complex operation, such as, for example, you are going to delete a file.
+Deleting a file may involve things like changing a directory entry, changing free lists, releasing free blocks, et cetera, et cetera, as we discussed when we talked about file systems.
+If you were going to send things across the network saying, do this, then if you send a message saying, do this one, this one, this one, this one, this one, then you're going to have a lot of messages.
+If you send one message that says, do this whole set of things, you're going to have fewer messages.
+So if you have a complex operation, you will try to bundle it into one message instead of end messages.
+Rights, well, it would be nice to have a write back cache so the small writes do not cause a message.
+And you only perform writes when you have a large enough message.
+So there's one write performed on the network for 15 writes performed in the buffer cache.
+Prefetching may help a lot.
+You can say, okay, my network's not very busy at the moment.
+My server's not very busy at the moment.
+Now may be a good time to make use of the spare capacity, temporarily spare capacity, to do prefetches of data that I might need in my cache later, thus avoiding network messages at a time when the network's busier.
+But you've got to remember, if you don't send a message, no one knows that something happened.
+You only know locally that something happened if you do not send a message.
+So if you say, oh, I'm going to delay this message, oh, I'm going to combine these operations into one message, you only know that something happened once the message gets sent.
+Nobody else anywhere knows anything until the message gets sent.
+So, server scaling.
+Now, CPU speed for servers is probably not a big issue in most cases anymore because typically, from the point of view of the instructions we have to perform, that's not what's going to be the limiting factor.
+But the storage device speed is likely to be a limiting factor.
+A server can handle a whole lot of CPU requests per second saying, you know, do this, do this, do this, run these instructions to receive this message, run these instructions to access this block on the disk.
+But the blocks on the disk can only be accessed at a certain speed.
+So, server caching can help with that because we can say, if we are going to do server caching, we're not going to be limited by the limitations of the storage device, how many blocks per second can be read off the storage device.
+But also, if you go back to the device driver discussion that we had before and scheduling and having deep queues, there may be some benefits you can get by doing proper scheduling of operations on devices.
+So, servers can also be set up so that they actually have several different devices on them.
+You can have more than one flash drive.
+You can have eight flash drives, for example.
+Now, instead of being able to handle one number of blocks per second, you can handle eight times as many blocks per second if you use things properly.
+So, you can increase the capacity of your server, provided, of course, you haven't overwhelmed any of its other resources like its RAM or its networking capacity.
+Now, if you have eight storage devices on your file server instead of one, how do you use the eight storage devices?
+Well, one thing you can do is you can say, I got a whole lot of files.
+I'll put some of them on device one, some of them on device two, et cetera, et cetera.
+That's one thing you can do.
+But if you've done things, if you've mapped badly, if you've made bad choices about which files live on which devices, it may be that a whole lot of very unpopular files are living on one device.
+That device almost never gets any requests.
+Another device may have all of the most popular files.
+That device is being hammered all the time.
+So, that would be an issue you might have to worry about.
+Another thing you can do is you can say, well, why don't I say, I've got some very popular files.
+Why don't I store copies of those popular files on multiple devices?
+So, now, I can get to the popular files by going to device one or device three or device seven.
+Any one of them will have the same file there.
+I can get the data there.
+Of course, if you do that, you can't store as many files.
+Okay, so, that's all we have to say about remote file systems, all we have time to say about remote file systems.
+So, in conclusion, we have to access data on remote machines in modern computing.
+That is really important to distributed processing and distributed processing is what modern computing is all about.
+There are a bunch of serious challenges to how we're going to be able to do this.
+There are performance challenges.
+There are consistency challenges.
+There are reliability challenges, scalability challenges, security challenges as well.
+There are solutions.
+People have been working on this for a long time.
+They've come up with answers.
+But the answers are never perfect.
+Every answer has its own benefits and its own costs and drawbacks.
+So, you have to choose in your particular situation which of these possible solutions to the set of problems that we've discussed make sense for your particular circumstances.
+That is the end of the last lecture.
+of this class.
+I hope that you all have enjoyed CS111.
+I hope you've learned a whole lot.
+Good luck on the final exam.
+Amen.
+Thank you.

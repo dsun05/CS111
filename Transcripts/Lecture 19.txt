@@ -1,0 +1,1145 @@
+﻿We're going to continue talking about distributed systems in this lecture.
+This time we're going to be talking specifically about problems of security that arise in distributed systems.
+So we'll talk about why there's more to say about security in the context of distributed systems than what we talked about in the previous operating system security class.
+We'll talk in particular about issues of data integrity, issues of authentication in distributed systems, and issues of filtering in the network that connects up a distributed systems.
+Okay, so why are we talking further, having another lecture on security, specifically about distributed system security?
+Well, I hope you remember that when we talk about security for individual systems, we discuss that it's really kind of a hard problem.
+It's harder for distributed systems.
+What makes it harder?
+Well, first, many of the technologies and techniques we use to achieve a degree of security in a single computer system were based on the fact that we said, okay, fine, we'll trust the operating system.
+The operating system will behave properly.
+Therefore, it can take care of a lot of problems for us.
+And in particular, it can take care of those problems, assuming we trust it, because it has access to everything.
+It can look at all the memory.
+It can handle all the processes.
+It can do all the scheduling.
+It can handle all of the peripheral devices and make sure they're used properly.
+In a distributed system, that is no longer the case.
+Each machine in a distributed system probably has its own operating system.
+Each of those operating systems controls only the resources on that computer.
+It has no direct control over anything on a remote computer.
+And so things are happening outside of the realm of whatever machine you're running on and the operating system running on that machine.
+So things happen over there somewhere.
+And you hear about them.
+Well, did they happen properly?
+Did they happen securely?
+Were they done in a fashion that you trust or do you not trust them?
+You've got to trust your operating system, but you have to trust the other machines.
+Authentication also, of course, becomes harder in a distributed system.
+In a single computer system, basically you have the computer and you interact fairly directly with the computer if you're a human being.
+You type on the keyboard.
+You use the mouse.
+You use, perhaps, voice to control things.
+You have other devices that are attached to the computer or are a part of the computer that you can use to authenticate, such as a fingerprint reader.
+It's harder to deal with authentication in a remote machine.
+Now, in particular, of course, we have that issue of, well, you know, the guy over there said this is his fingerprint, but that was his fingerprint reader.
+We can't look at it ourselves on our computer.
+Is he telling us the truth?
+But there's another issue, which is, depending on the character of the distributed system, you may not actually, on your own local computer, know the identities of everyone who is a legitimate user of the distributed system.
+So you may be getting in something from some party and you aren't actually familiar with who that party is.
+Should they be trusted?
+Should they be allowed to do what they want or not?
+It doesn't really happen on a single computer system.
+If you are unaware of somebody who tries to log into your single computer system, the answer is no.
+But on the other hand, if you're in a very complicated distributed system with tens of thousands of users, it may be that someone legitimately on another machine needs to do something that you do.
+And they're going to ask you to do it.
+Are you sure that this is somebody who should be doing such a thing?
+It's going to be harder.
+Further, of course, as I've said several times in regard to anything in distributed systems, the only way that distributed systems, machines in a distributed system can communicate is via the network.
+That's all they have.
+They don't have buses.
+They don't have direct wires connecting one machine directly to another.
+They have a network.
+And what do you do with the network?
+You send and receive messages.
+There's all kinds of things that can happen on a network.
+Some networks of a particular character are more dangerous than others.
+But generally speaking, somebody might be able to hear your messages.
+Not the party you're sending to, not the party you're receiving from, but somebody else who you didn't want to hear the messages.
+They may be eavesdropping on you.
+People can make a copy of the message if they can eavesdrop on you.
+They can save every single bit of that message, and then they can inject that message again.
+Would that cause problems?
+Well, it depends.
+There can be situations where somebody is in what is called a man in the middle.
+You are sending from your machine to your friend's machine, but your enemy is intercepting all the messages, and he gets to participate in some extent unless we're very careful in your communication, perhaps affecting what you and your friend actually do.
+All kinds of things can happen.
+Now, also, in the previous lecture when we were talking about synchronization issues, we were talking about, gee, it's really hard to synchronize distributed systems.
+To have proper synchronization, proper consistency, reaching consensus.
+That's very hard.
+And that was very hard, even if everybody was behaving honestly.
+Now, if people aren't behaving honestly, it's going to be quite hard as well, as we discussed briefly with the Byzantine general problem in the last class.
+But more generally, if there is somebody who wants to prevent us from achieving consensus, it's going to be kind of hard to do.
+And even if there is nobody who's preventing that, trying to reach agreement, for example, among 30 different nodes scattered across the world on whether the following operation is a secure thing we should go ahead with or not.
+Merely reaching agreement, even if the answer truly is yes, is going to be a lot more difficult.
+Also, of course, again, because we are working on a network, we can say, all right, anybody who has access to the network might be interfering with our operations because they can eavesdrop on messages.
+They can inject new messages.
+They can replay old messages.
+They can flip bits and messages.
+They can prevent messages from being delivered.
+There are all kinds of things.
+So you might say the right way to handle this problem is to make sure that no untrusted parties have any access to the network.
+Well, that'd be nice.
+But the fact of the matter is that pretty much everybody nowadays, whatever they possibly can be, is on the Internet.
+And if you're on the Internet, you are effectively connected by network to everybody else in the world who is also on the Internet.
+Further, you might then say, well, we really had better hope that the Internet is going to provide us with some degree of security and what goes on here in terms of the networking.
+Too bad it doesn't.
+The Internet does essentially nothing itself to ensure security.
+What does the Internet do?
+The Internet delivers messages.
+It tries to deliver messages as fast as possible, as reliably as possible, as many messages per second as possible.
+And it tries not to be badly screwed in terms of, you know, mucking up the topology of the network itself.
+But for an individual packet, it does not try to do anything with that packet.
+It doesn't try to ensure that the packet is legitimate.
+It doesn't try to ensure that the packet has not been tampered with.
+It doesn't try to ensure that the packet has definitely not been dropped.
+That's not its job.
+It doesn't do any of those things.
+And so still, you might say, well, you know, if I'm a very important system, I am part of my country's military and we're going to keep that safe from the Internet.
+Okay. Well, practice has shown that almost everything that's on the network of any kind is probably at one point or another effectively on the Internet, which means segregating your network by simply saying it never connects to anything outside of itself isn't realistic.
+All right. So network security is clearly going to be an important element of distributed system security.
+What goals do we want to achieve in network security?
+Well, we have conversations going on.
+You communicate to a website.
+You have an ongoing agreement of some distributed computation you're doing with your partners.
+Call it a conversation.
+One node is talking to another node.
+The other node is talking back.
+Usually there's some degree of ongoing information going on here, exchange of information, usually not just one message sent and that's that.
+So we want to make sure these conversations have proper security.
+And what do we mean by that?
+Well, we want to make sure that only the parties who should be involved in the conversation are involved in the conversation.
+Further, if I am talking to my partner and I send him a message, I want to be sure that he received that message in exactly the form I sent it.
+And similarly, I want to make sure that the messages he sent to me arrive in the form that he sent them.
+If I send the message, I want to be sure that it was delivered.
+If he sent me a message, I want to make sure I got it.
+We need integrity.
+We need to have an assurance that whatever we are trying to do actually gets through the network without interference.
+Now, also, of course, what is the message?
+Well, the message is a bunch of bits that show up on your network interface.
+And this bunch of bits could have come from anybody because anyone on the Internet in principle can send a message to anybody else on the Internet.
+So how do I know who sent it?
+Well, you might say, oh, there's an address on it, isn't there?
+There is.
+There is a sending address on it.
+But in various circumstances, we can't always trust that sending address to be true.
+It doesn't have to be.
+In particular, the Internet doesn't bother to check.
+So we need some other way of authenticating that this message is really who it purports to have come from.
+And we want to make sure, of course, that even if it was a message that one time Bill sent to me, he sent it to me yesterday, it comes in again.
+I want to be able to be sure that, oh, this is not a fresh message from Bill saying, do this.
+This is the same message he sent yesterday.
+And I should not be getting another copy of that same message he sent yesterday.
+Somebody is replaying that message.
+They intercepted it.
+They made a copy of the bits.
+They sent it again today.
+I better catch that.
+If I don't, a lot of bad things can happen.
+It's also, of course, the case that we may have limited trust in our partners.
+We may say, okay, maybe we'll do this for you.
+But we want to have some assurance that this is really you and you really did ask for this.
+So if you don't like what happens later on based on my doing what you asked me to do, I don't want you to be able to come back and say, oh, I did not ask to do that at all.
+That was a forgery.
+That was somebody pretending to be me.
+That was a replay, something like that.
+You want to make sure that can't happen.
+That's called non-repudiation.
+We want to be sure that when we do something, when we get a message from our partner, and we are going to take action on that message, the partner cannot later falsely claim that he didn't send that message.
+Another attribute of network security that we have to worry about is availability.
+Networks sometimes go down.
+Now, they may go down for a hardware reason that has nothing to do with security.
+You know, something broke.
+Somebody tripped over a cable and pulled it out.
+Well, typically not a directly security-related incident.
+But also, attackers can cause availability to be lost.
+In other words, they can say, I can make sure messages don't get delivered to your machine.
+Or how do they do that?
+There are a bunch of ways of doing that.
+One popular way of doing that is to flood your machine with a bunch of junk messages, messages that are of no use whatsoever.
+You don't want them, but because the internet delivers everything, the internet delivers them to you, and you have to deal with them.
+You typically deal with them by saying, junk, junk, junk, junk, junk, junk, junk, junk, junk, and throw them away.
+But you can only receive on any piece of equipment in the world, anything ever manufactured, you can only receive a certain number of messages per second.
+If people deliver more than that number of messages per second to that piece of equipment, it's going to be overloaded, and you're going to not be able to make effective use of that piece of equipment.
+So, given that that's the kind of goal we wish to achieve, what do we have available to help us achieve it in terms of the networking security?
+Remembering, again, that networking is core to distributed systems.
+Well, cryptography.
+We've talked about cryptography in the security class, and we talked about symmetric cryptography and asymmetric public key cryptography.
+Generally speaking, in the internet, and for that matter in pretty much all computer networks, if we're going to use cryptography to protect our data, we're going to use symmetric cryptography almost all of the time.
+And that's because, I hope you remember, asymmetric cryptography, public key cryptography, is computationally vastly more expensive than symmetric cryptography.
+So, if we're moving a lot of data, we can't afford to use public key cryptography.
+We'll use symmetric cryptography.
+So, what do we use public key cryptography for?
+I hope you also remember from the security class that one excellent attribute of public key cryptography that it does better than symmetric cryptography is authentication.
+So, we'll use public key cryptography to authenticate and to bootstrap things.
+Now, also, of course, we want to be able to detect that messages have been altered.
+We'll use cryptographic hashes, which we'll talk about shortly, to detect these kinds of improper alterations of a piece of data that we sent across the network.
+We'll talk in particular about how we combine some of these technologies into what's called a digital signature.
+And the digital signature, and in fact, all uses of public key cryptography, are dependent on obtaining the proper public key.
+The way we authenticate with public key cryptography, I hope you remember, is the sender encrypts with his private key.
+We have his public key.
+We decrypt with his public key.
+If it comes out right, then we know that it was sent by that particular sender.
+However, all we know is it was sent by the sender who has the private key that matches the public key we got.
+So, if we think we've got, let's say, Apple's public key, we need to be really sure that really is Apple's public key.
+If it's some evil party's public key and they're trying to deceive us into thinking they're Apple and we don't catch that, then they may be able to say, oh, look, here's an authenticated message from Apple.
+And it isn't from Apple at all, even though the public key we're using says, yeah, yeah, yeah, that's fine, because it was the wrong public key.
+Getting the right public key is critical.
+So, how do we do that?
+We'll use a technology called certificates, and we'll talk about that in this class a little bit.
+The purpose of digital signatures and certificates is essentially to allow us to authenticate where messages or incoming data more generally came from.
+Now, as I also mentioned a few minutes ago, we have issues with availability.
+And there are other issues which are that even if we're not talking about an overload of messages, if there's somebody who's sending us an evil message that is likely to cause us problems, and if we could detect that this is an evil message likely to cause us problems, why would we deliver that message?
+So, it would be nice if we could filter out the messages that are clearly not to our benefit, clearly going to be malicious and cause us harm.
+Filtering technologies have been made available in networks that allow us to do much of this.
+Firewalls are an example.
+We'll talk a little bit about those.
+Basically, the purpose of the filtering technologies is to try to prevent as much bad network traffic from reaching our machines as we possibly can.
+Let's talk a bit more about some of the problems we're going to have to deal with in a little more detail.
+Data integrity to begin with.
+So, you're going to get a lot of messages coming in a distributed system.
+Messages are going to be arriving fairly frequently, and you're going to be taking important actions based on the arrival of a message.
+Now, you want to make sure that the messages that arrive were sent by the partners you intend to work with, the partners who you presumably trust at least to some extent.
+If, on the other hand, some interloper who is trying to cause us difficulties manages to get us to accept a message and take action on the basis of that message, we could be doing all kinds of terrible things that are going to lead to very insecure consequences.
+So, we would like to know, in the first place, did this message come from one of our partners?
+But also, even if this message was sent by one of our partners, we need to make sure that it was actually the message that partner sent and not something else.
+Now, you've got to remember always, when you're talking about network security, that what is a message?
+A message is a collection of bits.
+That's all it is.
+It's a bunch of bits.
+Anybody can create any bunch of bits that they wish to create.
+There are no illegal bit patterns.
+You can always create a message containing any bits you want and send out that message.
+Now, maybe that message will get delivered.
+Maybe it won't, depending on various circumstances.
+But you can create any message you want to create and send any message you want to send.
+And attackers, of course, can do the same.
+So, the basic problem with data integrity for a distributed system, for any networking system, is the following.
+Here's an example of it.
+Alice sends Bob a message.
+The message Alice sent contains some set of bits X.
+Those are the bits she wanted to be delivered to Bob.
+Bob receives a message.
+The message appears to come from Alice.
+It contains a set of bits.
+Y.
+Now, Y might be exactly the same as X, or Y might be different than X.
+Bob would like to be able to tell with a high degree of confidence.
+Be pretty sure that yes, Y is equal to X, or alternately, no, Y is not equal to X.
+And in the latter case, make the determination that, gee, I probably better not take any action on this message, because it's probably been corrupted, perhaps maliciously.
+And if I actually do anything with these set of bits Y, I'm in trouble.
+On the other hand, if Y does equal X, well, that's what Alice wanted to happen.
+And presuming we trust Alice, we'll probably go ahead and do whatever the message requires us to do.
+So how are we going to tell if Y equal X in this simple circumstance?
+Checksums are one answer for that.
+Checksums have been around for a long, long, long time.
+They're very old technology and computing.
+So basically, the purpose of a checksum is to determine, did a piece of data change or not?
+And that sounds very promising for this purpose, because that's what we're talking about.
+Alice sent X, we got Y.
+Did X change, becoming a different value when we received Y?
+Or is Y equal X and it didn't change?
+We'd like to know that.
+Checksums can provide the answer.
+Now, the problem with checksums is that when they were created many years ago, decades and decades ago, they were created because we had unreliable hardware and sometimes bits flipped in the hardware.
+So if that happened, that was usually a pretty random occurrence.
+It was not something caused by a malicious activity usually.
+It was just random.
+So checksums were initially set up to deal with random changes in data values, not with malicious changes in data values.
+The way the very simplest checksum worked was you said, OK, I got a whole bunch of words of data here.
+I add up all of the zeros and ones in all of the words of data that I'm concerned with.
+And that comes out to a number.
+There were 553 ones.
+So the number is 553.
+Great.
+That's my checksum.
+Now, when I get the data and I get the checksum, the checksum says I'm 553, we add up all of the bits in the data.
+And if it comes out to 553, we say, oh, nothing changed.
+Everything's fine.
+If there was a random flip of one bit, then, of course, it's not going to come out to 553.
+It might come out to 554 or 552.
+OK.
+So we'll be able to use the checksum to determine if the value changed.
+That is going to work fine, provided what we're looking for is random bit flips.
+Even if it's more than one bit flip, provided, you know, like two bits flipped and they both went from zero to one, the checksum isn't going to come out the same.
+But this is not great.
+This kind of checksum is not really useful if it's a malicious attacker.
+So let's say the malicious attacker has gotten hold of our message and he can change any bits he wants to in the message.
+And we have one of these checksums attached to it.
+What he could do is he could say, well, you know, I could get the effect I want if only this one bit was changed from zero to a one.
+But if I just change that one bit from zero to a one, well, then, you know, the checksum won't come out right.
+The guy will detect the change.
+But on the other hand, if in addition to changing the zero to a one in the place that I want it, I can find some other place in the message where it doesn't really matter if it's a zero or a one, and I can change the one to a zero.
+So I change the zero to a one, a one to a zero.
+If I do that simple checksum, it still adds up properly.
+It looks like it's the right message, even though, of course, it isn't.
+An important bit has changed.
+Checksums, simple checksums, and not just this simple parity check, that's what we call when we add up all the zeros and ones, but some other fairly simple checksum approaches like cyclical redundancy checks, CRCs.
+It's relatively easy for an attacker to create a set of bit patterns that come up to the same checksum.
+Malicious changes in data are not really very easy to detect, or possible to detect in some cases, with these kinds of simple checksums.
+So they won't do.
+They won't solve our problem.
+But we do have something else that will.
+A different type of checksum algorithm, which is called a cryptographic hash.
+So cryptographic hashes are effectively a checksum mechanism, but they're not going to be simple adding up of zeros and ones.
+They're going to take all of the bits in your message.
+They're going to run through some kind of algorithm, and out will pop some usually much shorter piece of data.
+Maybe, you know, you'll reduce a megabyte of data into 512 bits.
+But you'll do it in such a way that you have certain properties that are likely to be achieved by using this particular cryptographic hash algorithm.
+First, you want to make it very, very, very hard for anyone to find two messages that have the same cryptographic hash.
+Now, if you think about this a little bit, you say, well, if it's a one megabyte message, and there are 512 bits that is in your cryptographic hash, there are definitely multiple versions of that one megabyte message that have the same hash.
+But the issue is, can you find a second one?
+And in particular, a second one that's useful.
+If it's very, very hard, then that's good, because then the attacker will not be able to alter your message in a useful way in any reasonable amount of time.
+It's also desirable to say, this is going to be one way.
+You can't necessarily determine what the input was by looking at the output.
+So you get the 512 bits.
+Just looking at the 512 bits shouldn't tell you very much about the input.
+You also want it to be well distributed, by which we mean, okay, I've got a megabyte of data here, and it would produce, if I ran the checksum, this cryptographic hash on it, some particular 512 bit value.
+If I make a small change, you know, I change a word of the megabyte of data, I want to be pretty damn sure that I change the checksum.
+In fact, if I change one bit of that megabyte of data, exactly the same as it was before, except I change one bit, I want to be pretty sure that I end up with a different cryptographic hash.
+So there are such algorithms.
+Not your problem to create them.
+In fact, you shouldn't be trying to create them because it turns out they're not really very easy to create.
+But there are algorithms in existence that you can use freely.
+So how do you use a cryptographic hash?
+So you've got a message.
+You've got a message you're going to send to your partner over there, and you want him to get a high degree of assurance that when he receives that message, no bits have been changed maliciously in the message.
+What do you do?
+Well, you run an algorithm like SHA-3.
+SHA-3 is a very well-known cryptographic hashing algorithm.
+You run that on all of the bits of your message.
+That produces an output that says, here's the cryptographic hash.
+Now, you're going to send the message off, of course, because that was the purpose to get the message to the receiver.
+But you will also send off the hash that comes out of this cryptographic hashing algorithm.
+And you will send it securely, by which we mean people will not be able to effectively tamper with the hash.
+If they can tamper with the hash at all, it will be detectable.
+Okay?
+We'll talk about that in a moment.
+So here I am at the receiving end.
+I've got a partner over there.
+He's used a cryptographic hash to protect the content of the message he sent me.
+I got a message from him.
+I got the cryptographic hash from him.
+I know the cryptographic hash has not been tampered with.
+It's exactly what it should be because it was sent securely.
+I'm not so sure about the message.
+The message may or may not have been tampered with.
+What do I do?
+Well, I know the hashing algorithm just like he knows the hashing algorithm.
+There are no secrets associated with cryptographic hash algorithms.
+So I can run the SHA-3 algorithm, assuming that's the one he used to build the cryptographic hash, on the message I just received.
+And I also have a secure hash that he sent.
+Then I can compare the two and I can say, are they the same?
+If the answer is yes, they're the same, then I have a high degree of assurance that the message has not been altered.
+Nobody's tampered with the message.
+If, on the other hand, what I computed and what I received do not match, I have a high degree of assurance that somebody has tampered with the message.
+Now, of course, as I said, I got to do secure hash transport here.
+I got to move the hash securely.
+Why?
+Well, as I said a moment ago, there are no secrets associated with cryptographic hash algorithms.
+Everybody in the world could know the SHA-3 algorithm.
+Practically nobody does.
+I mean, you don't know the SHA-3 algorithm.
+I don't know the details of it.
+But you can look it up online.
+It's available freely.
+It's a public algorithm.
+There's no key associated with it.
+There's no other secret associated with it.
+It's just a set of rules where you take input data and out comes a hash.
+This means that anybody can produce a cryptographic hash.
+Anybody can produce a SHA-3 hash of whatever they want to produce a SHA-3 hash of, for example.
+Including a bad guy.
+So, if the attacker was able to intercept our message and intercept our hash, he could alter the message, run SHA-3 on the altered message, and send the altered message and the altered hash to us.
+And we wouldn't detect any changes.
+So, we got to make sure that that didn't happen to the hash, at least.
+So, how do we do that?
+Well, we encrypt it.
+Fine.
+Now, why would that be better than saying, well, couldn't you just encrypt the message?
+Yes, you could just encrypt the message.
+But the message could be very, very, very long.
+The hash is pretty short.
+512 bits is, you know, a typical cryptographic hash size.
+And that's probably a whole lot less than the message.
+When we say message here, we may not be talking about one packet, one network packet.
+We could be talking about a whole set of network packets.
+You're moving a file across the network, for example.
+You can run the cryptographic hash on the entire file, add up all of the bits from all of the messages, and then it'll turn out that the cryptographic hash is or is not right.
+And if you just encrypt the cryptographic hash, but you do not encrypt the messages containing the file data itself, you get the property of integrity because the cryptographic hash does or does not match what got sent in the messages.
+And you pay a whole lot less in cost of cryptography because it's a lot cheaper to encrypt 512 bits than to encrypt a megabyte worth of data.
+Of course, if you want secrecy as well, maybe that's not what you do.
+So this, if we're going to just say all we care about is the integrity here, we just want to encrypt the hash.
+This sounds like a pretty good job for public key cryptography because we don't care about the secrecy of the hash.
+We aren't trying to protect the secrecy of the messages, so why do we care about the secrecy of the hash?
+Anybody who can see the messages will be able to derive the hash.
+So what we would do then is say, fine, what if the sender created the cryptographic hash, encrypted it with his public, his private key, and sent the hash to us in that encrypted form?
+We would know his public key.
+We decrypt it with his public key.
+Now we know what the cryptographic hash should be, and we can check it.
+Now, that does depend on an important assumption, which is we have the right public key.
+I brought this issue up earlier in today's lecture.
+Do we have the right public key for who we think we're talking to?
+We think we're talking to Apple.
+Is this really Apple's public key, or is this somebody else's?
+This is a very important issue whenever you're using public key for any purpose.
+If you have somebody's public key, you can do all sorts of useful things like authenticating messages, because they can encrypt with their private key, you decrypt with the public key.
+That's only going to work out properly.
+You're only going to get the right message if you have, in the first place, the right public key to match the private key of whoever it was that you know sent the message, and second, if the cryptography works.
+But there is, again, the issue of saying, okay, I'm going to communicate with Chase Bank.
+Do I have Chase Bank's proper public key?
+Or is it a swindler somewhere in some other part of the world pretending to be Chase Bank?
+Is it possible that I was given a public key and somebody said, here's the public key for Chase Bank, but it was actually the swindlers.
+If I accept that as being Chase Bank's public key, I'm in trouble.
+Now, how do I make sure I got the right public key?
+In some cases, we can do this in a relatively simple fashion.
+So you buy a new computer from a trustworthy source, you know, a company that is very well known for being honest and selling computers, that's their business, and it's got Windows installed on it.
+Well, if it's got Windows installed on it, and if they're a trustworthy company, they can make sure that you have Microsoft's public key installed on that computer.
+And from that point onward, you can say, well, this seems to come from Microsoft, I have Microsoft's public key.
+I got it from a trusted source.
+I'm sure it's Microsoft's public key.
+Does the public key cryptography match?
+Fine.
+That'll work for Microsoft, or if you have an Apple computer for Apple and so forth.
+But what about for the more general case?
+Well, what can we do?
+A couple of approaches have been proposed.
+One approach is to say, let's set up a bunch of sites on the internet somewhere, trusted sites, sites that everybody trusts, or at least a lot of people trust.
+And anytime I want to find out somebody's public key, what's the public key of Chase Bank, I go to this trusted site and say, tell me what the public key for Chase Bank is.
+It will tell me this is the public key for Chase Bank, or Amazon, or Microsoft, or Facebook, or whoever.
+And then I know their public key.
+And I trust it because it came from this trusted site.
+That's one approach.
+A second approach is, let's create a digital document, which contains a public key and evidence that this is really that party's public key in the document itself.
+Now, the document, again, is just a bunch of bits.
+So now I can pass that document around.
+Anybody who gets a copy of that document will be able to determine if this is Amazon's public key, Chase Bank's public key, Microsoft's public key, whoever it purports to be, because there will be information embedded within this document that says this is indeed the correct public key.
+These kinds of documents are called certificates, and they are a very important technology in modern computing systems that perform networking, including distributed systems.
+Certificates, in fact, are what we use in almost all cases to distribute public keys.
+So what is it?
+It's a data structure.
+It's just a data structure.
+It's just a bunch of bits.
+What is in that bunch of bits?
+An identity.
+Amazon.
+A matching public key.
+Here's the 2048-bit public key for Amazon, for example.
+There's generally some other information, such as it's good for the next two years or whatever expiration date has been set up.
+Now, in addition to that, all of that information, identifying so forth and saying here's a public key, there is also what is called a digital signature embedded in the document.
+Every certificate contains at least one digital signature.
+What is a digital signature?
+It's encrypted evidence that says everything else in this document, who it is, what their public key is, what the expiration date is, anything else you want to have in there.
+This is evidence that that's all true, that that really is what it claims to be.
+Okay, so it's encrypted.
+What does that mean?
+Well, it means that somebody encrypted it.
+What did they encrypt it with?
+They used public key cryptography.
+They encrypted it with their private key.
+Great.
+I don't know their private key.
+I better know their public key, though, because if I know their public key, I can look at this document and I can decrypt this encrypted evidence, and it either matches what's in the document or it doesn't.
+And if it doesn't, I know I got a problem.
+So that means I use a public key to figure this out.
+So if I know the public key of the authority who signed the certificate, I've gotten one of these certificates.
+Somebody's given me the certificate.
+You know, they handed it to me on a flash drive.
+It came in in a message across the network, whatever it may be.
+I got the certificate.
+I got the bundle of bits.
+If I know the public key of whoever it was who created the encrypted evidence embedded in the document, then I can use that public key to decrypt that encrypted evidence, validate that the signature is correct, and that the signature has not been tempered with.
+And moreover, I can do this offline.
+I do not have to communicate to whoever it was who signed this document.
+I don't need to do that.
+I already have their public key.
+I've got their signature.
+That's all I need to check the validity.
+I don't have to be online at all to check a certificate.
+I don't have to have networking enabled.
+I don't have to have any connectivity.
+If I have the certificate and I have the right public key, I can check the validity of the certificate.
+Great.
+Of course, I have to also trust whoever signed the certificate.
+Because if some bogus guy who is a hacker in a foreign country signed the certificate and it says, I'm the bogus guy who's a hacker in a foreign country, I swear this is the right public key for this guy.
+Well, you know, I probably shouldn't believe that.
+So somebody who signed a certificate must be somebody I trust.
+And further, I have to trust them in such a way that I know their public key.
+All right.
+Now, this is not a new phenomenon.
+So, you know, somebody shows you their driver's license, California driver's license.
+Why do you believe they are who they claim to be?
+It says so on the driver's license.
+Well, you trust California to give out driver's licenses that are valid, that are the right name and so forth.
+Same thing for passports.
+So this does mean, however, that you have to know and trust whoever did the signature.
+In the case of a certificate, whoever it was who encrypted the evidence that's embedded in encrypted form in the certificate.
+So you know and trust their public key.
+And as you may see, we've now got a chicken and egg problem.
+I want to communicate with somebody online I don't know their public key.
+I get a copy of a certificate saying, here's the public key of the guy you want to communicate with.
+Great.
+Fine.
+But anybody can say this is the public key of that guy.
+I need to check the certificate to see if that's true.
+How do I check the certificate?
+There's encrypted evidence in the certificate.
+If I decrypt the encrypted evidence properly using the right public key, and if I compare that to what's in the certificate about who the guy is, what his public key is, and the expiration date and all that, and they match, then I have some confidence that, yes, this is the right public key for the guy I want to start communicating with.
+But to do that, I have to have the public key of the guy who signed it.
+So to find out whether a public key is valid, I already have to have another public key.
+So how am I going to get that public key, the one I use to check the certificate?
+The answer here is usually out of band.
+In cryptographic descriptions, when somebody says this is communicated out of band, that means that somehow or other, information gets from one place to another without using the form of encryption that they are talking about.
+So here, that public key that is used to check a certificate, that is not communicated across the network.
+That comes to me some other way.
+How?
+Well, that varies a little bit.
+But generally speaking, you will have programs that are installed on your computer when you first get the computer.
+The operating system is one.
+A web browser is very commonly installed on all computers nowadays, at least all computers used by people.
+And those can have embedded in them public keys.
+Once you know those public keys, you can use those public keys to check certificates signed by those parties.
+If that doesn't work well, you can have hand delivery of the public key.
+Or if you like to live dangerously, you can take a public key coming in across the network saying, Hi, I'm Peter's public key, and you just trust it.
+That is living dangerously.
+However you got it.
+You got the public key used to sign the certificate.
+You're able to check the certificate.
+So now we want to make sure that we're going to be able to actually use the public key of whoever it was who created this incoming message, a megabyte of data.
+We want to make sure that they are indeed, we are indeed receiving what they sent.
+We know who they are.
+We have their public key.
+We have a megabyte of data that was sent to us in various messages.
+It's supposed to be what we're to work with.
+We want to make sure it hasn't been altered in transit.
+So what do we do?
+Well, we work together with our partner.
+The partner who is going to send us that megabyte of data runs the cryptographic hashing algorithm on the entire megabyte of data, encrypts it with his private key, sends us the megabyte of data, possibly unencrypted, sends us his cryptographic hash, probably encrypted with his private key.
+Okay.
+When I get both of those pieces of information, the megabyte of data scattered across a bunch of messages, the cryptographic hash encrypted with his private key, I use the public key that I have high degree of confidence actually belongs to him to decrypt the cryptographic hash.
+And then I compare it to the cryptographic hash algorithm run on the one megabyte of data I receive.
+This whole process is called a digital signature.
+It may be a little bit clearer what's going on here if we look at it a bit more graphically.
+So this is a very simple case.
+We've got a message over here, and it's at a sending site.
+And over on the right side of the diagram, we're going to have a receiver.
+So what does the sender do if he wants to create a digital signature for this particular message?
+Well, he sends the message.
+Now, he's sending it across the network, and the network is not trustworthy.
+We cannot be sure that the bits received are the same as the bits sent.
+Attackers may have done some funny business to alter bits.
+Something got received, at any rate, at the receiving end.
+But also, in addition to sending that message, the sender is going to create a digital signature of what he wanted to send, the message he wished to send.
+What does he do?
+He runs the message through the cryptographic hash algorithm, say SHA-3.
+Then he uses asymmetric encryption, public key cryptography, with his private key as the key used to perform the encryption, and out pops this orange structure, the digital signature.
+A bunch of bits, probably fairly small bunch of bits, in encrypted form.
+He sends the digital signature across the insecure transmission medium.
+Now, remember, this is an insecure transmission medium.
+So the bits in the digital signature could have been altered.
+They could have been changed in arbitrary ways by an attacker.
+On the receiving end, now, I have two things.
+I got the message, the data that I really wanted to get, and I wanted to be sure it was the right data.
+It might be, it might not be.
+I'll need to check that.
+And I also got the digital signature.
+So what I will do is a computation on each of those two things I received.
+With the digital signature, I will say, okay, he did public key cryptography on this with his private key.
+I will do public key cryptography on this digital signature with his public key, which I have.
+So I run through that, and I get one version of what this cryptographic hash should be.
+Then I also take the message, and I run that through the cryptographic hash algorithm myself.
+I now have two versions of what the cryptographic hash is.
+One I computed at the receiving end directly from the bits of the message.
+Another that I decrypted from the digital signature.
+I compare.
+If there is any difference between the output of those two computations, I know that something has been altered.
+It might be the message.
+It might be the cryptographic hash.
+But something got altered in transit, and I better not go ahead and make use of this message, because probably an attacker is trying to screw it with me, or maybe it's just around the bit flip.
+Those things still happen.
+But nonetheless, I don't know for sure what's going on here, so let's be safe and not accept this message.
+So, in particular, we do this kind of thing, you do this kind of thing all the time without knowing it's happening.
+On your smartphones, on your laptops, on your pads, whatever.
+How's it work?
+Well, you've got a lot of software sitting around on those machines.
+They have an operating system, of course.
+They have a lot of applications also running on those machines, and you get software updates on those frequently.
+I'm sure you've seen many, many, many software updates.
+So, what is a software update?
+Nowadays, they're almost always delivered across the network.
+So, you get a whole bunch of bits coming in saying, here's a software update for your operating system.
+Well, is that actually a software update that came directly from Microsoft in the form it should be?
+Or is this something from an evil attacker who is trying to compromise your operating system and install his own bogus version on your computer?
+If you accept the update without any evidence that it is a correct update, you might install a bad operating system on your computer.
+So, you don't want to do that.
+And this is true, of course, for apps as well.
+So, how do we answer that question?
+We use a digital signature.
+This is what is really done.
+We're talking here not about, oh, you could do this.
+This is what really happens on your computers.
+So, there's going to be somebody for whatever software you're talking about, the operating system, the application, whatever it may be, who is the creator of that software.
+For a Windows update, that creator would, of course, be Microsoft.
+So, they are the certification authority.
+They're the ones who say, this is a legitimate Windows update.
+Microsoft says it's a legitimate Windows update or it isn't a legitimate Windows update.
+So, when they create a new version of Windows, they run through all kinds of reliability testing.
+They fix any problems they may find.
+And then they say, this is the version we wish to distribute to our customers.
+So, they then perform a cryptographic hash on that load module, on that piece of update code that they're going to distribute to everybody.
+That gives them a cryptographic hash.
+They then encrypt that hash with their private key.
+Now, they distribute the update, the actual software update that's going to change the operating system on customers' machines.
+And they also send this digital hash in the digital signature form signed with their private key.
+On the receiving end, whatever it is that's going to say, okay, shall we apply the update to this piece of software, the operating system in the example we're talking about, is you say, well, okay, here's the software.
+Here's the digital signature.
+We'll go through that whole process we just saw on the previous slide and run through the secure hash algorithm.
+Decrypt the digital signature.
+Compare.
+And if the answer comes out right, we install.
+And if it comes out wrong, we don't install.
+Because if it comes out wrong, something has changed in either the distribution of the update or in the digital signature that we received.
+And neither one is a good thing.
+So, we do not accept that.
+We reject it and say, perhaps, let's try again.
+Try sending it again.
+And let's see if we get the right thing this time.
+Okay.
+Now, you could say, well, okay, fine.
+Why am I bothering with this hashing algorithm at all?
+You know, I've got the public key of the guy.
+We've used the certificate to get the public key of the guy.
+Fine.
+We've got Microsoft's public key, for example.
+Why doesn't Microsoft just encrypt their software update with their private key?
+The whole software update encrypted with their private key.
+And then they'll distribute it to us encrypted with our private key.
+I've got their public key.
+I can decrypt it.
+And then I can just install it.
+Well, software updates, especially when we're talking about something like an operating system, are large.
+Very, very, very large.
+They could be megabytes of data or hundreds of megabytes of data, depending.
+So, if we are going to use public key cryptography to do that, that's going to be incredibly expensive, computationally speaking.
+It's very, very, very expensive to encrypt a large quantity of data with a private key or a public key.
+It's expensive to decrypt it, too.
+So, this would not be computationally reasonable.
+On the other hand, we can send out the whole software update, unencrypted, perhaps, and only use the public key cryptography on the relatively short, say, 500 bits, 1,000 bits cryptographic hash.
+That means a small amount of data is encrypted with public key cryptography, and the cost is reasonable.
+This is generally something that you should expect to see whenever we say we're going to use public key cryptography.
+We're going to try to use the public key cryptography on a small amount of data, on the smallest amount of data that allows us to achieve the result we want to achieve.
+Okay, so now let's talk about authentication issues.
+Now, we talked previously about authentication on a single computer, and we talked about using passwords, and talked about challenge response systems, and we talked about biometrics, and so forth.
+Now, we can use the same kind of things to remotely authenticate a user.
+So, we're communicating to another machine in our distributed system.
+There's a user there who says, I want to do something on your machine.
+I want you to do a computation for me.
+How do we know who we're talking about?
+Okay.
+Well, we can say, fine, let's get a password.
+Let's do a challenge response.
+Let's check the guy's fingerprint.
+We can do all of those things.
+But then there are a couple of issues.
+First, if we are doing this, and the user is sitting at another computer with a fingerprint reader, for example, that fingerprint reader is on the other computer.
+What's going to happen?
+The fingerprint reader is going to read his fingerprint, convert it to a bit pattern, and it's going to probably send it off to us in a message.
+Has that message, at the point it arrived with us, been tampered with?
+If it has, we have an issue.
+Another issue is, well, you know, yeah, I know this machine over there.
+It's one of our partners, but I'm not sure if I fully trust its operating system.
+I'm afraid that perhaps the people running that machine have not been careful, and they have perhaps allowed an attacker to compromise their machine.
+In which case, what I'm getting may not be the true bit pattern of the guy who's sitting over there.
+He may be an evil hacker, and he's going to try to convince me that he's a legitimate user by having his compromised machine send a crummy bit pattern for somebody who isn't him.
+How do we know?
+Well, generally speaking, of course, we're going to solve pretty much not all, but many security problems in networking with cryptography.
+And the first of these two problems is solved with cryptography.
+That problem being, of course, has the authentication evidence been tampered with.
+If we encrypt the authentication evidence, and don't worry about whether it's symmetric or asymmetric at this moment, if we encrypt that evidence and send it across the network and we're careful about how we do the cryptography.
+By the way, there's a long history of people not being sufficiently careful with cryptography.
+It turns out that doing cryptography properly is really very, very complicated.
+And there are just dozens, hundreds of cases of people screwing up on how they do their cryptography.
+So they may have been using a perfectly good cipher in a way that it probably should have worked, but they made a few mistakes in what they did, and it wasn't secure.
+So at any rate, you always have to worry about, is the cryptography properly applied?
+But let's assume, happily, that it is.
+So if it's been properly applied, the guy over there provided his, let's say, fingerprint or his password or whatever it may be that's the evidence of his authentication.
+And we encrypted that evidence, and we sent that evidence properly encrypted safely across the network.
+It got decrypted on our side.
+It decrypted properly.
+And we now know, okay, this is what his fingerprint looks like.
+This is what he claims his password is, and so on and so forth.
+Okay.
+Now, of course, we're going to have to do the key distribution issue.
+How do we know that, you know, if we're going to encrypt across the network, we're going to have to have a key to encrypt with?
+We'll worry about that.
+Essentially, a bit later, certificates might be able to help with that.
+But this doesn't help us with the other problem, which is, do I trust the site that's over there?
+If we're running a distributed system, we are, by definition, working with other computers.
+There are other computers beyond the one we are working with ourselves.
+And in some cases, we have complete trust in those computers.
+But in other cases, we don't.
+We may have limited trust.
+We may be able to do certain things for them.
+We may trust them to do certain things in certain ways.
+Or alternately, we may say, we're going to need some evidence of what's going on on that other computer before we take action on their behalf.
+We certainly do not trust messages coming in from a remote computer as much as we trust what's happening on our own operating system.
+Because our own operating system is in full control of what happens locally.
+So, we also might have multiple different users working on that remote computer.
+We have 73 different users working on the computer.
+It claims that this message comes from user 50.
+But what if it actually comes from user 20?
+You know, I'm pretending to be user 50.
+Are we sure that the computer over there has done its own authentication of who user 50 is, who user 20 is, in such a way that it can't be fooled?
+We don't know.
+It says it's okay, but we don't know.
+So, we have to be careful about authentication of things happening on remote sites in a distributed system.
+So, how could we do that?
+Well, we typically have a couple of choices here.
+If we are on our machine and there's something happening over there and it's going to send a request of some sort over here, and we may or may not perform that request depending on our belief in the authentication of who is making the request, how could we do it?
+Well, one approach is to say, that machine over there authenticates whoever that party is.
+It figures out, to whatever degree of certainty is necessary, who that is.
+And it then sends us encrypted confirmation saying, this is really Bill Jones or whoever it's supposed to be.
+Now, in that option, my computer, my local computer, getting this information from the remote guy saying, yes, it's Bill Jones, believes it's Bill Jones.
+And I then take action on the basis of the requesting user being Bill Jones.
+Do I open the file?
+Do I not open the file?
+Do I give him the secret information?
+Do I not give him the secret information?
+Whatever it may be.
+Oh, it's Bill Jones.
+The other side said so.
+Therefore, I will do it.
+That's one choice we have.
+Another choice we have is to say, I'm not going to rely on that remote machine to check the authentication.
+Instead, I'm going to tell the remote machine, get whoever it is, your user, your program, whatever is trying to communicate with me, to provide me with authentication information.
+I, and then send it across the network, probably in an encrypted form, because you want it to get through unaltered.
+And then on my side, I will decrypt that information.
+I will look at the information.
+I will check the fingerprint information.
+I will check the password, whatever it may be.
+And if I'm satisfied, yes, I've just gotten proof that the guy over there who wants to communicate with me really is Bill Jones.
+Then I'll go ahead accordingly.
+I analyze the authentication information locally, rather than trusting the remote site.
+So the first approach says the remote site authenticates its local user, and it sends some kind of authentication information to our site.
+This is Bill Jones.
+And it doesn't actually have to do that.
+It could say, well, I'm not going to tell you who my user is, but I am going to tell you that he should be able to read the following file.
+You don't know who he is, but I, the remote site, am telling you, let him read this file.
+Now, that has some advantages for certain purposes.
+So I don't know who it is who's asking for the file.
+Is it Bill Jones or is it Jane Smith?
+I don't know.
+What I know is that that site over there said, whoever this is who's asking for the file, they are allowed to see that file.
+Of course, I'm now trusting them not just to make the authentication request, but to do the authorization, to say, yes, they can do this.
+And I then obey their authorization request.
+We can do that, and some systems do that.
+In any case, whatever is being sent across the network from that remote site to my local site where I will or will not do what was to be said, what was to be done, we want to make sure that there is encryption on whatever passes across the network.
+This does imply a high degree of trust between our site and the remote site because we're basically taking their word for it.
+Second approach, we're not quite as much taking our word for it.
+We say, okay, you say you got somebody over there who's Bill Jones.
+Have that party send me proof that he is Bill Jones.
+And, of course, what's going to happen is somehow or other, the user over there provides some degree of evidence.
+That evidence is in a bit pattern.
+The bit pattern is put in a message.
+The message is sent to me.
+And, of course, we encrypt the message.
+So, the remote user presumably has provided that information.
+How do they provide the information?
+Well, if it was a password, they probably typed onto the keyboard of that computer or on the keyboard of a terminal attached to that computer.
+Or if it was a fingerprint, they probably went to the fingerprint reader that was attached to that computer, put their finger on it.
+At any rate, they probably worked with that remote computer.
+And what happened then?
+Well, the remote computer took whatever evidence they provided, bundled it up into a message, and sent it to us.
+Okay.
+And, of course, we cryptographically protect that information as it goes in transit.
+Then we can say, all right, fine.
+I decrypt the information.
+Look, here's the password that's supposed to be Bill Jones' password.
+I will check to see if it's Bill Jones' password.
+On the surface, it may sound like this is a much lower degree of trust in that remote computer than in that first approach.
+Now, where did that authentication information come from?
+Well, it came from the remote computer.
+We hope it came from the user on the remote computer.
+But if we don't trust that remote computer's operating system, well, then what happened?
+Maybe it was actually Jane Smith, not even pretending to be Bill Jones, just saying, hi, I'm Jane Smith.
+I want to do this.
+She provided her authentication information.
+The remote computer filled in what it knew to be Bill Jones' information.
+It had a copy of the bit pattern for his fingerprint.
+It knew what his password was, whatever.
+And it sent us and said, Bill Jones would like to get the secret.
+And we say, oh, Bill Jones.
+Look, is that really Bill Jones?
+Check the fingerprint.
+Check the password.
+Oh, it checks out.
+Bill Jones is over there.
+It isn't Bill Jones.
+It's Jane Smith.
+And we send to Jane Smith the secret information she shouldn't have seen.
+In particular, in this case, probably what that means is that the remote operating system, which is compromised, is able to get hold of that information, the secret that we didn't want anybody but Bill Smith to see.
+All right.
+So this is not really in and of itself wonderful.
+But what if we had, instead of a fingerprint or instead of a password, some proper form of challenge response to that user over there who claims to be Bill Jones?
+Maybe if we can work that out with, you know, a security token that Bill Jones has or something like that, we can say the remote computer will not be able to fake who it is because in order to fake who it is, they have to have something like a security token that only Bill Jones has.
+There are issues there.
+Okay.
+Now, somebody's remotely logged into our computer or they have started to interact with our website and they are going to have an ongoing conversation with us.
+Messages come, messages go.
+Messages, responses come, responses go.
+In many cases, in most cases, in fact, when we are interacting with a remote computer, we are not sending a single packet and perhaps receiving a single response.
+We're having an ongoing conversation with multiple messages going back and forth over the course of time.
+Is it the case that for proper authentication, every time we receive a message from a remote user on some machine that isn't our very own machine, we're going to have to have a password provided or other form of authentication?
+That would be expensive and kind of cumbersome and unpleasant, certainly for the user on the other side.
+Every time you click a button, you've got to provide your password again.
+So, what do we do instead?
+Well, we ask once.
+We ask once to get authentication information about who the remote party is.
+Once we have that authentication information, then somehow or other, we will tie that to the ongoing communication that we have with that remote party.
+This should sound kind of familiar.
+If you think about how do we deal with opening files and determining if you have read, write, or access to a file.
+You should have heard this before.
+We're doing something similar here just across the network now.
+How exactly do we do it?
+Well, first, we authenticate.
+And we do it however we feel comfortable doing it, getting the degree of evidence we feel we need to get in order to ensure that this is the party we think it is.
+So, somehow or other, we have ensured once that the party over there is Bill Jones.
+All right.
+So, what do we do then?
+Then, we'll set up a brand new symmetric key between ourselves and Bill Jones on that remote machine.
+And we hope that nobody else knows that.
+Now, of course, we are now saying we're kind of trusting that remote machine because, after all, where's Bill Jones keeping that symmetric key we've given him?
+He's keeping it in RAM.
+Who controls the RAM?
+His operating system controls the RAM.
+Well, you know.
+But, at any rate, leaving that aside, we think that we now have a secure channel with Bill Jones, and in many cases we actually do.
+All right.
+Fine.
+So, now how do we use that secure channel to further authenticate our ongoing communication with Bill Jones?
+Well, we encrypt using the symmetric key.
+And every message that we send to Bill Jones, every message he sends back to us, uses a symmetric key that we have already set up that belongs, that we know, or we have a high degree of confidence, is between us and Bill Jones.
+Fine.
+Now, if we have the cryptography done properly, then we have a high degree of confidence that any message that comes in purporting to come from Bill Jones that is properly encrypted is indeed from Bill Jones.
+We've authenticated that message.
+There are complexities here.
+First, there's the issue of a replay.
+So, Bill Jones sent us a message.
+It was encrypted.
+It really did come from him.
+It decrypts properly.
+Fine.
+What happens if the attacker, as eavesdropped, made a copy of that message in the encrypted form?
+Bit for bit.
+And sends it again.
+Well, if we do the cryptography properly, we will detect that.
+What about lost or dropped messages?
+Well, that's going to be an issue as well.
+Because if we lose, you know, sometimes what's going to happen in networks is you're going to send off a bunch of packets without any packets having been received, without any confirmation that any of the packets you've sent yet have actually been delivered.
+If one of those packets gets lost, things get a little complicated.
+But, again, we can work that out.
+Another issue, though, is how long is this authentication good for?
+We asked for his password.
+We got his password.
+We share a symmetric key.
+And we're using this metric key to authenticate all of the subsequent messages that we send.
+How long?
+Are we going to do that for the next 100 messages?
+Are we going to do that for the next hour?
+Are we going to do that as long as he is in the same session?
+Are we going to do it for the rest of our lives until we never again communicate with Bill Jones?
+How long?
+So, what is our answer here?
+One common answer is provided by what's called transport layer security, TLS.
+This is a very common approach that is built into many, many, many systems.
+It's not in the operating system itself, typically, but it's usually in a library associated with the operating system.
+And it essentially puts security on top of sockets.
+Okay.
+Basically, it says, let's change an unencrypted socket between a couple of machines to an encrypted socket between a bunch of machines.
+We're going to have these sockets are set up between two parties.
+There's a sender and there's a receiver.
+And they're actually one way.
+So, if you want to have communication in two directions, you typically have two TLS sockets.
+Okay.
+If you set these things up properly, you're going to get some useful properties because everything going across the socket is going to be encrypted.
+What properties are you going to get?
+Privacy.
+Nobody can read your messages except the party who you're sharing the socket with.
+Integrity.
+Nobody's going to be able to usefully alter your messages.
+Nobody's going to be able to replay your messages.
+Everything's going to work out fine.
+If messages get dropped and you have to do retransmission, it's all going to work out.
+It's all hidden inside TLS.
+So, you get privacy and integrity.
+What about authentication?
+Well, TLS is a very general approach.
+And you can use it in different ways.
+And some of those ways provide one type of authentication and other ways provide a different level of authentication.
+So, which degree of authentication you get depends on how you use TLS.
+Generally speaking, one of the things that's going to happen when you use TLS is you're going to start up a session with a remote site.
+You're going to set up a TLS socket.
+And you want to start using symmetric cryptography.
+As always, we want to do most of our data transport over cryptography using symmetric, not asymmetric cryptography.
+So, to do that, you need a key.
+You want to have, for a TLS session, a brand new key.
+Every time you set up a TLS session, you set up a new key and you just keep using that key as long as the session lasts.
+When the session ends, the socket is closed, either because somebody intentionally closes it or because there's some kind of failure that results in it being shut down, like your process crashes.
+Until that point, you continue typically using that symmetric key.
+And most of your data transport is going to be symmetric.
+Typically, how do we get the key from one side to another?
+We do various kinds of things, including variants on Tiffy-Hellman key exchange, which is discussed in the book, that allow us to, in an authenticated fashion, share a key between two parties.
+So, great.
+How exactly are we doing this authentication?
+Well, we can use public key cryptography to authenticate the receiver and the sender.
+We can authenticate the sender to the receiver.
+So, the receiver says, I know that this is my actual customer or I know this isn't my actual customer.
+And we can use it to have the receiver authenticated to the sender.
+So, yes, the guy over there who I wanted to communicate with, that really is Amazon.
+That isn't some evil hacker.
+I can do both.
+But typically, that's not what we do.
+Typically, we only authenticate in one direction using TLS and using public key cryptography.
+So, for example, when you communicate to a website, you often are using TLS.
+But you are not providing your public key.
+You're not providing your public key because you probably don't have one.
+However, the site you're communicating with, Amazon or Instagram or Twitter or TikTok or whoever it may be, they are providing you with public key related information that proves that they are TikTok or Instagram or Facebook or Amazon or whoever it is you're trying to communicate with.
+So, the result of this is when the socket is set up and the key is shared between two parties.
+You know, with a high degree of confidence, it's Amazon.
+Amazon, they don't have a clue who you are.
+You're who you are.
+Who are you?
+I don't know.
+They're sharing a key with you.
+They know they're sharing a key with somebody, but they don't know who.
+So, this is going to be necessary because, as I said, do you have a public key?
+You probably don't know that you have a public key.
+And it turns out that if you don't know you have a public key, you don't have a public key.
+So, chances are you could not provide a public key to Amazon saying I am Peter Reier, for example.
+Actually, I have a public key, but most people don't.
+I'm a security professional.
+So, what's Amazon going to do about that?
+I'm communicating to Amazon.
+They've proved to me that they are Amazon.
+I know they're Amazon.
+They don't know who I am.
+What do they do?
+Well, sometimes they really don't care.
+I'm going to browse through their webpages.
+I'm going to look up all these products.
+I'm going to see if they have a pair of shoes that I like the look of or whatever.
+And I'm not buying right now.
+I'm just browsing.
+So, they don't care.
+Who do they care who they're communicating with?
+They're not providing any secrets.
+They're not doing anything at this stage that's going to cause them a problem.
+So, they don't care.
+What if they do care?
+Well, we may reach a point where they do care.
+Where, for example, you're going to say, well, you know, I bought one of these things yesterday.
+And now I want to take another look at it and see if I want to buy another one.
+Then they have to know, are you who you claim to be?
+Are you really Peter Reier?
+Peter Reier bought that yesterday.
+So, we could tell Peter Reier all about it.
+But if you're not Peter Reier, we don't want to tell you about what Peter Reier has been buying.
+Therefore, we need to get some kind of authentication from you.
+We, Amazon, need to get some authentication from you that you are indeed Peter Reier before we start showing you all of this stuff that is private information on Peter Reier.
+So, what do they do?
+They ask for authentication.
+Sometimes they'll ask for a password.
+They may ask for something other.
+Now, is this safe?
+Well, yeah.
+Because, after all, they do already share a cryptographic connection through TLS with me.
+I may be Peter Reier.
+I may not be.
+But they share a cryptographic communication.
+If I provide authentication information across that cryptographic channel, that TLS socket, it's encrypted.
+So, if it's my password, for example, nobody but Amazon, who's able to encrypt my messages, will be able to see what I claim my password is.
+These droppers will not be able to get my password by listening in on my communication with Amazon.
+Okay.
+So, let's say that this is indeed what happens.
+I go to Amazon.
+I get proof that Amazon is who they claim to be using public key cryptography.
+I decide I want to log into Amazon to prove that I am who I claim to be.
+I provide my password.
+It's the right password.
+Amazon says, yes, that's Peter Reier.
+Okay.
+Now they know what they didn't know before.
+Now both sides know who is communicating with this particular symmetric key across this TLS channel.
+Which means, for the rest of our communication, as long as that socket is open, the two of us, I and Amazon, can have high degree of assurance that whatever messages we send and receive, if they are properly encrypted, are authenticated as coming from the other party.
+All right.
+Now, you may say, yeah, yeah, I know that's the case.
+But I have been using various sites like Facebook for years.
+And I know what happens.
+You know, I'm running on Facebook and I do some stuff on Facebook.
+And then I shut down my web browser.
+Next day, I start up my web browser.
+I go to Facebook.
+And I don't have to log in again.
+I don't have to provide my password.
+It just knows who I am.
+How'd that happen?
+Well, obviously, you need to have authenticated yourself to Facebook or they wouldn't be showing you private information.
+You certainly hope.
+Now, when you started up your web browser again the next day, yeah, you create another socket.
+You did another TLS communication where you shared a symmetric key.
+You got authentication information that, yeah, that really is Facebook over there.
+But you didn't provide a password.
+How did they authenticate you?
+Cookies.
+They used cookies.
+What's a cookie?
+Well, cookies are used for a lot of different purposes in the World Wide Web.
+But they're used for authentication in many cases in particular.
+So let's say that at some point you were communicating to Amazon.
+They asked for your password.
+You provided your password.
+They said, aha, that is indeed Bill Jones.
+Bill Jones provided the right password.
+We are now communicating across this TLS socket with Bill Jones.
+In addition to having that information and having the shared cryptographic key used for this TLS socket, Amazon will create a encrypted piece of data.
+They'll use different cryptography than what we're talking about so far.
+They're not encrypting this with your symmetric key.
+This is something that they are encrypting with their public key probably.
+They might do it with a symmetric key that they've set up specifically for this purpose.
+That's a matter of design.
+They'll send you the cookie.
+Okay.
+Now what happens with a cookie in the World Wide Web is if you receive a cookie from a particular site like Amazon, the next time that you send a message to Amazon, you attach the cookie.
+That goes to.
+So your message, whatever you wanted to do, goes to Amazon and along with it goes the cookie.
+So they can then check the cookie as it comes in and say, oh, look, this is Bill Jones.
+We have a cookie here saying this is Bill Jones.
+So now we can know that this is Bill Jones.
+Now if the cookie persists after your browser has shut down and you start up again and you go to Amazon, the cookie gets sent along the very first time you communicate to Amazon.
+And now they know you're Bill Jones because you still have the cookie saying you're Bill Jones.
+So the cookie can be used to authenticate you.
+And this is what we actually do in a lot of internet communication.
+Okay.
+So moving on from authentication and integrity issues, let's talk about those filtering technologies that I mentioned earlier in today's class.
+Cryptography is really wonderful.
+And we solve a lot of security problems using cryptography.
+But it doesn't solve all our problems, just some of them.
+So what if I don't want to receive a message at all?
+There are people out there who I know are bad guys.
+I don't want their messages.
+I may even know who they are.
+Maybe I don't know who they are, but I know who the good guys are.
+I know who my partners are, the people I want to communicate with.
+And I probably don't want to hear from the other people because they're not part of my distributed system anyway.
+I don't want their messages.
+Can't be good.
+So what do I do about that?
+Well, the internet, as I said, really loves to deliver messages.
+That's what it's built for.
+That's what it's designed for.
+It is intended to deliver every single packet to make the best effort it can to deliver every packet it can.
+And it will.
+So if a bad guy or just somebody you don't want to hear from injects a message into the internet and says, send it to you, it's probably going to get to you.
+You don't want it.
+What do you do?
+Well, you filter.
+Now, typically, what's really going on here in terms of your communication across the network is that you are on a local area network.
+You are on some network that is perhaps attached to your home or attached to an office environment that you work in or something like that or to, you know, a computer lab at your college.
+Something along those lines.
+You're sitting in that local area network.
+Now, that gets you to across the network to other local machines.
+You know, a wireless network in a coffee shop allows people in the coffee shop to communicate directly with each other if that's what they want to do.
+Most commonly, that's not what they want to do.
+They don't want to talk to the stranger who's sitting three seats down in the coffee shop having a latte.
+They want to communicate to their friend who is in another city, for example, using the internet.
+They're only using the local area network to get to the internet.
+So, this is very commonly what we are doing with our local area networks.
+And in order for this to happen, of course, the local area network has to have the ability to send and receive messages from the internet.
+So, it connects to the internet.
+We connect to the local area network.
+It connects to the internet.
+This allows us to connect to the internet and to connect to everything in the outside world.
+Great.
+Now, most of the filtering that we want to do in most cases involves things that are coming from outside our own local area network into our local area network.
+They are out there in the big outside internet.
+We are here on our local area network.
+We are in our company's offices.
+We are in our computer lab at the college or whatever it may be.
+So, if we are able to, at the point that our local area network connects up to the internet, examine messages that are coming in and say, let's deliver this one or let's not deliver this one.
+This one's not.
+This one's good.
+That one's bad.
+Then, we can have more control over what gets delivered to our machines that are within the local area network.
+So, the internet won't do this for you.
+You cannot ask the internet to say, don't send me messages from the following source.
+It won't do it.
+There's no way to do that.
+But, how can we do that then?
+Well, your LAN typically will connect up to the internet at one point.
+There will be one machine that connects to the internet.
+Then, it gets spread out throughout the LAN.
+Depending, you may have two points for redundancy or to split the load or whatever.
+Maybe even three.
+It depends on how you architect things.
+But, it's a limited number.
+There aren't very many places where a local area network is able to send messages to the internet and receive messages from the internet.
+Just a few.
+So, that gives you choke points.
+That gives you points where you can filter.
+So, if you're going to go through your local area network.
+So, if all your messages go through some capability, some ability, some piece of equipment that is able to do this filtering, then you will be able to have control over what messages get delivered directly to your computer.
+You can drop the message.
+piece of equipment used for this purpose is called a firewall. You've probably heard of firewalls.
+In the computer context, this is what a firewall is. A firewall is frequently an actual machine.
+It's a piece of equipment. It's hardware. Hardware that serves a particular purpose. And often it's hardware that is built specifically to service that purpose. So you buy it from somebody like Barracuda or one of these other manufacturers who build firewalls and sell them to customers.
+And what it is, is it's a machine that sits in between your local area network and the internet.
+Everything coming into your network from the internet goes through the firewall first.
+Then it goes to your local area network. Same thing typically happens on the way out.
+And something is happening at that firewall. What's happening at that firewall is it's doing filtering.
+So what do you really do? Every packet that comes into a firewall will be examined by software or hardware built into the firewall. The firewall will have a set of rules saying these are good packets, these are bad packets. And based on those rules, for each incoming packet, it will either say this is a good packet, I will deliver it to the machine on the local area network, I'll just pass it through the local area network and it'll get delivered. Or alternately, this is a bad packet. We're not going to deliver that. Typically, we're going to drop it. Now, how do they make this decision? This depends a lot on particular. The type of firewall, the type of packet, conditions of what's happening in the network.
+It can be simple choices like, you know, anything from this IP address, drop it. They can be complicated choices like, you know, maintain information about the ongoing communications between these sites and if things look like they are properly set up, allow. If they don't look proper, drop. There's all kinds of things you could do. But you either drop the packet or you let it through. Now, sometimes you also log with the decision and maybe if you're trying to keep a lot of information about what's happening in your network, what kind of attacks are coming in, you might save packets. But that's pretty much all you do. The fundamental thing is let the packet through or drop the packet and do that on every single packet coming through. So typically, graphically speaking, here's what's happening. You have your local area network over here on the left, the internet connecting up to the rest of the world over on the right. And messages come from somewhere out there in the internet and they get delivered to your local area network. If you don't have a firewall, they get delivered. And what happens? Well, maybe good things happen, but maybe on the other hand, terrible things happen to your computer. You don't want terrible things happen to your computer. So what do you do? You buy a firewall. You configure the firewall, set it up properly. What's going to happen then? Same kind of message comes in from somewhere out there on the internet. Bad message. And your firewall recognizes this as a bad message. So what does it do? It doesn't allow it to be delivered. It drops the message. Basically, what's going on. Firewalls are a form of what is called a perimeter defense. A perimeter defense is where you say, I've got something, a big stone wall in my castle. And in order to get into my castle, you have to get through the big stone wall. If you can't get through the big stone wall, then I'm safe because you can't get into my castle. That's an old fashioned version of perimeter defense. Firewalls are a modern version of perimeter defense. If you can't get through my firewall, your packets can't get into my digital castle. All right. Sometimes we call a firewall machine, a bastion host. Perimeter defense is based on the assumption that if you defend the outside strongly, then there won't be any problems on the inside. So you control the entry and the exit points. And the presumption is, well, nothing bad can happen. Unfortunately, this is historically speaking not true. This is historically speaking in the sense that the Great Wall of China did not prevent various invading armies from invading China. That was a perimeter defense. It was a very big, very expensive perimeter defense. But it didn't stop the Mongols and the Manchus from getting into China.
+So, and this is the case, of course, also for firewalls in our modern systems. Sometimes something gets through the firewall one way or another. And once it's through the firewall, if that's all you got, if the firewall was the only thing protecting you, you got a problem. Now you can, of course, ensure that nothing bad gets through the firewall. The way you ensure that nothing bad gets through the firewall is you don't let anything through the firewall, which isn't very useful either. It's very, very hard to come up with a set of rules to use in your firewall that will always and invariably drop all the bad packets and never, ever drop a good packet. That's hard to do. So, generally speaking, we have to assume that our firewalls, while extremely useful for many purposes, are not perfect. They are not going to solve all of our security problems. Now, one thing that we tend to do in modern networks is, in many environments, like you're in a big company, you're working for Microsoft. Microsoft has, even within one of its corporate locations, hundreds, thousands of employees sitting at thousands of computers, plus all kinds of servers and all kinds of other specialized machines that are in perhaps one immense office building or a set of office buildings on a campus. They don't have one little local area network. There's not one Wi-Fi network servicing all those people. They have multiple networks. By the nature of these networks, local area networks can typically only run for a fairly limited distance, a few hundred yards, perhaps. And they can support a limited number of machines. They have a limited amount of bandwidth on the network and so on. So, if you have a lot of people, you're going to have a much more complex networking environment, not a simple local area network. This network connects to that network, connects to these other networks, etc. And further, you probably want to have functional divisions as well. So Microsoft, for example, might like to have a web server, which they are using to give all kinds of useful information to their customers. And they want all their customers, including people who are prospective customers who have not yet bought a Microsoft product, to be able to visit these websites and get information about what Microsoft has to offer. So that's going to be something that they're going to have on their sites that's going to be pretty widely available to everyone. And on the other hand, they also somewhere have a group of developers who are building the next generation of Windows, the next release of Windows.
+That's pretty critical stuff. They very, very badly do not want the people who are building the next generation of Windows to have their machines hacked because somebody got in through a very permissive setting that allowed people to look at the web server. One way of doing this is to divide up your network in an enterprise, a campus like UCLA or a big company like Microsoft, Microsoft into sub pieces, smaller pieces. The smaller pieces connect up because, of course, you need to have the people who are working on your new version of Windows be able to look at the website as well to tell this is what we used to do. Are we doing the same thing? Are we going to have to change our websites and so forth? So there's going to be connectivity between these pieces of the local area network. But you want to be sure that what is allowed in the more public areas of the network does not leak through because of overly permissive settings into the more carefully protected version portions of the network. So the way we typically do that is we have more than one firewall. We have a firewall that's going to protect our web servers from utter trash that is obviously terrible and we definitely don't want. And but most stuff is going to get through there, including some stuff that might turn out not to be so good. But then when we are saying and will we allow those messages that have gotten through that firewall to our web server to then move on and get to the development machines that are being run by our top programmers? Well, probably you want to run those messages through a second firewall.
+That second firewall is going to be a lot more careful about what it allows. So this is a what's typically called building a network architecture. And this is an important art in the area of networking and computer and network security. It's very important to get this right when you are working with important complex networking environments.
+Now, one thing that people looked at in the past decade or so is to say, well, you know, maybe having even multiple firewalls really is not sufficient.
+Maybe what we want to do is say in our distributed system, we want to make sure that whenever we in our particular machine get a message that is going to cause us to do something came from the outside, coming to our machine on the inside, it's going to make us do something if we accept that message.
+Maybe we want to make sure every single time we get one of those messages that it's okay. So maybe what we want to do is say, you know, just because this came from one of our partner machines, we're not going to trust it necessarily.
+What we will do instead is examine that message as it comes into our machine, make a decision based on whether we do or do not think that this is a good thing to do, secure, acceptable.
+And if it isn't, we won't do it.
+Even though it came from a machine that we trusted, even though we've authenticated that this is from a user who we normally have relationships with, we aren't going to just do things because a machine that's on the inside of our distributed system said, please do this for me.
+This typically means we're going to perform higher degrees of authentication and authorization on everything that comes in remotely.
+Now, obviously, this is going to be more expensive.
+We're going to spend more time doing checking of whether something is okay or not than we did in another kind of architecture.
+But it definitely is more secure.
+So these kinds of architectures have been proposed as being superior security solutions to merely saying we'll put a few firewalls in place.
+Okay, now there is a lot more we could say about distributed system security, but we are running out of time.
+So we'll conclude.
+In conclusion, we have some serious security challenges in our distributed system, many of which are based on the fact that we have essentially no control over what happens on remote machines.
+We can control what happens on our very own machine with our very own operating system, but we cannot control what happens on other machines.
+We can ask them to do things.
+We can hope they do things.
+We may even be able to tell that they say they did this, but we can't necessarily force them to do things or even be sure that they did something that they said they were going to do.
+So this makes trust issues a lot more complex than in a single machine system.
+In a single machine system, your operating system can always check on things if it wants to do so.
+In particular, we're probably going to have to make use of trust based on identity.
+There are people out there in the other components of our distributed system who have particular identities.
+We are going to need to know who are we talking with.
+Are we talking with Bill or are we talking with Joan?
+We'll do things for Joan we wouldn't do for Bill.
+We'll do things for Bill we wouldn't do for Joan.
+Who are we talking with?
+And we need to have high confidence that we are talking with who we think we're talking with.
+And we also have to have high confidence that the untrustworthy network in between the sender and receiver has not caused us problems of this kind.
+So we'll use cryptography for that purpose.
+We also, of course, need to provide privacy and integrity.
+We need to make sure that eavesdroppers can't listen in on what's happening in our system and learn all our secrets.
+We need to make sure that people who are in the middle of the network and can perhaps alter the content of messages cannot cause us to do things that our legitimate partners didn't actually want done.
+We'll use cryptography for those purposes typically as well.
+Some problems can't be solved by cryptography, including things like vast volumes of junk packets coming into your network.
+We will use filtering technologies to try to prevent as many bad packets from being delivered to our machines in our distributed system as we possibly can.
+Firewalls are the most common way of doing that.
+They will reduce our load.
+They will reduce our risk.
+The final lecture, which will be later this week, will cover accessing remote data and how we go about doing that in an efficient, correct way in a distributed system.
+Thank you.
